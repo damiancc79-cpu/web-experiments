@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LuminaOS — a desktop in your browser</title>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  LuminaOS — a single-file web desktop environment                      ║
+  ║  Pure HTML + CSS + JavaScript. No build step, no network, no libraries.║
+  ║  Open this file directly in Safari (File ▸ Open File…) and it runs.    ║
+  ║                                                                        ║
+  ║  FEATURES                                                              ║
+  ║   • 7 applications (requirement: at least 5)                           ║
+  ║   • 2 functional 3D games:                                             ║
+  ║        1. Maze Explorer 3D — a real raycasting first-person engine     ║
+  ║           (Canvas 2D, DDA wall casting + billboard sprites + z-buffer) ║
+  ║        2. Cube Runner 3D — a true WebGL endless runner with a          ║
+  ║           perspective camera, lit 3D cube meshes and matrix math       ║
+  ║   • Live, changeable wallpapers (animated + gradient) — Settings app   ║
+  ║   • THE SPECIAL FEATURE → "Nova" Command Palette (press ⌘K / Ctrl-K).  ║
+  ║     Documented at the bottom of this file and inside the OS (About).   ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<style>
+/* ───────────────────────── Design tokens ───────────────────────── */
+:root{
+  --font-display:"Futura","Avenir Next",-apple-system,sans-serif;
+  --font-body:"Avenir Next","Helvetica Neue",-apple-system,sans-serif;
+  --font-mono:"Menlo","Monaco",monospace;
+  --accent:#39e6c8;
+  --accent-2:#7b8cff;
+  --radius:16px;
+  --shadow:0 24px 60px -12px rgba(0,0,0,.65), 0 2px 8px rgba(0,0,0,.4);
+}
+:root[data-theme="dark"]{
+  --bg-fallback:#0b0e17;
+  --panel:rgba(20,24,38,.62);
+  --panel-solid:#141826;
+  --panel-bright:rgba(38,44,66,.85);
+  --text:#eef1fb;
+  --text-dim:#9aa3c0;
+  --border:rgba(255,255,255,.10);
+  --hair:rgba(255,255,255,.06);
+}
+:root[data-theme="light"]{
+  --bg-fallback:#dfe6f3;
+  --panel:rgba(255,255,255,.66);
+  --panel-solid:#f4f6fc;
+  --panel-bright:rgba(255,255,255,.92);
+  --text:#10131f;
+  --text-dim:#5a647e;
+  --border:rgba(10,15,30,.12);
+  --hair:rgba(10,15,30,.07);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{
+  font-family:var(--font-body);
+  color:var(--text);
+  background:var(--bg-fallback);
+  user-select:none;
+  position:relative;
+}
+
+/* ───────────────────────── Wallpaper layer ───────────────────────── */
+#bgGradient{position:fixed;inset:0;z-index:0;transition:background .8s ease;}
+#bgCanvas{position:fixed;inset:0;z-index:0;display:none;}
+#grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");}
+
+/* ───────────────────────── Menu bar ───────────────────────── */
+#menubar{position:fixed;top:0;left:0;right:0;height:34px;z-index:9000;
+  display:flex;align-items:center;gap:6px;padding:0 12px;
+  background:var(--panel);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+  border-bottom:1px solid var(--hair);font-size:13px;}
+#menubar .brand{font-family:var(--font-display);font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;font-size:12px;color:var(--text);}
+#menubar .brand b{color:var(--accent);}
+.mb-btn{padding:3px 9px;border-radius:8px;cursor:pointer;color:var(--text-dim);transition:.15s;}
+.mb-btn:hover{background:var(--hair);color:var(--text);}
+.mb-spacer{flex:1;}
+#clock{font-variant-numeric:tabular-nums;color:var(--text);letter-spacing:.02em;}
+.mb-pill{display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;background:var(--hair);
+  cursor:pointer;color:var(--text-dim);transition:.15s;}
+.mb-pill:hover{color:var(--text);background:var(--border);}
+.mb-pill kbd{font-family:var(--font-mono);font-size:10px;background:rgba(255,255,255,.12);
+  padding:1px 5px;border-radius:5px;}
+
+/* ───────────────────────── Desktop icons ───────────────────────── */
+#desktop{position:fixed;inset:34px 0 0 0;z-index:5;}
+#icons{position:absolute;top:18px;left:18px;display:flex;flex-direction:column;flex-wrap:wrap;
+  gap:6px;height:calc(100% - 120px);align-content:flex-start;}
+.desk-icon{width:88px;padding:10px 6px;border-radius:12px;text-align:center;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:6px;transition:.15s;color:#fff;}
+.desk-icon:hover{background:rgba(255,255,255,.10);}
+.desk-icon .glyph{font-size:34px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5));line-height:1;}
+.desk-icon span{font-size:11.5px;text-shadow:0 1px 4px rgba(0,0,0,.7);line-height:1.2;}
+
+/* ───────────────────────── Windows ───────────────────────── */
+.window{position:absolute;min-width:280px;min-height:180px;display:flex;flex-direction:column;
+  background:var(--panel);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);
+  border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;
+  animation:winIn .26s cubic-bezier(.2,.9,.3,1.2);}
+@keyframes winIn{from{opacity:0;transform:scale(.94) translateY(10px);}to{opacity:1;transform:none;}}
+.window.minimizing{animation:winOut .22s ease forwards;}
+@keyframes winOut{to{opacity:0;transform:scale(.6) translateY(120px);}}
+.window.focused{box-shadow:0 30px 80px -10px rgba(0,0,0,.75),0 0 0 1px var(--accent);}
+.titlebar{height:38px;flex:0 0 38px;display:flex;align-items:center;gap:8px;padding:0 12px;cursor:grab;
+  background:linear-gradient(180deg,var(--panel-bright),transparent);border-bottom:1px solid var(--hair);}
+.titlebar.drag{cursor:grabbing;}
+.traffic{display:flex;gap:8px;}
+.dot{width:13px;height:13px;border-radius:50%;cursor:pointer;border:none;position:relative;transition:.15s;}
+.dot.c{background:#ff5f57;}.dot.m{background:#febc2e;}.dot.x{background:#28c840;}
+.dot:hover{filter:brightness(1.15);}
+.win-title{flex:1;text-align:center;font-family:var(--font-display);font-size:13px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.win-icon{font-size:15px;}
+.win-body{flex:1;overflow:auto;position:relative;background:transparent;}
+.resizer{position:absolute;width:16px;height:16px;right:0;bottom:0;cursor:nwse-resize;z-index:2;}
+
+/* ───────────────────────── Dock ───────────────────────── */
+#dock{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:8000;
+  display:flex;align-items:flex-end;gap:8px;padding:8px 12px;border-radius:22px;
+  background:var(--panel);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);
+  border:1px solid var(--border);box-shadow:var(--shadow);}
+.dock-app{position:relative;width:50px;height:50px;border-radius:14px;display:grid;place-items:center;
+  font-size:30px;cursor:pointer;transition:transform .18s cubic-bezier(.2,.9,.3,1.4);}
+.dock-app:hover{transform:translateY(-12px) scale(1.18);}
+.dock-app .run-dot{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
+  width:4px;height:4px;border-radius:50%;background:var(--accent);opacity:0;}
+.dock-app.running .run-dot{opacity:1;}
+.dock-app .tip{position:absolute;bottom:62px;left:50%;transform:translateX(-50%) scale(.8);
+  background:var(--panel-solid);color:var(--text);padding:4px 10px;border-radius:8px;font-size:11px;
+  white-space:nowrap;opacity:0;pointer-events:none;transition:.15s;border:1px solid var(--border);
+  font-family:var(--font-display);letter-spacing:.05em;}
+.dock-app:hover .tip{opacity:1;transform:translateX(-50%) scale(1);}
+.dock-sep{width:1px;height:40px;background:var(--border);margin:0 2px;align-self:center;}
+
+/* ───────────────────────── Command Palette (★ special feature) ──────── */
+#palette-bg{position:fixed;inset:0;z-index:10000;background:rgba(5,7,14,.45);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:flex-start;
+  justify-content:center;padding-top:14vh;}
+#palette-bg.open{display:flex;animation:fade .15s ease;}
+@keyframes fade{from{opacity:0;}to{opacity:1;}}
+#palette{width:min(620px,92vw);background:var(--panel-bright);border:1px solid var(--border);
+  border-radius:18px;box-shadow:0 40px 100px -20px rgba(0,0,0,.8);overflow:hidden;
+  backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);
+  animation:winIn .2s cubic-bezier(.2,.9,.3,1.2);}
+#palette .pq{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hair);}
+#palette .pq .nova{font-family:var(--font-display);font-weight:700;color:var(--accent);letter-spacing:.12em;font-size:14px;}
+#palette input{flex:1;background:none;border:none;outline:none;color:var(--text);font-size:20px;
+  font-family:var(--font-body);}
+#palette input::placeholder{color:var(--text-dim);}
+#pal-results{max-height:48vh;overflow:auto;padding:8px;}
+.pal-item{display:flex;align-items:center;gap:14px;padding:11px 14px;border-radius:11px;cursor:pointer;}
+.pal-item .g{font-size:22px;width:28px;text-align:center;}
+.pal-item .t{flex:1;}
+.pal-item .t b{display:block;font-size:15px;}
+.pal-item .t small{color:var(--text-dim);font-size:12px;}
+.pal-item .tag{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);
+  border:1px solid var(--border);padding:2px 7px;border-radius:6px;}
+.pal-item.sel{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 28%,transparent),transparent);}
+.pal-item.sel .tag{border-color:var(--accent);color:var(--accent);}
+.pal-empty{padding:30px;text-align:center;color:var(--text-dim);}
+
+/* ───────────────────────── Generic app UI ───────────────────────── */
+.app{padding:18px;height:100%;color:var(--text);font-size:14px;}
+.app h2{font-family:var(--font-display);letter-spacing:.06em;text-transform:uppercase;font-size:15px;margin-bottom:12px;color:var(--text-dim);}
+.btn{font-family:var(--font-body);font-size:13px;padding:8px 14px;border-radius:10px;cursor:pointer;
+  border:1px solid var(--border);background:var(--hair);color:var(--text);transition:.15s;}
+.btn:hover{background:var(--border);}
+.btn.accent{background:var(--accent);color:#04201b;border-color:transparent;font-weight:600;}
+.gamewrap{height:100%;width:100%;position:relative;background:#05060c;}
+.gamewrap canvas{width:100%;height:100%;display:block;image-rendering:auto;}
+.hud{position:absolute;left:12px;top:12px;font-family:var(--font-mono);font-size:12px;color:#fff;
+  text-shadow:0 1px 4px #000;pointer-events:none;line-height:1.5;}
+.hud .k{color:var(--accent);}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;background:rgba(4,6,14,.72);backdrop-filter:blur(4px);color:#fff;text-align:center;padding:24px;}
+.overlay h3{font-family:var(--font-display);font-size:26px;letter-spacing:.08em;text-transform:uppercase;}
+.overlay p{color:#c7cce0;max-width:340px;line-height:1.5;font-size:13px;}
+.overlay.hidden{display:none;}
+
+/* Scrollbars */
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;border:2px solid transparent;background-clip:padding-box;}
+::-webkit-scrollbar-thumb:hover{background:var(--text-dim);}
+
+/* ───────────────────────── Boot splash ───────────────────────── */
+#boot{position:fixed;inset:0;z-index:99999;background:#05060c;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:22px;transition:opacity .6s ease;}
+#boot .logo{font-family:var(--font-display);font-size:46px;letter-spacing:.3em;color:#fff;text-transform:uppercase;}
+#boot .logo b{color:var(--accent);}
+#boot .bar{width:220px;height:3px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;}
+#boot .bar i{display:block;height:100%;width:0;background:var(--accent);animation:boot 1.4s ease forwards;}
+@keyframes boot{to{width:100%;}}
+#boot small{color:#6b7390;letter-spacing:.2em;text-transform:uppercase;font-size:11px;}
+
+/* Settings specifics */
+.wp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-bottom:20px;}
+.wp{height:74px;border-radius:12px;cursor:pointer;position:relative;border:2px solid transparent;overflow:hidden;
+  display:flex;align-items:flex-end;padding:8px;font-size:11px;color:#fff;text-shadow:0 1px 3px #000;}
+.wp.sel{border-color:var(--accent);}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.swatch{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid var(--border);}
+.swatch.sel{border-color:#fff;box-shadow:0 0 0 2px var(--accent);}
+.muted{color:var(--text-dim);font-size:12.5px;line-height:1.6;}
+
+/* Calculator */
+.calc{display:flex;flex-direction:column;height:100%;}
+.calc .disp{flex:0 0 auto;text-align:right;padding:18px;font-family:var(--font-display);font-size:38px;
+  overflow:hidden;text-overflow:ellipsis;min-height:74px;}
+.calc .disp small{display:block;font-size:14px;color:var(--text-dim);min-height:18px;font-family:var(--font-mono);}
+.calc .pad{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px;}
+.calc .pad button{border:none;border-radius:12px;font-size:20px;cursor:pointer;background:var(--hair);
+  color:var(--text);transition:.1s;font-family:var(--font-body);}
+.calc .pad button:hover{background:var(--border);}
+.calc .pad button.op{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent);}
+.calc .pad button.eq{background:var(--accent);color:#04201b;font-weight:700;}
+.calc .pad button.fn{color:var(--text-dim);}
+
+/* Notes */
+.notes{display:flex;height:100%;}
+.notes .side{width:170px;border-right:1px solid var(--hair);overflow:auto;flex:0 0 170px;}
+.notes .side .new{margin:10px;width:calc(100% - 20px);}
+.note-item{padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--hair);font-size:13px;}
+.note-item:hover{background:var(--hair);}
+.note-item.sel{background:color-mix(in srgb,var(--accent) 16%,transparent);}
+.note-item small{display:block;color:var(--text-dim);font-size:11px;margin-top:2px;}
+.notes .edit{flex:1;display:flex;flex-direction:column;}
+.notes textarea{flex:1;border:none;outline:none;resize:none;background:none;color:var(--text);
+  padding:18px;font-size:15px;line-height:1.6;font-family:var(--font-body);}
+
+/* Terminal */
+.term{height:100%;background:rgba(4,7,14,.55);font-family:var(--font-mono);font-size:13px;
+  padding:14px;overflow:auto;color:#d6f7ef;line-height:1.55;}
+.term .line{white-space:pre-wrap;word-break:break-word;}
+.term .pl{color:var(--accent);}
+.term .err{color:#ff7a7a;}
+.term .in{display:flex;align-items:center;}
+.term .in span{color:var(--accent);margin-right:8px;}
+.term .in input{flex:1;background:none;border:none;outline:none;color:#d6f7ef;font-family:var(--font-mono);font-size:13px;}
+
+/* Paint */
+.paint{display:flex;flex-direction:column;height:100%;}
+.paint .tools{display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid var(--hair);flex-wrap:wrap;}
+.paint .tools input[type=color]{width:34px;height:30px;border:none;background:none;cursor:pointer;}
+.paint .tools input[type=range]{width:110px;accent-color:var(--accent);}
+.paint canvas{flex:1;background:#fff;cursor:crosshair;touch-action:none;}
+
+a.link{color:var(--accent);text-decoration:none;}
+kbd{font-family:var(--font-mono);background:var(--hair);border:1px solid var(--border);
+  border-radius:6px;padding:1px 6px;font-size:12px;}
+</style>
+</head>
+<body>
+
+<div id="bgGradient"></div>
+<canvas id="bgCanvas"></canvas>
+<div id="grain"></div>
+
+<!-- Menu bar -->
+<div id="menubar">
+  <div class="brand">Lumina<b>OS</b></div>
+  <div class="mb-btn" id="mb-launch">Apps</div>
+  <div class="mb-btn" data-open="settings">Settings</div>
+  <div class="mb-btn" data-open="about">About</div>
+  <div class="mb-spacer"></div>
+  <div class="mb-pill" id="mb-nova">✦ Nova <kbd id="kbdhint">⌘K</kbd></div>
+  <div id="clock"></div>
+</div>
+
+<!-- Desktop -->
+<div id="desktop">
+  <div id="icons"></div>
+</div>
+
+<!-- Dock -->
+<div id="dock"></div>
+
+<!-- Command palette -->
+<div id="palette-bg">
+  <div id="palette">
+    <div class="pq"><span class="nova">✦ NOVA</span>
+      <input id="pal-input" placeholder="Search apps, change wallpaper, do math…  (try: =17*23  or  wallpaper)" autocomplete="off" spellcheck="false">
+    </div>
+    <div id="pal-results"></div>
+  </div>
+</div>
+
+<!-- Boot -->
+<div id="boot">
+  <div class="logo">Lumina<b>OS</b></div>
+  <div class="bar"><i></i></div>
+  <small>booting desktop environment</small>
+</div>
+
+<script>
+"use strict";
+/* ════════════════════════════════════════════════════════════════════════
+   0. Tiny persistence layer (file:// safe — falls back to memory)
+   ════════════════════════════════════════════════════════════════════════ */
+const Store = (()=>{
+  let ok=true; const mem={};
+  try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); }catch(e){ ok=false; }
+  return {
+    get(k,d){ try{ const v= ok?localStorage.getItem(k):mem[k]; return v==null?d:JSON.parse(v);}catch(e){return d;} },
+    set(k,v){ try{ const s=JSON.stringify(v); if(ok)localStorage.setItem(k,s); else mem[k]=s; }catch(e){} }
+  };
+})();
+
+/* ════════════════════════════════════════════════════════════════════════
+   1. Theme + accent
+   ════════════════════════════════════════════════════════════════════════ */
+function setTheme(t){ document.documentElement.setAttribute("data-theme",t); Store.set("lumina:theme",t); }
+function setAccent(c){ document.documentElement.style.setProperty("--accent",c); Store.set("lumina:accent",c); }
+setTheme(Store.get("lumina:theme","dark"));
+setAccent(Store.get("lumina:accent","#39e6c8"));
+
+/* platform-correct command-palette hint */
+const IS_MAC=/Mac|iP/.test(navigator.platform);
+document.getElementById("kbdhint").textContent = IS_MAC?"⌘K":"Ctrl K";
+
+/* ════════════════════════════════════════════════════════════════════════
+   2. Wallpaper engine — gradient + live animated backgrounds
+   ════════════════════════════════════════════════════════════════════════ */
+const WALLPAPERS = [
+  {id:"aurora",   name:"Aurora",        type:"live", css:"linear-gradient(160deg,#0b0e17,#101a2e)"},
+  {id:"starfield",name:"Deep Field",    type:"live", css:"radial-gradient(circle at 50% 30%,#101830,#04060c)"},
+  {id:"plasma",   name:"Neon Web",      type:"live", css:"linear-gradient(160deg,#0a0712,#160a24)"},
+  {id:"dusk",     name:"Dusk",          type:"css",  css:"linear-gradient(160deg,#ff6b6b 0%,#cc5a8e 38%,#5b3a8e 72%,#1f2452 100%)"},
+  {id:"mint",     name:"Mint Glass",    type:"css",  css:"linear-gradient(150deg,#0fd3a3 0%,#1b6fb8 60%,#13245e 100%)"},
+  {id:"ember",    name:"Ember",         type:"css",  css:"linear-gradient(160deg,#2b1006,#7a1f1f 45%,#e0852a 100%)"},
+  {id:"mono",     name:"Slate",         type:"css",  css:"linear-gradient(160deg,#1a1d27,#2a2f3e 60%,#0d0f15 100%)"},
+  {id:"sky",      name:"Daybreak",      type:"css",  css:"linear-gradient(160deg,#a8d8ff,#dab6ff 55%,#ffd6a8 100%)"},
+];
+const bgGradient=document.getElementById("bgGradient");
+const bgCanvas=document.getElementById("bgCanvas");
+const bgctx=bgCanvas.getContext("2d");
+let wpRAF=null, wpId=null, wpStars=[], wpNodes=[];
+
+function sizeBG(){ bgCanvas.width=innerWidth; bgCanvas.height=innerHeight; }
+addEventListener("resize",sizeBG); sizeBG();
+
+function setWallpaper(id){
+  const wp=WALLPAPERS.find(w=>w.id===id)||WALLPAPERS[0];
+  wpId=wp.id; Store.set("lumina:wp",wp.id);
+  bgGradient.style.background=wp.css;
+  if(wpRAF){cancelAnimationFrame(wpRAF);wpRAF=null;}
+  if(wp.type==="live"){
+    bgCanvas.style.display="block";
+    if(wp.id==="starfield"){ wpStars=Array.from({length:260},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,z:Math.random(),})); }
+    if(wp.id==="plasma"){ wpNodes=Array.from({length:46},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4})); }
+    drawWP(0);
+  } else { bgCanvas.style.display="none"; }
+  // keep settings swatches in sync if open
+  document.querySelectorAll(".wp").forEach(e=>e.classList.toggle("sel",e.dataset.wp===wp.id));
+}
+function accentRGB(){ const c=getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+  const m=c.match(/\w\w/g); return m?m.map(h=>parseInt(h,16)):[57,230,200]; }
+
+function drawWP(t){
+  const w=bgCanvas.width,h=bgCanvas.height; bgctx.clearRect(0,0,w,h);
+  if(wpId==="aurora"){
+    bgctx.fillStyle="#070a13"; bgctx.fillRect(0,0,w,h);
+    const [r,g,b]=accentRGB();
+    for(let i=0;i<5;i++){
+      const yo=h*0.5 + Math.sin(t/2600+i)*h*0.18;
+      const grd=bgctx.createLinearGradient(0,yo-160,0,yo+160);
+      const a=0.16-i*0.02;
+      grd.addColorStop(0,`rgba(${r},${g},${b},0)`);
+      grd.addColorStop(.5,`rgba(${r-i*20},${g},${b+i*10},${a})`);
+      grd.addColorStop(1,`rgba(123,140,255,0)`);
+      bgctx.fillStyle=grd;
+      bgctx.beginPath(); bgctx.moveTo(0,h);
+      for(let x=0;x<=w;x+=24){ const y=yo+Math.sin(x/220+t/1400+i*1.7)*70+Math.cos(x/90-t/2000)*22; bgctx.lineTo(x,y); }
+      bgctx.lineTo(w,h); bgctx.closePath(); bgctx.fill();
+    }
+  } else if(wpId==="starfield"){
+    bgctx.fillStyle="#04060c"; bgctx.fillRect(0,0,w,h);
+    for(const s of wpStars){
+      s.y+=(0.2+s.z*0.9); if(s.y>h){s.y=0;s.x=Math.random()*w;}
+      const sz=s.z*1.8+0.3; bgctx.globalAlpha=0.3+s.z*0.7;
+      bgctx.fillStyle="#cfe6ff"; bgctx.fillRect(s.x,s.y,sz,sz);
+    }
+    bgctx.globalAlpha=1;
+  } else if(wpId==="plasma"){
+    bgctx.fillStyle="#0a0712"; bgctx.fillRect(0,0,w,h);
+    const [r,g,b]=accentRGB();
+    for(const n of wpNodes){ n.x+=n.vx;n.y+=n.vy;
+      if(n.x<0||n.x>w)n.vx*=-1; if(n.y<0||n.y>h)n.vy*=-1; }
+    for(let i=0;i<wpNodes.length;i++)for(let j=i+1;j<wpNodes.length;j++){
+      const a=wpNodes[i],c=wpNodes[j],dx=a.x-c.x,dy=a.y-c.y,d=Math.hypot(dx,dy);
+      if(d<150){ bgctx.strokeStyle=`rgba(${r},${g},${b},${(1-d/150)*0.35})`; bgctx.lineWidth=1;
+        bgctx.beginPath();bgctx.moveTo(a.x,a.y);bgctx.lineTo(c.x,c.y);bgctx.stroke(); } }
+    bgctx.fillStyle=`rgb(${r},${g},${b})`;
+    for(const n of wpNodes){ bgctx.beginPath();bgctx.arc(n.x,n.y,2.2,0,7);bgctx.fill(); }
+  }
+  wpRAF=requestAnimationFrame(drawWP);
+}
+setWallpaper(Store.get("lumina:wp","aurora"));
+
+/* ════════════════════════════════════════════════════════════════════════
+   3. Window manager
+   ════════════════════════════════════════════════════════════════════════ */
+const desktop=document.getElementById("desktop");
+const openWindows=new Map();   // appId -> {el, app, cleanup}
+let zTop=10, focusedWin=null, winOffset=0;
+
+function focusWindow(el){
+  if(focusedWin===el) return;
+  if(focusedWin) focusedWin.classList.remove("focused");
+  focusedWin=el; el.classList.add("focused"); el.style.zIndex=++zTop;
+}
+
+function createWindow(app){
+  const el=document.createElement("div"); el.className="window"; el.style.zIndex=++zTop;
+  const w=app.width||520, h=app.height||400;
+  const ox=(innerWidth-w)/2 + (winOffset%5)*26 - 52;
+  const oy=(innerHeight-h)/2 + (winOffset%5)*22 - 60;
+  winOffset++;
+  el.style.left=Math.max(10,ox)+"px"; el.style.top=Math.max(40,oy)+"px";
+  el.style.width=w+"px"; el.style.height=h+"px";
+  el.innerHTML=`
+    <div class="titlebar">
+      <div class="traffic">
+        <button class="dot c" title="close"></button>
+        <button class="dot m" title="minimize"></button>
+        <button class="dot x" title="maximize"></button>
+      </div>
+      <div class="win-title"><span class="win-icon">${app.icon}</span> ${app.name}</div>
+      <div style="width:52px"></div>
+    </div>
+    <div class="win-body"></div>
+    <div class="resizer"></div>`;
+  desktop.appendChild(el);
+  const body=el.querySelector(".win-body");
+  el.addEventListener("mousedown",()=>focusWindow(el));
+  focusWindow(el);
+
+  // window control buttons
+  const ctx={el,body,app,isFocused:()=>focusedWin===el&&!el.classList.contains("min")};
+  el.querySelector(".dot.c").onclick=(e)=>{e.stopPropagation();closeWindow(app.id);};
+  el.querySelector(".dot.m").onclick=(e)=>{e.stopPropagation();minimize(el);};
+  let maxed=false,prev=null;
+  el.querySelector(".dot.x").onclick=(e)=>{e.stopPropagation();
+    if(!maxed){prev={l:el.style.left,t:el.style.top,w:el.style.width,h:el.style.height};
+      el.style.left="0";el.style.top="34px";el.style.width="100%";el.style.height="calc(100% - 34px)";maxed=true;}
+    else{Object.assign(el.style,{left:prev.l,top:prev.t,width:prev.w,height:prev.h});maxed=false;}
+    el.dispatchEvent(new Event("wm-resize"));
+  };
+
+  // dragging
+  const tb=el.querySelector(".titlebar"); let dragging=false,sx,sy,sl,st;
+  tb.addEventListener("mousedown",e=>{ if(e.target.classList.contains("dot"))return;
+    dragging=true;tb.classList.add("drag");sx=e.clientX;sy=e.clientY;sl=parseInt(el.style.left);st=parseInt(el.style.top);
+    e.preventDefault(); });
+  addEventListener("mousemove",e=>{ if(!dragging)return;
+    el.style.left=Math.min(innerWidth-60,Math.max(-el.offsetWidth+120,sl+e.clientX-sx))+"px";
+    el.style.top=Math.max(34,st+e.clientY-sy)+"px"; });
+  addEventListener("mouseup",()=>{dragging=false;tb.classList.remove("drag");});
+
+  // resizing
+  const rz=el.querySelector(".resizer"); let rzing=false,rw,rh,rmx,rmy;
+  rz.addEventListener("mousedown",e=>{rzing=true;rw=el.offsetWidth;rh=el.offsetHeight;rmx=e.clientX;rmy=e.clientY;
+    e.preventDefault();e.stopPropagation();});
+  addEventListener("mousemove",e=>{ if(!rzing)return;
+    el.style.width=Math.max(280,rw+e.clientX-rmx)+"px";
+    el.style.height=Math.max(180,rh+e.clientY-rmy)+"px";
+    el.dispatchEvent(new Event("wm-resize")); });
+  addEventListener("mouseup",()=>rzing=false);
+
+  // launch app content
+  const res=app.launch(ctx)||{};
+  ctx.cleanup=res.cleanup;
+  openWindows.set(app.id,{el,app,cleanup:res.cleanup,ctx});
+  refreshDock();
+  return ctx;
+}
+function minimize(el){ el.classList.add("minimizing");
+  setTimeout(()=>{el.classList.remove("minimizing");el.classList.add("min");el.style.display="none";},210); }
+function restore(el){ el.classList.remove("min");el.style.display="flex";focusWindow(el); }
+function closeWindow(id){ const w=openWindows.get(id); if(!w)return;
+  try{ if(w.cleanup)w.cleanup(); }catch(e){}
+  w.el.classList.add("minimizing");
+  setTimeout(()=>{w.el.remove();},200);
+  openWindows.delete(id); if(focusedWin===w.el)focusedWin=null; refreshDock(); }
+
+function openApp(id){
+  const app=APPS.find(a=>a.id===id); if(!app)return;
+  const w=openWindows.get(id);
+  if(w){ if(w.el.classList.contains("min"))restore(w.el); else focusWindow(w.el); return; }
+  createWindow(app);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   4. Application registry  (2 of these are 3D games)
+   ════════════════════════════════════════════════════════════════════════ */
+const APPS=[
+  {id:"maze",    name:"Maze Explorer 3D", icon:"🌀", tag:"3D Game", width:660,height:480, launch:launchMaze},
+  {id:"runner",  name:"Cube Runner 3D",   icon:"🟦", tag:"3D Game", width:660,height:480, launch:launchRunner},
+  {id:"calc",    name:"Calculator",        icon:"🧮", tag:"App", width:320,height:440, launch:launchCalc},
+  {id:"notes",   name:"Notes",             icon:"📝", tag:"App", width:560,height:420, launch:launchNotes},
+  {id:"terminal",name:"Terminal",          icon:"⌨️", tag:"App", width:600,height:380, launch:launchTerminal},
+  {id:"paint",   name:"Paint",             icon:"🎨", tag:"App", width:600,height:460, launch:launchPaint},
+  {id:"settings",name:"Settings",          icon:"⚙️", tag:"System", width:560,height:520, launch:launchSettings},
+  {id:"about",   name:"About LuminaOS",    icon:"💎", tag:"System", width:560,height:520, launch:launchAbout},
+];
+
+/* ── Desktop icons + dock ── */
+const iconHost=document.getElementById("icons");
+APPS.filter(a=>a.id!=="about").forEach(a=>{
+  const d=document.createElement("div"); d.className="desk-icon";
+  d.innerHTML=`<div class="glyph">${a.icon}</div><span>${a.name}</span>`;
+  d.ondblclick=()=>openApp(a.id); iconHost.appendChild(d);
+});
+const dock=document.getElementById("dock");
+function refreshDock(){
+  dock.innerHTML="";
+  const dockApps=APPS.filter(a=>a.id!=="about");
+  dockApps.forEach((a,i)=>{
+    if(a.id==="settings"){const s=document.createElement("div");s.className="dock-sep";dock.appendChild(s);}
+    const el=document.createElement("div"); el.className="dock-app"+(openWindows.has(a.id)?" running":"");
+    el.innerHTML=`${a.icon}<span class="run-dot"></span><span class="tip">${a.name}</span>`;
+    el.onclick=()=>openApp(a.id); dock.appendChild(el);
+  });
+}
+refreshDock();
+
+/* ════════════════════════════════════════════════════════════════════════
+   5.  ★ SPECIAL FEATURE — "Nova" universal Command Palette  (⌘K / Ctrl-K)
+   ──────────────────────────────────────────────────────────────────────
+   One keystroke surfaces EVERYTHING: launch any app, switch any wallpaper,
+   flip the theme, recolor the whole OS, and run instant math — all by
+   fuzzy-typing. It makes the entire desktop keyboard-drivable, the way
+   Spotlight / Raycast unify a real OS behind a single search field.
+   ════════════════════════════════════════════════════════════════════════ */
+const palBg=document.getElementById("palette-bg");
+const palInput=document.getElementById("pal-input");
+const palResults=document.getElementById("pal-results");
+let palSel=0, palCurrent=[];
+
+function buildActions(){
+  const acts=[];
+  APPS.forEach(a=>acts.push({g:a.icon,t:`Open ${a.name}`,s:a.tag,tag:a.tag,run:()=>openApp(a.id)}));
+  WALLPAPERS.forEach(w=>acts.push({g:"🖼️",t:`Wallpaper · ${w.name}`,s:w.type==="live"?"animated":"gradient",tag:"WALL",run:()=>setWallpaper(w.id)}));
+  acts.push({g:"🌗",t:"Toggle light / dark theme",s:"appearance",tag:"THEME",run:()=>setTheme(document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark")});
+  [["Mint","#39e6c8"],["Violet","#7b8cff"],["Coral","#ff6b6b"],["Gold","#ffc857"],["Lime","#9be15d"],["Sky","#4cc9f0"]].forEach(([n,c])=>
+    acts.push({g:"🎯",t:`Accent · ${n}`,s:c,tag:"COLOR",run:()=>setAccent(c)}));
+  return acts;
+}
+function fuzzy(q,t){ q=q.toLowerCase();t=t.toLowerCase(); let i=0; for(const ch of t){if(ch===q[i])i++; if(i===q.length)return true;} return q.length===0; }
+
+function renderPalette(){
+  const q=palInput.value.trim();
+  palResults.innerHTML=""; palCurrent=[];
+  // instant math
+  const mexpr = q.startsWith("=")?q.slice(1):(/^[\d\s.()+\-*/%^]+$/.test(q)&&/[+\-*/%^]/.test(q)?q:null);
+  if(mexpr){ const v=safeCalc(mexpr); if(v!==null){
+    palCurrent.push({g:"🟰",t:`${mexpr.trim()} = ${v}`,s:"press ↵ to copy",tag:"MATH",run:()=>{copyText(String(v));}}); } }
+  buildActions().filter(a=>fuzzy(q.replace(/^=/,""),a.t)).forEach(a=>palCurrent.push(a));
+  if(palCurrent.length===0){ palResults.innerHTML=`<div class="pal-empty">No matches for “${q}”.</div>`; return; }
+  palSel=Math.min(palSel,palCurrent.length-1);
+  palCurrent.forEach((a,i)=>{
+    const el=document.createElement("div"); el.className="pal-item"+(i===palSel?" sel":"");
+    el.innerHTML=`<div class="g">${a.g}</div><div class="t"><b>${a.t}</b><small>${a.s||""}</small></div><div class="tag">${a.tag||""}</div>`;
+    el.onmousemove=()=>{palSel=i;updateSel();};
+    el.onclick=()=>runPalette(i);
+    palResults.appendChild(el);
+  });
+}
+function updateSel(){ [...palResults.children].forEach((c,i)=>c.classList.toggle("sel",i===palSel)); }
+function runPalette(i){ const a=palCurrent[i]; if(!a)return; closePalette(); a.run(); }
+function openPalette(){ palBg.classList.add("open"); palInput.value=""; palSel=0; renderPalette(); setTimeout(()=>palInput.focus(),30); }
+function closePalette(){ palBg.classList.remove("open"); }
+palInput.addEventListener("input",()=>{palSel=0;renderPalette();});
+palBg.addEventListener("mousedown",e=>{if(e.target===palBg)closePalette();});
+palInput.addEventListener("keydown",e=>{
+  if(e.key==="ArrowDown"){e.preventDefault();palSel=(palSel+1)%palCurrent.length;updateSel();palResults.children[palSel]?.scrollIntoView({block:"nearest"});}
+  else if(e.key==="ArrowUp"){e.preventDefault();palSel=(palSel-1+palCurrent.length)%palCurrent.length;updateSel();palResults.children[palSel]?.scrollIntoView({block:"nearest"});}
+  else if(e.key==="Enter"){e.preventDefault();runPalette(palSel);}
+  else if(e.key==="Escape"){closePalette();}
+});
+addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){ e.preventDefault();
+    palBg.classList.contains("open")?closePalette():openPalette(); }
+});
+document.getElementById("mb-nova").onclick=openPalette;
+document.getElementById("mb-launch").onclick=openPalette;
+document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openApp(b.dataset.open));
+
+/* small helpers */
+function safeCalc(expr){
+  if(!/^[\d\s.()+\-*/%^]+$/.test(expr))return null;
+  try{ const js=expr.replace(/\^/g,"**"); const v=Function('"use strict";return ('+js+')')();
+    return (typeof v==="number"&&isFinite(v))?(Math.round(v*1e10)/1e10):null; }catch(e){return null;}
+}
+function copyText(t){ try{navigator.clipboard.writeText(t);}catch(e){} }
+
+/* ════════════════════════════════════════════════════════════════════════
+   6.  Apps — Calculator
+   ════════════════════════════════════════════════════════════════════════ */
+function launchCalc(ctx){
+  ctx.body.innerHTML=`<div class="calc"><div class="disp"><small id="cprev"></small><span id="cmain">0</span></div>
+   <div class="pad">
+     <button class="fn" data-k="C">AC</button><button class="fn" data-k="±">±</button>
+     <button class="fn" data-k="%">%</button><button class="op" data-k="/">÷</button>
+     <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button class="op" data-k="*">×</button>
+     <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button class="op" data-k="-">−</button>
+     <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button class="op" data-k="+">+</button>
+     <button data-k="0" style="grid-column:span 2">0</button><button data-k=".">.</button><button class="eq" data-k="=">=</button>
+   </div></div>`;
+  const main=ctx.body.querySelector("#cmain"), prev=ctx.body.querySelector("#cprev");
+  let expr="";
+  const show=()=>{ main.textContent= expr===""?"0":expr.replace(/\*/g,"×").replace(/\//g,"÷").replace(/-/g,"−"); };
+  function press(k){
+    if(k==="C"){expr="";prev.textContent="";}
+    else if(k==="="){ const v=safeCalc(expr); if(v!==null){prev.textContent=expr.replace(/\*/g,"×").replace(/\//g,"÷")+" =";expr=String(v);} else prev.textContent="error"; }
+    else if(k==="±"){ if(expr&&expr[0]==="-")expr=expr.slice(1); else expr="-"+expr; }
+    else if(k==="%"){ const v=safeCalc(expr); if(v!==null)expr=String(v/100); }
+    else expr+=k;
+    show();
+  }
+  ctx.body.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>press(b.dataset.k));
+  const onkey=e=>{ if(!ctx.isFocused())return; const k=e.key;
+    if(/[0-9.+\-*/]/.test(k)&&k.length===1)press(k);
+    else if(k==="Enter"){e.preventDefault();press("=");}
+    else if(k==="Backspace"){expr=expr.slice(0,-1);show();}
+    else if(k==="Escape")press("C"); };
+  addEventListener("keydown",onkey);
+  return {cleanup:()=>removeEventListener("keydown",onkey)};
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   7.  Apps — Notes (persisted)
+   ════════════════════════════════════════════════════════════════════════ */
+function launchNotes(ctx){
+  ctx.body.innerHTML=`<div class="notes"><div class="side"><button class="btn accent new">+ New note</button><div id="nlist"></div></div>
+    <div class="edit"><textarea id="ntext" placeholder="Start writing…"></textarea></div></div>`;
+  let notes=Store.get("lumina:notes",[{id:1,title:"Welcome",body:"Welcome to LuminaOS Notes ✍️\n\nEverything you type here is saved automatically (localStorage).\n\nTip: press ⌘K / Ctrl-K anywhere to open the Nova command palette.",ts:Date.now()}]);
+  let cur=notes[0]?notes[0].id:null;
+  const list=ctx.body.querySelector("#nlist"), ta=ctx.body.querySelector("#ntext");
+  const save=()=>Store.set("lumina:notes",notes);
+  function title(b){ const l=(b||"").trim().split("\n")[0]; return l?l.slice(0,28):"Untitled"; }
+  function render(){
+    list.innerHTML="";
+    notes.forEach(n=>{ const el=document.createElement("div"); el.className="note-item"+(n.id===cur?" sel":"");
+      el.innerHTML=`<div>${title(n.body)}</div><small>${new Date(n.ts).toLocaleString()}</small>`;
+      el.onclick=()=>{cur=n.id;ta.value=n.body;render();}; list.appendChild(el); });
+  }
+  const sel=()=>notes.find(n=>n.id===cur);
+  ta.oninput=()=>{ const n=sel(); if(n){n.body=ta.value;n.ts=Date.now();save();render();} };
+  ctx.body.querySelector(".new").onclick=()=>{ const n={id:Date.now(),title:"",body:"",ts:Date.now()};
+    notes.unshift(n);cur=n.id;ta.value="";save();render();ta.focus(); };
+  if(sel())ta.value=sel().body; render();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   8.  Apps — Terminal
+   ════════════════════════════════════════════════════════════════════════ */
+function launchTerminal(ctx){
+  ctx.body.innerHTML=`<div class="term" id="term"></div>`;
+  const term=ctx.body.querySelector("#term"); const history=[]; let hi=0;
+  const FS={"readme.txt":"LuminaOS v1.0 — a desktop in a single HTML file.","games/":"[maze, runner]","secret.txt":"Press Ctrl-K for Nova ✦"};
+  function print(html,cls=""){ const d=document.createElement("div");d.className="line "+cls;d.innerHTML=html;term.appendChild(d);term.scrollTop=term.scrollHeight; }
+  function prompt(){ const wrap=document.createElement("div"); wrap.className="in";
+    wrap.innerHTML=`<span>lumina ❯</span><input spellcheck="false" autocomplete="off">`;
+    term.appendChild(wrap); const inp=wrap.querySelector("input"); inp.focus();
+    inp.addEventListener("keydown",e=>{
+      if(e.key==="Enter"){ const v=inp.value; history.push(v);hi=history.length;
+        wrap.outerHTML=`<div class="line"><span class="pl">lumina ❯</span> ${escapeHTML(v)}</div>`;
+        run(v); prompt(); }
+      else if(e.key==="ArrowUp"){ if(hi>0){hi--;inp.value=history[hi]||"";} e.preventDefault();}
+      else if(e.key==="ArrowDown"){ if(hi<history.length-1){hi++;inp.value=history[hi]||"";}else{hi=history.length;inp.value="";} e.preventDefault();}
+    });
+    term.scrollTop=term.scrollHeight;
+  }
+  function run(line){
+    const [cmd,...args]=line.trim().split(/\s+/); const a=args.join(" ");
+    switch(cmd){
+      case"": break;
+      case"help": print("Commands: <span class='pl'>help ls cat echo date whoami neofetch apps open wallpaper theme accent calc clear nova about</span>");break;
+      case"ls": print(Object.keys(FS).join("   "));break;
+      case"cat": print(FS[a]!=null?escapeHTML(FS[a]):`cat: ${a}: no such file`,FS[a]!=null?"":"err");break;
+      case"echo": print(escapeHTML(a));break;
+      case"date": print(new Date().toString());break;
+      case"whoami": print("guest@luminaos");break;
+      case"apps": print(APPS.map(x=>x.id).join("  "));break;
+      case"open": { if(APPS.find(x=>x.id===a)){openApp(a);print(`opening ${a}…`);}else print(`open: unknown app '${a}'`,"err"); }break;
+      case"wallpaper": { if(!a){print("wallpapers: "+WALLPAPERS.map(w=>w.id).join("  "));} else if(WALLPAPERS.find(w=>w.id===a)){setWallpaper(a);print(`wallpaper → ${a}`);}else print(`wallpaper: '${a}' not found`,"err"); }break;
+      case"theme": { if(a==="dark"||a==="light"){setTheme(a);print(`theme → ${a}`);}else print("usage: theme dark|light","err"); }break;
+      case"accent": { if(/^#?[0-9a-f]{6}$/i.test(a)){setAccent(a[0]==="#"?a:"#"+a);print("accent updated");}else print("usage: accent #rrggbb","err"); }break;
+      case"calc": { const v=safeCalc(a); print(v!==null?`${a} = ${v}`:"calc: invalid expression",v!==null?"":"err"); }break;
+      case"nova": openPalette();print("opening Nova ✦…");break;
+      case"clear": term.innerHTML="";break;
+      case"about": print("LuminaOS — single-file web desktop. 7 apps · 2 real 3D games · Nova command palette.");break;
+      case"neofetch": print(
+`<span class='pl'>        .◢◣.        </span>  guest@luminaos
+<span class='pl'>      ◢██████◣      </span>  ----------------
+<span class='pl'>     ████████████   </span>  OS:     LuminaOS 1.0 (single file)
+<span class='pl'>     ◥██████████◤   </span>  Shell:  lumina-sh
+<span class='pl'>       ◥██████◤     </span>  Apps:   ${APPS.length}  (2× 3D games)
+<span class='pl'>         ◥◤         </span>  Render: WebGL + Canvas2D
+                          Special: Nova ✦ (Ctrl-K)`);break;
+      default: print(`${escapeHTML(cmd)}: command not found — try 'help'`,"err");
+    }
+  }
+  print("LuminaOS Terminal — type <span class='pl'>help</span> to begin.");
+  prompt();
+}
+function escapeHTML(s){return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+/* ════════════════════════════════════════════════════════════════════════
+   9.  Apps — Paint
+   ════════════════════════════════════════════════════════════════════════ */
+function launchPaint(ctx){
+  ctx.body.innerHTML=`<div class="paint">
+    <div class="tools">
+      <input type="color" id="pc" value="#39e6c8">
+      <input type="range" id="ps" min="1" max="48" value="6">
+      <button class="btn" id="perase">Eraser</button>
+      <button class="btn" id="pclear">Clear</button>
+      <span class="muted" id="psz">6px</span>
+    </div><canvas id="pcanvas"></canvas></div>`;
+  const cv=ctx.body.querySelector("#pcanvas"), c=cv.getContext("2d");
+  const col=ctx.body.querySelector("#pc"), sz=ctx.body.querySelector("#ps"), szl=ctx.body.querySelector("#psz");
+  let erase=false;
+  function fit(){ const r=cv.getBoundingClientRect(); const img=c.getImageData?null:null;
+    const tmp=document.createElement("canvas");tmp.width=cv.width||1;tmp.height=cv.height||1;
+    if(cv.width)tmp.getContext("2d").drawImage(cv,0,0);
+    cv.width=r.width;cv.height=r.height; c.fillStyle="#ffffff";c.fillRect(0,0,cv.width,cv.height);
+    c.drawImage(tmp,0,0); }
+  fit(); ctx.el.addEventListener("wm-resize",fit);
+  let draw=false,px,py;
+  const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX||e.touches[0].clientX)-r.left,(e.clientY||e.touches[0].clientY)-r.top];};
+  function down(e){draw=true;[px,py]=pos(e);dot(px,py);e.preventDefault();}
+  function move(e){if(!draw)return;const[x,y]=pos(e);c.strokeStyle=erase?"#ffffff":col.value;c.lineWidth=+sz.value;
+    c.lineCap="round";c.beginPath();c.moveTo(px,py);c.lineTo(x,y);c.stroke();px=x;py=y;e.preventDefault();}
+  function dot(x,y){c.fillStyle=erase?"#ffffff":col.value;c.beginPath();c.arc(x,y,sz.value/2,0,7);c.fill();}
+  function up(){draw=false;}
+  cv.addEventListener("mousedown",down);cv.addEventListener("mousemove",move);addEventListener("mouseup",up);
+  cv.addEventListener("touchstart",down);cv.addEventListener("touchmove",move);cv.addEventListener("touchend",up);
+  col.oninput=()=>erase=false;
+  sz.oninput=()=>szl.textContent=sz.value+"px";
+  ctx.body.querySelector("#perase").onclick=function(){erase=!erase;this.classList.toggle("accent",erase);};
+  ctx.body.querySelector("#pclear").onclick=()=>{c.fillStyle="#fff";c.fillRect(0,0,cv.width,cv.height);};
+  return {cleanup:()=>removeEventListener("mouseup",up)};
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   10. Apps — Settings (wallpaper + theme + accent)
+   ════════════════════════════════════════════════════════════════════════ */
+function launchSettings(ctx){
+  ctx.body.innerHTML=`<div class="app"><h2>Wallpaper</h2><div class="wp-grid" id="wpg"></div>
+    <h2>Theme</h2><div class="row">
+      <button class="btn" data-theme-set="dark">🌙 Dark</button>
+      <button class="btn" data-theme-set="light">☀️ Light</button></div>
+    <h2>Accent colour</h2><div class="row" id="acc"></div>
+    <p class="muted">Choices persist between sessions. You can also do all of this from the
+    <b>Nova command palette</b> — press <kbd>${IS_MAC?"⌘K":"Ctrl K"}</kbd>.</p></div>`;
+  const wpg=ctx.body.querySelector("#wpg");
+  WALLPAPERS.forEach(w=>{ const el=document.createElement("div"); el.className="wp"+(w.id===wpId?" sel":"");
+    el.dataset.wp=w.id; el.style.background=w.css; el.textContent=w.name;
+    el.onclick=()=>setWallpaper(w.id); wpg.appendChild(el); });
+  ctx.body.querySelectorAll("[data-theme-set]").forEach(b=>b.onclick=()=>setTheme(b.dataset.themeSet));
+  const acc=ctx.body.querySelector("#acc");
+  [["#39e6c8","Mint"],["#7b8cff","Violet"],["#ff6b6b","Coral"],["#ffc857","Gold"],["#9be15d","Lime"],["#4cc9f0","Sky"],["#ff8ad8","Rose"]].forEach(([c])=>{
+    const s=document.createElement("div");s.className="swatch";s.style.background=c;s.title=c;
+    s.onclick=()=>{setAccent(c);ctx.body.querySelectorAll(".swatch").forEach(x=>x.classList.remove("sel"));s.classList.add("sel");};
+    acc.appendChild(s); });
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   11. Apps — About / documentation of the special feature
+   ════════════════════════════════════════════════════════════════════════ */
+function launchAbout(ctx){
+  ctx.body.innerHTML=`<div class="app" style="overflow:auto">
+    <h2 style="font-size:22px;color:var(--text)">Lumina<span style="color:var(--accent)">OS</span></h2>
+    <p class="muted">A complete desktop environment living in <b>one HTML file</b> — pure HTML, CSS &amp; JavaScript,
+    no libraries, no network. Built to run straight from <kbd>file://</kbd> in Safari.</p>
+    <h2 style="margin-top:18px">What's inside</h2>
+    <p class="muted">
+    • <b>${APPS.length} applications</b> in the dock &amp; desktop.<br>
+    • <b>Two real 3D games:</b><br>
+    &nbsp;&nbsp;— <b>Maze Explorer 3D</b>: a from-scratch raycasting engine (DDA wall casting, distance
+    shading, billboard coin sprites with a per-column z-buffer).<br>
+    &nbsp;&nbsp;— <b>Cube Runner 3D</b>: a true <b>WebGL</b> endless runner — perspective projection,
+    hand-rolled 4×4 matrix math and per-fragment lit cube meshes.<br>
+    • <b>Changeable wallpapers</b> — gradients plus three live, canvas-animated backgrounds
+    (Aurora, Deep Field, Neon Web). Open <b>Settings</b>.</p>
+    <h2 style="margin-top:18px;color:var(--accent)">★ The special feature — “Nova”</h2>
+    <p class="muted"><b>Nova is a system-wide command palette.</b> Press <kbd>${IS_MAC?"⌘K":"Ctrl K"}</kbd>
+    anywhere and a single fuzzy-search field lets you:</p>
+    <p class="muted">
+    → launch any app · → switch any wallpaper · → flip light/dark theme ·
+    → recolor the entire OS accent · → run instant math (type <kbd>=17*23</kbd>).</p>
+    <p class="muted"><b>Why it's special:</b> it collapses every capability of the OS behind one keystroke,
+    making the whole desktop fully keyboard-drivable — the same idea that makes Spotlight and Raycast feel
+    magical on a real machine, implemented here in plain JS with live fuzzy matching and an inline calculator.</p>
+    <div class="row" style="margin-top:18px"><button class="btn accent" id="trynova">Try Nova ✦</button></div>
+    </div>`;
+  ctx.body.querySelector("#trynova").onclick=openPalette;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   12. GAME 1 — Maze Explorer 3D   (raycasting first-person engine, Canvas2D)
+   ════════════════════════════════════════════════════════════════════════ */
+function launchMaze(ctx){
+  ctx.body.innerHTML=`<div class="gamewrap">
+    <canvas id="mz" width="640" height="400"></canvas>
+    <div class="hud">MAZE EXPLORER 3D<br><span class="k">W A S D</span> move · <span class="k">← →</span> turn<br>
+      Coins: <span id="mzc">0</span>/<span id="mzt">0</span></div>
+    <div class="overlay hidden" id="mzo"><h3 id="mzh"></h3><p id="mzp"></p><button class="btn accent" id="mzr">Play again</button></div>
+  </div>`;
+  const cv=ctx.body.querySelector("#mz"), g=cv.getContext("2d");
+  const W=cv.width,H=cv.height;
+  // 1 = wall, 0 = floor, 2 = exit
+  const MAP=[
+    "1111111111111111",
+    "1000000010000021",
+    "1011110010111101",
+    "1010000000100101",
+    "1010111110100101",
+    "1010100000100001",
+    "1000101111111101",
+    "1110100000000101",
+    "1000001110110101",
+    "1011101000010001",
+    "1000101011110111",
+    "1110100010000101",
+    "1000000011010001",
+    "1011111000010101",
+    "1000000010000001",
+    "1111111111111111"];
+  const MH=MAP.length, MW=MAP[0].length;
+  const cell=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?"1":MAP[y|0][x|0];
+  let px=1.5,py=1.5, dir=0; // pose
+  const keys={};
+  const coins=[]; for(let y=0;y<MH;y++)for(let x=0;x<MW;x++)if(MAP[y][x]==="0"&&Math.random()<0.10)coins.push({x:x+.5,y:y+.5,got:false});
+  ctx.body.querySelector("#mzt").textContent=coins.length;
+  let got=0, running=true, won=false;
+  const zbuf=new Float32Array(W);
+
+  function update(dt){
+    const mv=2.6*dt, rot=2.4*dt;
+    if(keys["arrowleft"])dir-=rot; if(keys["arrowright"])dir+=rot;
+    let fx=0,fy=0;
+    const sin=Math.sin(dir),cos=Math.cos(dir);
+    if(keys["w"]){fx+=cos;fy+=sin;} if(keys["s"]){fx-=cos;fy-=sin;}
+    if(keys["a"]){fx+=sin;fy-=cos;} if(keys["d"]){fx-=sin;fy+=cos;}
+    const nl=Math.hypot(fx,fy)||1; fx/=nl;fy/=nl;
+    const nx=px+fx*mv, ny=py+fy*mv;
+    if(cell(nx,py)!=="1") px=nx; if(cell(px,ny)!=="1") py=ny;
+    if(cell(px,py)==="2"&&!won){ won=true;end(true); }
+    coins.forEach(c=>{ if(!c.got&&Math.hypot(c.x-px,c.y-py)<0.4){c.got=true;got++;ctx.body.querySelector("#mzc").textContent=got;} });
+  }
+  function render(){
+    // ceiling & floor
+    const grd=g.createLinearGradient(0,0,0,H/2); grd.addColorStop(0,"#0a1430");grd.addColorStop(1,"#16223f");
+    g.fillStyle=grd; g.fillRect(0,0,W,H/2);
+    const grd2=g.createLinearGradient(0,H/2,0,H); grd2.addColorStop(0,"#15110d");grd2.addColorStop(1,"#070504");
+    g.fillStyle=grd2; g.fillRect(0,H/2,W,H/2);
+    const fov=Math.PI/3;
+    for(let col=0;col<W;col++){
+      const ca=dir-fov/2+(col/W)*fov;
+      const rdx=Math.cos(ca),rdy=Math.sin(ca);
+      // DDA
+      let mapX=px|0,mapY=py|0;
+      const ddx=Math.abs(1/rdx),ddy=Math.abs(1/rdy);
+      let sx,sy,sdx,sdy;
+      if(rdx<0){sx=-1;sdx=(px-mapX)*ddx;}else{sx=1;sdx=(mapX+1-px)*ddx;}
+      if(rdy<0){sy=-1;sdy=(py-mapY)*ddy;}else{sy=1;sdy=(mapY+1-py)*ddy;}
+      let side=0,hit=0,tile="0";
+      for(let i=0;i<64&&!hit;i++){
+        if(sdx<sdy){sdx+=ddx;mapX+=sx;side=0;}else{sdy+=ddy;mapY+=sy;side=1;}
+        tile=cell(mapX,mapY); if(tile!=="0")hit=1;
+      }
+      const pd = side===0 ? (sdx-ddx) : (sdy-ddy);
+      const dist=Math.max(0.05,pd*Math.cos(ca-dir));
+      zbuf[col]=dist;
+      const lh=Math.min(H*3, H/dist);
+      const y0=(H-lh)/2, y1=(H+lh)/2;
+      let r,gg,b;
+      if(tile==="2"){ r=40;gg=220;b=160; } else { const base= side?150:200; r=base*0.35;gg=base*0.45;b=base*0.6; }
+      const sh=Math.max(.25,Math.min(1,1.6/dist)); const fog=Math.max(0,1-dist/14);
+      g.fillStyle=`rgb(${(r*sh*fog)|0},${(gg*sh*fog)|0},${(b*sh*fog)|0})`;
+      g.fillRect(col,y0,1,y1-y0);
+    }
+    // coins (billboard sprites projected exactly like the wall casting, z-buffer tested)
+    const vis=coins.filter(c=>!c.got).map(c=>({c,d:(c.x-px)**2+(c.y-py)**2})).sort((a,b)=>b.d-a.d);
+    for(const {c} of vis){
+      const rx=c.x-px, ry=c.y-py;
+      let ang=Math.atan2(ry,rx)-dir;
+      while(ang>Math.PI)ang-=2*Math.PI; while(ang<-Math.PI)ang+=2*Math.PI;
+      if(Math.abs(ang)>fov*0.75)continue;          // outside field of view
+      const dd=Math.hypot(rx,ry);
+      const tz=dd*Math.cos(ang);                    // perpendicular depth (matches wall zbuf)
+      if(tz<=0.25)continue;
+      const sx=(0.5 + ang/fov)*W;
+      const size=Math.min(H, (H*0.55)/tz);
+      const sy=H/2 + size*0.25;
+      const t=Date.now()/300;
+      const colC=sx|0;
+      if(colC>=0&&colC<W&&tz<zbuf[colC]){
+        const rad=size*0.18*(0.92+0.08*Math.sin(t));
+        g.beginPath(); g.fillStyle="#ffd34d"; g.arc(sx,sy,rad,0,7); g.fill();
+        g.beginPath(); g.fillStyle="#fff2b0"; g.arc(sx-rad*0.3,sy-rad*0.3,rad*0.4,0,7); g.fill();
+        g.lineWidth=2; g.strokeStyle="#b8860b"; g.beginPath(); g.arc(sx,sy,rad,0,7); g.stroke();
+      }
+    }
+    // minimap
+    const ms=4, ox=W-MW*ms-10, oy=10;
+    g.globalAlpha=.8;
+    for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){
+      const t=MAP[y][x]; g.fillStyle= t==="1"?"#26304d":t==="2"?"#39e6c8":"#0c1020";
+      g.fillRect(ox+x*ms,oy+y*ms,ms,ms);
+    }
+    g.fillStyle="#ff6b6b"; g.beginPath(); g.arc(ox+px*ms,oy+py*ms,2.5,0,7); g.fill();
+    g.globalAlpha=1;
+  }
+  function end(win){ running=false; const o=ctx.body.querySelector("#mzo");
+    ctx.body.querySelector("#mzh").textContent= win?"You escaped!":"Game over";
+    ctx.body.querySelector("#mzp").textContent= win?`You found the exit and collected ${got} of ${coins.length} coins.`:"";
+    o.classList.remove("hidden"); }
+  let last=performance.now();
+  function loop(t){ const dt=Math.min(.05,(t-last)/1000); last=t;
+    if(running)update(dt); render(); if(running)rafid=requestAnimationFrame(loop); }
+  let rafid=requestAnimationFrame(loop);
+  const kd=e=>{ if(!ctx.isFocused())return; const k=e.key.toLowerCase();
+    if(["arrowleft","arrowright","arrowup","arrowdown"," ","w","a","s","d"].includes(k)){keys[k]=true;e.preventDefault();
+      if(k==="arrowup")keys["w"]=true; if(k==="arrowdown")keys["s"]=true;} };
+  const ku=e=>{ const k=e.key.toLowerCase(); keys[k]=false; if(k==="arrowup")keys["w"]=false; if(k==="arrowdown")keys["s"]=false; };
+  addEventListener("keydown",kd); addEventListener("keyup",ku);
+  ctx.body.querySelector("#mzr").onclick=()=>{ px=1.5;py=1.5;dir=0;got=0;won=false;
+    coins.forEach(c=>c.got=false); ctx.body.querySelector("#mzc").textContent=0;
+    ctx.body.querySelector("#mzo").classList.add("hidden");
+    if(!running){running=true;last=performance.now();rafid=requestAnimationFrame(loop);} };
+  return {cleanup:()=>{running=false;cancelAnimationFrame(rafid);removeEventListener("keydown",kd);removeEventListener("keyup",ku);}};
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   13. GAME 2 — Cube Runner 3D   (true WebGL endless runner)
+   ════════════════════════════════════════════════════════════════════════ */
+const M4={
+  ident:()=>[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+  mul(a,b){const o=new Array(16);for(let c=0;c<4;c++)for(let r=0;r<4;r++)
+    o[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];return o;},
+  persp(fovy,asp,n,f){const t=1/Math.tan(fovy/2),nf=1/(n-f);
+    return[t/asp,0,0,0, 0,t,0,0, 0,0,(f+n)*nf,-1, 0,0,2*f*n*nf,0];},
+  trans(m,x,y,z){return M4.mul(m,[1,0,0,0,0,1,0,0,0,0,1,0,x,y,z,1]);},
+  scale(m,x,y,z){return M4.mul(m,[x,0,0,0,0,y,0,0,0,0,z,0,0,0,0,1]);},
+  rotX(m,a){const c=Math.cos(a),s=Math.sin(a);return M4.mul(m,[1,0,0,0,0,c,s,0,0,-s,c,0,0,0,0,1]);},
+  rotY(m,a){const c=Math.cos(a),s=Math.sin(a);return M4.mul(m,[c,0,-s,0,0,1,0,0,s,0,c,0,0,0,0,1]);},
+};
+function launchRunner(ctx){
+  ctx.body.innerHTML=`<div class="gamewrap">
+    <canvas id="rn" width="640" height="400"></canvas>
+    <div class="hud">CUBE RUNNER 3D<br><span class="k">← →</span> / <span class="k">A D</span> switch lane · <span class="k">Space</span> jump<br>
+      Score: <span id="rsc">0</span></div>
+    <div class="overlay" id="rno"><h3>Cube Runner 3D</h3>
+      <p>A true WebGL endless runner. Switch lanes to dodge the red blocks, grab the gold coins.
+      It gets faster the longer you survive.</p>
+      <button class="btn accent" id="rnstart">Start</button></div>
+  </div>`;
+  const cv=ctx.body.querySelector("#rn");
+  const gl=cv.getContext("webgl")||cv.getContext("experimental-webgl");
+  if(!gl){ ctx.body.querySelector("#rno").innerHTML="<h3>WebGL unavailable</h3><p>This browser blocked WebGL.</p>"; return {}; }
+
+  const vs=`attribute vec3 aPos;attribute vec3 aNor;uniform mat4 uMVP;uniform mat4 uModel;
+    varying vec3 vN;varying float vY;
+    void main(){gl_Position=uMVP*vec4(aPos,1.0);vN=mat3(uModel)*aNor;vY=aPos.y;}`;
+  const fs=`precision mediump float;varying vec3 vN;varying float vY;uniform vec3 uColor;
+    void main(){vec3 L=normalize(vec3(0.4,0.9,0.45));float d=max(dot(normalize(vN),L),0.0);
+    vec3 c=uColor*(0.4+0.7*d);gl_FragColor=vec4(c,1.0);}`;
+  function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o;}
+  const prog=gl.createProgram();
+  gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fs));
+  gl.linkProgram(prog);gl.useProgram(prog);
+
+  // cube geometry (pos+normal interleaved, 36 verts)
+  const faces=[
+    {n:[0,0,1], v:[[-.5,-.5,.5],[.5,-.5,.5],[.5,.5,.5],[-.5,.5,.5]]},
+    {n:[0,0,-1],v:[[.5,-.5,-.5],[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5]]},
+    {n:[0,1,0], v:[[-.5,.5,.5],[.5,.5,.5],[.5,.5,-.5],[-.5,.5,-.5]]},
+    {n:[0,-1,0],v:[[-.5,-.5,-.5],[.5,-.5,-.5],[.5,-.5,.5],[-.5,-.5,.5]]},
+    {n:[1,0,0], v:[[.5,-.5,.5],[.5,-.5,-.5],[.5,.5,-.5],[.5,.5,.5]]},
+    {n:[-1,0,0],v:[[-.5,-.5,-.5],[-.5,-.5,.5],[-.5,.5,.5],[-.5,.5,-.5]]},
+  ];
+  const data=[];
+  faces.forEach(f=>{const[a,b,c,d]=f.v;[a,b,c,a,c,d].forEach(p=>data.push(p[0],p[1],p[2],f.n[0],f.n[1],f.n[2]));});
+  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.STATIC_DRAW);
+  const aPos=gl.getAttribLocation(prog,"aPos"),aNor=gl.getAttribLocation(prog,"aNor");
+  gl.enableVertexAttribArray(aPos);gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,24,0);
+  gl.enableVertexAttribArray(aNor);gl.vertexAttribPointer(aNor,3,gl.FLOAT,false,24,12);
+  const uMVP=gl.getUniformLocation(prog,"uMVP"),uModel=gl.getUniformLocation(prog,"uModel"),uColor=gl.getUniformLocation(prog,"uColor");
+  gl.enable(gl.DEPTH_TEST);
+
+  const proj=M4.persp(Math.PI/3.2, cv.width/cv.height, 0.1, 100);
+  let view=M4.ident(); view=M4.rotX(view,0.18); view=M4.trans(view,0,-1.4,-5.5);
+  const VP=M4.mul(proj,view);
+  function drawCube(model,color){ gl.uniformMatrix4fv(uMVP,false,M4.mul(VP,model));
+    gl.uniformMatrix4fv(uModel,false,model); gl.uniform3fv(uColor,color); gl.drawArrays(gl.TRIANGLES,0,36); }
+
+  const LANES=[-1.6,0,1.6];
+  let lane=1, playerX=0, playerY=0, vy=0, jumping=false;
+  let speed=10, score=0, running=false, dead=false, t=0, spawnT=0;
+  let obstacles=[]; // {z,lane,type:'wall'|'coin'}
+  let stripes=Array.from({length:18},(_,i)=>({z:-i*3}));
+
+  function reset(){ lane=1;playerX=0;playerY=0;vy=0;jumping=false;speed=10;score=0;dead=false;obstacles=[];spawnT=0; }
+  function spawn(){
+    const l=Math.floor(Math.random()*3);
+    if(Math.random()<0.72) obstacles.push({z:-46,lane:l,type:"wall"});
+    else obstacles.push({z:-46,lane:l,type:"coin"});
+    // sometimes add a coin in a different lane
+    if(Math.random()<0.4){ let l2=(l+1+Math.floor(Math.random()*2))%3; obstacles.push({z:-46,lane:l2,type:"coin"}); }
+  }
+  function accentColor(){ const[r,g,b]=accentRGB(); return [r/255,g/255,b/255]; }
+
+  function update(dt){
+    t+=dt; speed+=dt*0.55; score+=dt*speed*1.1;
+    ctx.body.querySelector("#rsc").textContent=Math.floor(score);
+    // smooth lane move
+    playerX += (LANES[lane]-playerX)*Math.min(1,dt*12);
+    if(jumping){ vy-=14*dt; playerY+=vy*dt; if(playerY<=0){playerY=0;vy=0;jumping=false;} }
+    // stripes scroll
+    stripes.forEach(s=>{ s.z+=speed*dt; if(s.z>4)s.z-=54; });
+    // spawn
+    spawnT-=dt; if(spawnT<=0){ spawn(); spawnT=Math.max(0.35,1.1-speed*0.02); }
+    for(const o of obstacles){ o.z+=speed*dt; }
+    // collisions near z=0
+    for(const o of obstacles){
+      if(o.z>-0.7 && o.z<0.7 && Math.abs(LANES[o.lane]-playerX)<0.8){
+        if(o.type==="wall"){ if(playerY<0.9){ die(); } }
+        else if(o.type==="coin" && !o.got){ o.got=true; score+=15; }
+      }
+    }
+    obstacles=obstacles.filter(o=>o.z<6 && !o.got);
+  }
+  function render(){
+    const[r,g,b]=accentColor();
+    gl.clearColor(0.02,0.03,0.06,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    // ground
+    drawCube(M4.scale(M4.trans(M4.ident(),0,-0.55,-20),7,0.4,60),[0.06,0.08,0.14]);
+    // moving stripes (speed lines)
+    stripes.forEach(s=>{ LANES.forEach(lx=>{
+      drawCube(M4.scale(M4.trans(M4.ident(),lx,-0.34,s.z),0.12,0.02,1.1),[0.2,0.5,0.8]); }); });
+    // lane edge rails
+    [-2.5,2.5].forEach(lx=> drawCube(M4.scale(M4.trans(M4.ident(),lx,-0.2,-20),0.1,0.5,60),[r*0.5,g*0.5,b*0.5]));
+    // obstacles
+    obstacles.forEach(o=>{
+      if(o.type==="wall"){ let m=M4.trans(M4.ident(),LANES[o.lane],0.1,o.z); m=M4.rotY(m,t*0.6);
+        drawCube(M4.scale(m,0.95,1.1,0.95),[0.95,0.25,0.3]); }
+      else { let m=M4.trans(M4.ident(),LANES[o.lane],0.35+Math.sin(t*3+o.z)*0.06,o.z); m=M4.rotY(m,t*2.5);
+        drawCube(M4.scale(m,0.42,0.42,0.42),[1.0,0.82,0.2]); }
+    });
+    // player
+    let pm=M4.trans(M4.ident(),playerX,0.1+playerY,0); pm=M4.rotY(pm,t*0.8);
+    drawCube(M4.scale(pm,0.8,0.8,0.8),accentColor());
+  }
+  let last=performance.now(),rafid;
+  function loop(now){ const dt=Math.min(.05,(now-last)/1000); last=now;
+    if(running&&!dead)update(dt); render(); rafid=requestAnimationFrame(loop); }
+  rafid=requestAnimationFrame(loop);
+
+  function die(){ dead=true; running=false; const o=ctx.body.querySelector("#rno");
+    o.innerHTML=`<h3>Crashed!</h3><p>Final score: <b>${Math.floor(score)}</b></p><button class="btn accent" id="rnstart">Run again</button>`;
+    o.classList.remove("hidden"); bindStart(); }
+  function bindStart(){ const btn=ctx.body.querySelector("#rnstart");
+    if(btn)btn.onclick=()=>{ reset();running=true; ctx.body.querySelector("#rno").classList.add("hidden"); }; }
+  bindStart();
+
+  const kd=e=>{ if(!ctx.isFocused())return; const k=e.key.toLowerCase();
+    if(["arrowleft","arrowright","arrowup","arrowdown"," ","a","d"].includes(k)||k==="spacebar")e.preventDefault();
+    if(!running)return;
+    if(k==="arrowleft"||k==="a")lane=Math.max(0,lane-1);
+    else if(k==="arrowright"||k==="d")lane=Math.min(2,lane+1);
+    else if(k===" "||k==="spacebar"||k==="arrowup"){ if(!jumping){jumping=true;vy=6.2;} } };
+  addEventListener("keydown",kd);
+  return {cleanup:()=>{running=false;cancelAnimationFrame(rafid);removeEventListener("keydown",kd);
+    try{gl.getExtension("WEBGL_lose_context")?.loseContext();}catch(e){}}};
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   14. Clock + boot
+   ════════════════════════════════════════════════════════════════════════ */
+const clock=document.getElementById("clock");
+function tick(){ const d=new Date();
+  clock.textContent=d.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})+"  "+
+    d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); }
+tick(); setInterval(tick,1000*15);
+
+window.addEventListener("load",()=>{
+  setTimeout(()=>{ const b=document.getElementById("boot"); b.style.opacity="0";
+    setTimeout(()=>b.remove(),650); }, 1500);
+});
+
+/* expose a couple of things for the curious (open the console) */
+window.LuminaOS={openApp,setWallpaper,setTheme,setAccent,openPalette,APPS};
+console.log("%cLuminaOS","font:700 28px Futura;color:#39e6c8","ready. Press Ctrl/⌘-K for Nova ✦, or call LuminaOS.openApp('maze').");
+</script>
+</body>
+</html>

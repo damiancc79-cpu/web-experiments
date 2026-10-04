@@ -1,0 +1,2561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CATÁLOGO 1:64 — La Revista del Coleccionista Hot Wheels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Inline&family=Bungee+Shade&family=Archivo+Black&family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F5EEDF;
+    --paper-dark: #ECE2C8;
+    --paper-light: #FAF5E9;
+    --ink: #14110F;
+    --ink-soft: #3A322C;
+    --hw-orange: #FF5C00;
+    --hw-orange-dark: #E04A00;
+    --pop-blue: #1F4FEA;
+    --pop-pink: #FF2D7A;
+    --pop-yellow: #FFD23F;
+    --pop-green: #00B26F;
+    --shadow: 5px 5px 0 var(--ink);
+    --shadow-lg: 8px 8px 0 var(--ink);
+    --shadow-sm: 3px 3px 0 var(--ink);
+    --border: 2.5px solid var(--ink);
+    --border-thick: 4px solid var(--ink);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Manrope', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    overflow-x: hidden;
+    font-weight: 500;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Paper grain texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 200;
+    opacity: 0.06;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0 0.06 0 0 0 0.8 0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Halftone dot patterns — reusable */
+  .halftone {
+    background-image: radial-gradient(var(--ink) 1.2px, transparent 1.4px);
+    background-size: 12px 12px;
+  }
+  .halftone-orange {
+    background-image: radial-gradient(var(--hw-orange) 1.4px, transparent 1.6px);
+    background-size: 14px 14px;
+  }
+  .halftone-blue {
+    background-image: radial-gradient(var(--pop-blue) 1.2px, transparent 1.4px);
+    background-size: 12px 12px;
+  }
+
+  /* ============ TAPE STRIP TOP ============ */
+  .tape-top {
+    background: var(--hw-orange);
+    color: var(--ink);
+    border-bottom: var(--border-thick);
+    padding: 9px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    position: relative;
+    z-index: 30;
+  }
+  .tape-top span.dot::before {
+    content: '◉';
+    margin-right: 6px;
+    color: var(--ink);
+  }
+  .tape-top .right {
+    display: flex; gap: 22px;
+  }
+  .tape-top .right a {
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 700;
+    border-bottom: 2px solid transparent;
+    padding-bottom: 1px;
+    transition: border-color .2s;
+  }
+  .tape-top .right a:hover { border-color: var(--ink); }
+
+  /* ============ NAVIGATION ============ */
+  .nav {
+    background: var(--paper);
+    border-bottom: var(--border-thick);
+    padding: 22px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 25;
+  }
+
+  .logo {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    transform: rotate(-2deg);
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  .logo:hover { transform: rotate(0deg); }
+  .logo .stamp {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Bungee', sans-serif;
+    font-size: 14px;
+    padding: 6px 10px;
+    line-height: 1;
+    transform: rotate(-3deg);
+  }
+  .logo .name {
+    font-family: 'Bungee', sans-serif;
+    font-size: 26px;
+    line-height: 0.9;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .logo .name em {
+    font-style: normal;
+    color: var(--hw-orange);
+  }
+  .logo .scale {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    background: var(--hw-orange);
+    color: var(--ink);
+    padding: 3px 6px;
+    border: 1.5px solid var(--ink);
+    margin-left: 4px;
+    transform: rotate(4deg);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 4px;
+    list-style: none;
+  }
+  .nav-links li a {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    text-decoration: none;
+    padding: 8px 14px;
+    display: inline-block;
+    border-radius: 2px;
+    transition: all .15s;
+  }
+  .nav-links li a:hover {
+    background: var(--ink);
+    color: var(--pop-yellow);
+    transform: translateY(-2px);
+  }
+  .nav-links li a.active {
+    background: var(--hw-orange);
+    color: var(--ink);
+    border: 1.5px solid var(--ink);
+  }
+
+  .nav-right {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .icon-btn {
+    width: 42px; height: 42px;
+    background: var(--paper);
+    border: var(--border);
+    color: var(--ink);
+    display: grid; place-items: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all .15s;
+  }
+  .icon-btn:hover {
+    background: var(--pop-yellow);
+    transform: translate(-1px,-1px);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .icon-btn:active {
+    transform: translate(2px,2px);
+    box-shadow: 0 0 0 var(--ink);
+  }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .icon-btn .count {
+    position: absolute;
+    top: -6px; right: -6px;
+    background: var(--hw-orange);
+    color: var(--ink);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink);
+    display: grid; place-items: center;
+  }
+  .icon-btn { position: relative; }
+
+  .cta-btn {
+    font-family: 'Bungee', sans-serif;
+    font-size: 13px;
+    background: var(--hw-orange);
+    color: var(--ink);
+    border: var(--border);
+    padding: 12px 18px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow);
+    transition: all .15s;
+    text-transform: uppercase;
+  }
+  .cta-btn:hover {
+    transform: translate(-2px,-2px);
+    box-shadow: 7px 7px 0 var(--ink);
+  }
+  .cta-btn:active {
+    transform: translate(3px,3px);
+    box-shadow: 0 0 0 var(--ink);
+  }
+
+  /* ============ HERO ============ */
+  .hero {
+    position: relative;
+    padding: 56px 32px 80px;
+    overflow: hidden;
+    border-bottom: var(--border-thick);
+  }
+  .hero-bg-dots {
+    position: absolute;
+    top: 10%; right: -5%;
+    width: 550px; height: 550px;
+    opacity: 0.5;
+    pointer-events: none;
+    background-image: radial-gradient(var(--ink) 1.5px, transparent 1.8px);
+    background-size: 16px 16px;
+    mask-image: radial-gradient(circle at center, black 30%, transparent 65%);
+    -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 65%);
+  }
+  .hero-bg-blob {
+    position: absolute;
+    bottom: -20%; left: -10%;
+    width: 600px; height: 600px;
+    background: var(--pop-yellow);
+    border-radius: 50%;
+    opacity: 0.5;
+    z-index: 0;
+    filter: blur(2px);
+  }
+
+  .hero-inner {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 60px;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 6px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 28px;
+    transform: rotate(-1deg);
+  }
+  .hero-eyebrow::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: var(--hw-orange);
+    border-radius: 50%;
+  }
+
+  h1.hero-title {
+    font-family: 'Bungee', sans-serif;
+    font-size: clamp(52px, 8.2vw, 124px);
+    line-height: 0.92;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin-bottom: 32px;
+    text-transform: uppercase;
+  }
+  h1.hero-title .l1 { display: block; }
+  h1.hero-title .l2 {
+    display: block;
+    font-family: 'Bungee Shade', sans-serif;
+    color: var(--hw-orange);
+    transform: translateX(-4px);
+  }
+  h1.hero-title .l3 {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0 14px 4px;
+    transform: rotate(-1.5deg) translateX(8px);
+    margin-top: 6px;
+  }
+  h1.hero-title .l3 em {
+    font-style: normal;
+    color: var(--hw-orange);
+  }
+
+  .hero-lead {
+    font-size: 18px;
+    color: var(--ink-soft);
+    max-width: 480px;
+    margin-bottom: 38px;
+    line-height: 1.6;
+  }
+  .hero-lead strong { color: var(--ink); font-weight: 800; background: var(--pop-yellow); padding: 0 4px; }
+
+  .hero-actions {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 60px;
+    flex-wrap: wrap;
+  }
+  .btn-pop {
+    font-family: 'Bungee', sans-serif;
+    font-size: 14px;
+    padding: 16px 22px;
+    border: var(--border);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow);
+    transition: all .15s;
+    text-transform: uppercase;
+  }
+  .btn-pop.primary { background: var(--hw-orange); color: var(--ink); }
+  .btn-pop.dark { background: var(--ink); color: var(--paper); }
+  .btn-pop.ghost { background: var(--paper); color: var(--ink); }
+  .btn-pop:hover {
+    transform: translate(-2px,-2px);
+    box-shadow: 7px 7px 0 var(--ink);
+  }
+  .btn-pop:active {
+    transform: translate(3px,3px);
+    box-shadow: 0 0 0 var(--ink);
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 0;
+    border: var(--border);
+    background: var(--paper-light);
+    box-shadow: var(--shadow);
+    max-width: 540px;
+  }
+  .hero-stats .stat {
+    flex: 1;
+    padding: 18px 20px;
+    border-right: var(--border);
+    position: relative;
+  }
+  .hero-stats .stat:last-child { border-right: none; }
+  .hero-stats .stat .n {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .hero-stats .stat .n em {
+    font-style: normal;
+    color: var(--hw-orange);
+  }
+  .hero-stats .stat .l {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+    margin-top: 4px;
+  }
+
+  /* Hero featured "blister pack" */
+  .hero-card {
+    position: relative;
+    background: var(--paper-light);
+    border: var(--border-thick);
+    padding: 24px;
+    box-shadow: 12px 12px 0 var(--ink);
+    transform: rotate(2.2deg);
+    transition: transform .5s cubic-bezier(.34,1.56,.64,1);
+  }
+  .hero-card:hover { transform: rotate(0deg) scale(1.02); }
+
+  .hero-card::before {
+    content: '';
+    position: absolute;
+    top: -14px; left: 20px;
+    width: 90px; height: 28px;
+    background: var(--hw-orange);
+    border: 2.5px solid var(--ink);
+    transform: rotate(-3deg);
+    z-index: 2;
+  }
+  .hero-card::after {
+    content: 'NUEVO INGRESO';
+    position: absolute;
+    top: -10px; left: 24px;
+    font-family: 'Bungee', sans-serif;
+    font-size: 11px;
+    color: var(--ink);
+    letter-spacing: 0.05em;
+    transform: rotate(-3deg);
+    z-index: 3;
+  }
+
+  .hero-card-img {
+    aspect-ratio: 5/4;
+    border: var(--border);
+    overflow: hidden;
+    background: var(--paper-dark);
+    position: relative;
+  }
+  .hero-card-img img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 1.5s ease;
+  }
+  .hero-card:hover .hero-card-img img { transform: scale(1.06); }
+  .hero-card-img::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(20,17,15,0.6) 1px, transparent 1.5px);
+    background-size: 8px 8px;
+    mix-blend-mode: multiply;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  .hero-card-info {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: end;
+  }
+  .hero-card-info .casting {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .hero-card-info h3 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 26px;
+    text-transform: uppercase;
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .hero-card-info .price {
+    font-family: 'Bungee', sans-serif;
+    font-size: 22px;
+    color: var(--hw-orange);
+    line-height: 1;
+    text-align: right;
+  }
+  .hero-card-info .price small {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+
+  /* Floating sticker badges around hero card */
+  .sticker {
+    position: absolute;
+    background: var(--pop-yellow);
+    border: var(--border);
+    padding: 10px 14px;
+    font-family: 'Bungee', sans-serif;
+    font-size: 14px;
+    text-transform: uppercase;
+    box-shadow: var(--shadow-sm);
+    z-index: 4;
+  }
+  .sticker.starburst {
+    background: var(--pop-pink);
+    color: var(--paper);
+    clip-path: polygon(50% 0, 61% 12%, 78% 5%, 79% 22%, 95% 25%, 88% 41%, 100% 50%, 88% 59%, 95% 75%, 79% 78%, 78% 95%, 61% 88%, 50% 100%, 39% 88%, 22% 95%, 21% 78%, 5% 75%, 12% 59%, 0 50%, 12% 41%, 5% 25%, 21% 22%, 22% 5%, 39% 12%);
+    border: none;
+    box-shadow: none;
+    width: 110px; height: 110px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    line-height: 1;
+    padding: 0;
+    font-size: 14px;
+  }
+  .sticker.s1 { top: -22px; right: -22px; transform: rotate(8deg); }
+  .sticker.s2 { bottom: 80px; left: -34px; transform: rotate(-12deg); background: var(--pop-blue); color: var(--paper); }
+  .sticker.s3 { bottom: -28px; right: 50px; transform: rotate(-6deg); }
+
+  /* ============ TAPE DIVIDER ============ */
+  .tape-divider {
+    background: var(--ink);
+    color: var(--paper-light);
+    padding: 16px 0;
+    overflow: hidden;
+    position: relative;
+    border-bottom: var(--border-thick);
+  }
+  .tape-marquee {
+    display: flex;
+    gap: 60px;
+    white-space: nowrap;
+    animation: marquee 38s linear infinite;
+    font-family: 'Bungee', sans-serif;
+    font-size: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--paper);
+  }
+  .tape-marquee span em {
+    font-style: normal;
+    color: var(--hw-orange);
+    margin: 0 8px;
+  }
+  .tape-marquee span::after {
+    content: '✦';
+    margin-left: 60px;
+    color: var(--hw-orange);
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* ============ MARKETPLACE TICKER ============ */
+  .market-ticker {
+    background: var(--paper-dark);
+    border-bottom: var(--border-thick);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    overflow: hidden;
+  }
+  .market-ticker .label {
+    flex-shrink: 0;
+    background: var(--pop-green);
+    border: var(--border);
+    padding: 6px 12px;
+    font-family: 'Bungee', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .market-ticker .label::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: var(--ink);
+    border-radius: 50%;
+    animation: blink 1.2s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .market-ticker .feed {
+    flex: 1;
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent 0, black 5%, black 95%, transparent 100%);
+  }
+  .market-ticker .feed-inner {
+    display: inline-flex;
+    gap: 40px;
+    animation: marquee 50s linear infinite;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .market-ticker .feed-inner b { color: var(--ink); font-weight: 700; }
+  .market-ticker .feed-inner .price-up { color: var(--pop-green); font-weight: 700; }
+  .market-ticker .feed-inner .price-down { color: var(--hw-orange-dark); font-weight: 700; }
+  .market-ticker .feed-inner .sep { color: var(--ink-soft); opacity: 0.4; }
+
+  /* ============ CATALOG SEARCH ============ */
+  .catalog {
+    padding: 80px 32px;
+    background: var(--paper);
+    position: relative;
+    border-bottom: var(--border-thick);
+  }
+  .catalog::before {
+    content: '';
+    position: absolute;
+    top: 20%; right: 5%;
+    width: 200px; height: 200px;
+    background-image: radial-gradient(var(--hw-orange) 1.4px, transparent 1.6px);
+    background-size: 14px 14px;
+    opacity: 0.45;
+    pointer-events: none;
+    border-radius: 50%;
+    mask-image: radial-gradient(circle, black 50%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle, black 50%, transparent 80%);
+  }
+  .catalog-wrap {
+    max-width: 1320px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .catalog-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .catalog-head .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--hw-orange);
+    margin-bottom: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .catalog-head .tag::before {
+    content: '◣';
+    color: var(--ink);
+  }
+  .catalog-head h2 {
+    font-family: 'Bungee', sans-serif;
+    font-size: clamp(36px, 5vw, 60px);
+    line-height: 0.95;
+    text-transform: uppercase;
+    letter-spacing: -0.015em;
+  }
+  .catalog-head h2 em {
+    font-style: normal;
+    color: var(--hw-orange);
+  }
+  .catalog-head .meta {
+    text-align: right;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-soft);
+  }
+  .catalog-head .meta .n {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 30px;
+    color: var(--ink);
+    line-height: 1;
+  }
+
+  .search-box {
+    background: var(--paper-light);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    align-items: stretch;
+    margin-bottom: 22px;
+  }
+  .search-box .icon {
+    display: grid; place-items: center;
+    width: 64px;
+    background: var(--hw-orange);
+    border-right: var(--border-thick);
+    color: var(--ink);
+  }
+  .search-box input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'Manrope', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 22px 24px;
+    color: var(--ink);
+  }
+  .search-box input::placeholder { color: rgba(20,17,15,0.4); }
+  .search-box .submit {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-left: var(--border-thick);
+    padding: 0 28px;
+    font-family: 'Bungee', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: background .2s;
+  }
+  .search-box .submit:hover { background: var(--hw-orange); color: var(--ink); }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .chips-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-soft);
+    margin-right: 6px;
+  }
+  .chip {
+    background: var(--paper-light);
+    border: var(--border);
+    padding: 9px 14px;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all .12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-sm);
+  }
+  .chip:hover {
+    transform: translate(-1px,-1px);
+    box-shadow: 4px 4px 0 var(--ink);
+    background: var(--pop-yellow);
+  }
+  .chip.active {
+    background: var(--hw-orange);
+    color: var(--ink);
+  }
+  .chip .ct {
+    font-family: 'DM Mono', monospace;
+    font-weight: 400;
+    color: var(--ink-soft);
+  }
+  .chip.active .ct { color: rgba(20,17,15,0.7); }
+  .sort {
+    margin-left: auto;
+    background: var(--ink);
+    color: var(--paper);
+    border: var(--border);
+    padding: 9px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ============ SECTION HEAD GENERIC ============ */
+  .section {
+    padding: 100px 32px;
+    border-bottom: var(--border-thick);
+    position: relative;
+  }
+  .section-head {
+    max-width: 1320px;
+    margin: 0 auto 56px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+  .section-head .num {
+    font-family: 'Bungee Shade', sans-serif;
+    font-size: clamp(80px, 12vw, 160px);
+    line-height: 0.8;
+    color: var(--hw-orange);
+    margin-right: 24px;
+    letter-spacing: -0.04em;
+  }
+  .section-head .titles {
+    flex: 1;
+  }
+  .section-head .titles .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--hw-orange);
+    margin-bottom: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-head .titles .tag::before { content: '✦'; color: var(--ink); }
+  .section-head h2 {
+    font-family: 'Bungee', sans-serif;
+    font-size: clamp(40px, 6vw, 84px);
+    line-height: 0.9;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .section-head h2 em {
+    font-style: normal;
+    color: var(--hw-orange);
+  }
+  .section-head h2 .outline {
+    color: transparent;
+    -webkit-text-stroke: 2.5px var(--ink);
+  }
+  .section-head .actions {
+    text-align: right;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-soft);
+  }
+  .section-head .actions a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 700;
+    border-bottom: 2px solid var(--hw-orange);
+    padding-bottom: 1px;
+  }
+
+  .section-head-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* ============ MAGAZINE GRID — VALORADAS ============ */
+  .mag-grid {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: minmax(0, auto);
+    gap: 24px;
+  }
+
+  .mag-card {
+    background: var(--paper-light);
+    border: var(--border-thick);
+    overflow: hidden;
+    position: relative;
+    transition: transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .25s;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .mag-card:hover {
+    transform: translate(-3px,-5px) rotate(0deg) !important;
+    box-shadow: 11px 13px 0 var(--ink);
+  }
+  .mag-card.t-l { transform: rotate(-1.2deg); }
+  .mag-card.t-r { transform: rotate(1deg); }
+  .mag-card.t-c { transform: rotate(-0.5deg); }
+
+  /* Sizing */
+  .mag-card.big { grid-column: span 8; grid-row: span 2; }
+  .mag-card.med { grid-column: span 4; }
+  .mag-card.wide { grid-column: span 6; }
+  .mag-card.tall { grid-column: span 4; grid-row: span 2; }
+  .mag-card.full { grid-column: span 12; }
+
+  .mc-image {
+    aspect-ratio: 16/10;
+    border-bottom: var(--border);
+    position: relative;
+    overflow: hidden;
+    background: var(--paper-dark);
+  }
+  .mag-card.tall .mc-image { aspect-ratio: 4/5; }
+  .mag-card.big .mc-image { aspect-ratio: 16/9; }
+  .mc-image img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 1.2s ease;
+  }
+  .mag-card:hover .mc-image img { transform: scale(1.05); }
+  .mc-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(0,0,0,0.6) 1px, transparent 1.5px);
+    background-size: 7px 7px;
+    mix-blend-mode: multiply;
+    opacity: 0.15;
+    pointer-events: none;
+  }
+
+  .mc-stamp {
+    position: absolute;
+    top: 14px; right: 14px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Bungee', sans-serif;
+    font-size: 11px;
+    padding: 5px 9px;
+    text-transform: uppercase;
+    z-index: 2;
+    transform: rotate(3deg);
+  }
+  .mc-stamp.gold { background: var(--pop-yellow); color: var(--ink); }
+  .mc-stamp.pink { background: var(--pop-pink); color: var(--paper); }
+  .mc-stamp.blue { background: var(--pop-blue); color: var(--paper); }
+  .mc-rank {
+    position: absolute;
+    top: 14px; left: 14px;
+    background: var(--paper-light);
+    border: var(--border);
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    font-family: 'Bungee', sans-serif;
+    font-size: 18px;
+    color: var(--ink);
+    z-index: 2;
+    transform: rotate(-4deg);
+  }
+
+  .mc-body { padding: 22px 22px 20px; }
+  .mc-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .mc-meta .series { color: var(--hw-orange); font-weight: 700; }
+  .mc-body h3 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 24px;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    margin-bottom: 14px;
+  }
+  .mag-card.big .mc-body h3 { font-size: 38px; }
+  .mc-owner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 18px;
+  }
+  .mc-owner .av {
+    width: 28px; height: 28px;
+    background: var(--hw-orange);
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: 'Bungee', sans-serif;
+    font-size: 11px;
+    color: var(--ink);
+  }
+  .mc-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    padding-top: 16px;
+    border-top: 2px dashed rgba(20,17,15,0.2);
+  }
+  .mc-foot .label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .mc-foot .v {
+    font-family: 'Bungee', sans-serif;
+    font-size: 24px;
+    color: var(--hw-orange);
+    line-height: 1;
+  }
+  .mc-foot .pieces {
+    text-align: right;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+  }
+  .mc-foot .pieces strong { color: var(--ink); font-weight: 700; }
+
+  /* ============ MOST WANTED EDITORIAL ============ */
+  .wanted-section {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 100px 32px;
+    border-bottom: var(--border-thick);
+    position: relative;
+    overflow: hidden;
+  }
+  .wanted-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: radial-gradient(rgba(255,210,63,0.18) 1.2px, transparent 1.6px);
+    background-size: 26px 26px;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+  .wanted-section > * { position: relative; z-index: 1; }
+  .wanted-section .section-head h2 { color: var(--paper); }
+  .wanted-section .section-head h2 em { color: var(--hw-orange); }
+  .wanted-section .section-head h2 .outline { -webkit-text-stroke-color: var(--paper); }
+  .wanted-section .section-head .titles .tag { color: var(--pop-yellow); }
+  .wanted-section .section-head .titles .tag::before { color: var(--paper); }
+  .wanted-section .section-head .actions { color: rgba(245,238,223,0.6); }
+  .wanted-section .section-head .actions a { color: var(--paper); border-bottom-color: var(--hw-orange); }
+  .wanted-section .section-head .num { color: var(--hw-orange); }
+
+  .wanted-list {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .wanted-item {
+    display: grid;
+    grid-template-columns: 120px 180px 1fr auto auto auto;
+    gap: 28px;
+    align-items: center;
+    padding: 24px;
+    background: rgba(245,238,223,0.04);
+    border: 2px solid rgba(245,238,223,0.12);
+    transition: all .25s;
+    cursor: pointer;
+  }
+  .wanted-item:hover {
+    background: rgba(255,92,0,0.1);
+    border-color: var(--hw-orange);
+    transform: translateX(8px);
+  }
+  .wanted-item .rk {
+    font-family: 'Bungee Shade', sans-serif;
+    font-size: 96px;
+    line-height: 0.8;
+    color: var(--paper);
+    letter-spacing: -0.04em;
+  }
+  .wanted-item:nth-child(1) .rk,
+  .wanted-item:nth-child(2) .rk,
+  .wanted-item:nth-child(3) .rk { color: var(--hw-orange); }
+  .wanted-item .thumb {
+    aspect-ratio: 4/3;
+    overflow: hidden;
+    border: 2px solid var(--paper);
+    background: var(--paper-dark);
+  }
+  .wanted-item .thumb img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    filter: contrast(1.05);
+  }
+  .wanted-item .info .casting {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: rgba(245,238,223,0.55);
+    margin-bottom: 8px;
+  }
+  .wanted-item .info h3 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 28px;
+    text-transform: uppercase;
+    line-height: 1;
+    color: var(--paper);
+    margin-bottom: 8px;
+  }
+  .wanted-item .info .desc {
+    font-size: 13px;
+    color: rgba(245,238,223,0.65);
+    line-height: 1.5;
+    max-width: 380px;
+  }
+  .w-pill {
+    display: inline-block;
+    padding: 5px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    border: 1.5px solid currentColor;
+  }
+  .w-pill.sth { color: var(--hw-orange); background: rgba(255,92,0,0.1); }
+  .w-pill.th { color: var(--pop-yellow); }
+  .w-pill.rlc { color: var(--pop-blue); background: rgba(31,79,234,0.15); }
+  .w-pill.premium { color: var(--pop-pink); }
+  .w-pill.regular { color: rgba(245,238,223,0.6); }
+
+  .wanted-item .stat .l {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: rgba(245,238,223,0.55);
+    margin-bottom: 4px;
+  }
+  .wanted-item .stat .v {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--paper);
+  }
+  .wanted-item .stat .v.orange { color: var(--hw-orange); }
+  .wanted-item .stat .trend {
+    display: inline-block;
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--pop-green);
+  }
+  .wanted-item .stat .trend.dn { color: var(--hw-orange); }
+
+  /* ============ SERIES WALL ============ */
+  .series-section {
+    background: var(--paper-dark);
+    padding: 100px 32px;
+    border-bottom: var(--border-thick);
+    position: relative;
+  }
+  .series-wall {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+  .series-tile {
+    background: var(--paper-light);
+    border: var(--border-thick);
+    box-shadow: var(--shadow);
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    transition: transform .25s, box-shadow .25s;
+  }
+  .series-tile:hover {
+    transform: translate(-3px,-3px);
+    box-shadow: 8px 8px 0 var(--ink);
+  }
+  .series-tile .tile-img {
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    position: relative;
+    border-bottom: var(--border);
+  }
+  .series-tile .tile-img img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 1s ease;
+  }
+  .series-tile:hover .tile-img img { transform: scale(1.06); }
+  .series-tile .tile-img::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(0,0,0,0.55) 1px, transparent 1.5px);
+    background-size: 8px 8px;
+    mix-blend-mode: multiply;
+    opacity: 0.16;
+  }
+  .series-tile .tile-img .tile-stamp {
+    position: absolute;
+    bottom: -12px; left: 18px;
+    background: var(--hw-orange);
+    border: var(--border);
+    padding: 4px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+    transform: rotate(-2deg);
+    z-index: 3;
+  }
+  .series-tile .tile-body {
+    padding: 24px 22px 22px;
+  }
+  .series-tile .tile-body h3 {
+    font-family: 'Bungee', sans-serif;
+    font-size: 28px;
+    line-height: 0.95;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+  }
+  .series-tile .tile-body p {
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin-bottom: 18px;
+  }
+  .series-tile .tile-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 14px;
+    border-top: 2px dashed rgba(20,17,15,0.2);
+  }
+  .series-tile .tile-foot .count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .series-tile .tile-foot .count strong {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 18px;
+    color: var(--hw-orange);
+  }
+  .series-tile .tile-foot .go {
+    font-family: 'Bungee', sans-serif;
+    font-size: 12px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .series-tile:hover .tile-foot .go { color: var(--hw-orange); }
+
+  /* ============ ANATOMÍA SECTION ============ */
+  .anatomy-section {
+    padding: 100px 32px;
+    background: var(--paper);
+    border-bottom: var(--border-thick);
+    position: relative;
+    overflow: hidden;
+  }
+  .anatomy-section::before {
+    content: '';
+    position: absolute;
+    top: 5%; left: 3%;
+    width: 320px; height: 320px;
+    background-image: radial-gradient(var(--pop-blue) 1.2px, transparent 1.6px);
+    background-size: 14px 14px;
+    opacity: 0.35;
+    pointer-events: none;
+    mask-image: radial-gradient(circle, black 40%, transparent 75%);
+    -webkit-mask-image: radial-gradient(circle, black 40%, transparent 75%);
+  }
+
+  .anatomy {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.1fr 1fr;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .anatomy-img {
+    grid-column: 2;
+    position: relative;
+    border: var(--border-thick);
+    background: var(--paper-light);
+    padding: 32px;
+    box-shadow: var(--shadow-lg);
+    aspect-ratio: 1/1;
+  }
+  .anatomy-img img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border: var(--border);
+  }
+  .anatomy-img::before {
+    content: 'ESCALA 1:64';
+    position: absolute;
+    top: -14px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 5px 14px;
+    font-family: 'Bungee', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+  }
+  .anatomy-img::after {
+    content: 'C-024 · 2026';
+    position: absolute;
+    bottom: 14px; right: 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    letter-spacing: 0.16em;
+  }
+
+  .spec {
+    background: var(--paper-light);
+    border: var(--border);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    margin-bottom: 18px;
+  }
+  .spec::before {
+    content: '';
+    position: absolute;
+    width: 30px; height: 2px;
+    background: var(--hw-orange);
+    top: 50%;
+  }
+  .anatomy-left .spec::before { right: -32px; }
+  .anatomy-right .spec::before { left: -32px; background: var(--pop-blue); }
+  .anatomy-left .spec { transform: rotate(-1deg); }
+  .anatomy-right .spec { transform: rotate(1deg); }
+
+  .spec .num {
+    font-family: 'Bungee', sans-serif;
+    font-size: 14px;
+    color: var(--hw-orange);
+    margin-bottom: 4px;
+  }
+  .anatomy-right .spec .num { color: var(--pop-blue); }
+  .spec h4 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 15px;
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .spec p {
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  .anatomy-title {
+    text-align: center;
+    grid-column: 1 / -1;
+    margin-bottom: 40px;
+  }
+
+  /* ============ FEATURED COLLECTOR ============ */
+  .collector-section {
+    background: var(--hw-orange);
+    color: var(--ink);
+    padding: 120px 32px;
+    border-bottom: var(--border-thick);
+    position: relative;
+    overflow: hidden;
+  }
+  .collector-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(20,17,15,0.18) 1.2px, transparent 1.6px);
+    background-size: 22px 22px;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .collector-section > * { position: relative; z-index: 1; }
+
+  .collector-grid {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 60px;
+    align-items: center;
+  }
+  .collector-img-wrap {
+    position: relative;
+  }
+  .collector-img {
+    aspect-ratio: 4/5;
+    border: var(--border-thick);
+    background: var(--paper);
+    box-shadow: 14px 14px 0 var(--ink);
+    overflow: hidden;
+    transform: rotate(-2.5deg);
+  }
+  .collector-img img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    filter: saturate(0.9) contrast(1.05);
+  }
+  .collector-img::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(0,0,0,0.7) 1px, transparent 1.4px);
+    background-size: 6px 6px;
+    mix-blend-mode: multiply;
+    opacity: 0.18;
+    pointer-events: none;
+  }
+  .collector-tag {
+    position: absolute;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 8px 14px;
+    font-family: 'Bungee', sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    border: var(--border);
+    z-index: 3;
+  }
+  .collector-tag.t1 { top: -10px; left: 30px; transform: rotate(-3deg); }
+  .collector-tag.t2 { bottom: 40px; right: -30px; transform: rotate(4deg); background: var(--paper); color: var(--ink); }
+
+  .collector-info .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--ink);
+    margin-bottom: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--paper);
+    padding: 6px 12px;
+    border: var(--border);
+  }
+  .collector-info h2 {
+    font-family: 'Bungee', sans-serif;
+    font-size: clamp(48px, 7vw, 88px);
+    line-height: 0.92;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    color: var(--ink);
+  }
+  .collector-info h2 em {
+    font-style: normal;
+    background: var(--ink);
+    color: var(--hw-orange);
+    padding: 0 12px;
+  }
+  .collector-info .from {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 28px;
+  }
+  .collector-info blockquote {
+    font-family: 'Bungee', sans-serif;
+    font-size: clamp(24px, 2.6vw, 32px);
+    line-height: 1.15;
+    margin-bottom: 28px;
+    text-transform: uppercase;
+    border-left: 6px solid var(--ink);
+    padding-left: 18px;
+  }
+  .collector-info p {
+    font-size: 16px;
+    line-height: 1.7;
+    margin-bottom: 28px;
+    max-width: 580px;
+  }
+  .collector-stats {
+    display: flex;
+    gap: 0;
+    border: var(--border-thick);
+    background: var(--paper);
+    box-shadow: var(--shadow);
+  }
+  .collector-stats .s {
+    flex: 1;
+    padding: 16px 18px;
+    border-right: var(--border);
+  }
+  .collector-stats .s:last-child { border-right: none; }
+  .collector-stats .s .l {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+  }
+  .collector-stats .s .v {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+
+  /* ============ NEWSLETTER / ZINE ============ */
+  .zine-section {
+    padding: 120px 32px;
+    background: var(--paper);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom: var(--border-thick);
+  }
+  .zine-section::before {
+    content: '1:64';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-6deg);
+    font-family: 'Bungee Shade', sans-serif;
+    font-size: clamp(280px, 36vw, 520px);
+    color: var(--paper-dark);
+    line-height: 0.85;
+    z-index: 0;
+    pointer-events: none;
+    letter-spacing: -0.04em;
+  }
+  .zine-section > * { position: relative; z-index: 1; }
+  .zine-section .tag {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 7px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    transform: rotate(-1deg);
+  }
+  .zine-section h2 {
+    font-family: 'Bungee', sans-serif;
+    font-size: clamp(48px, 8vw, 110px);
+    line-height: 0.92;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+    color: var(--ink);
+  }
+  .zine-section h2 em {
+    font-style: normal;
+    color: var(--hw-orange);
+  }
+  .zine-section .lead {
+    max-width: 560px;
+    margin: 0 auto 40px;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+  .zine-form {
+    display: flex;
+    max-width: 540px;
+    margin: 0 auto;
+    background: var(--paper-light);
+    border: var(--border-thick);
+    padding: 6px;
+    box-shadow: var(--shadow-lg);
+  }
+  .zine-form input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'Manrope', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    padding: 14px 18px;
+    color: var(--ink);
+  }
+  .zine-form input::placeholder { color: rgba(20,17,15,0.4); }
+  .zine-form button {
+    background: var(--hw-orange);
+    border: var(--border);
+    color: var(--ink);
+    font-family: 'Bungee', sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    padding: 0 22px;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .zine-form button:hover { background: var(--ink); color: var(--hw-orange); }
+  .zine-extra {
+    margin-top: 28px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+  }
+  .zine-extra strong { color: var(--ink); }
+
+  /* ============ FOOTER ============ */
+  footer {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 80px 32px 32px;
+  }
+  .footer-grid {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr;
+    gap: 60px;
+    padding-bottom: 50px;
+    border-bottom: 2px dashed rgba(245,238,223,0.2);
+  }
+  footer .logo .name { color: var(--paper); }
+  footer .logo .name em { color: var(--hw-orange); }
+  footer .logo .stamp { background: var(--hw-orange); color: var(--ink); }
+  .footer-brand p {
+    font-size: 14px;
+    color: rgba(245,238,223,0.6);
+    line-height: 1.65;
+    margin: 24px 0;
+    max-width: 360px;
+  }
+  .social {
+    display: flex;
+    gap: 10px;
+  }
+  .social a {
+    width: 40px; height: 40px;
+    background: rgba(245,238,223,0.05);
+    border: 2px solid rgba(245,238,223,0.15);
+    display: grid; place-items: center;
+    color: var(--paper);
+    text-decoration: none;
+    transition: all .2s;
+  }
+  .social a:hover {
+    background: var(--hw-orange);
+    border-color: var(--hw-orange);
+    color: var(--ink);
+    transform: translate(-2px,-2px);
+  }
+  .social svg { width: 18px; height: 18px; }
+  .footer-col h4 {
+    font-family: 'Bungee', sans-serif;
+    font-size: 14px;
+    color: var(--hw-orange);
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    letter-spacing: 0.02em;
+  }
+  .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .footer-col a {
+    color: rgba(245,238,223,0.65);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color .2s;
+  }
+  .footer-col a:hover { color: var(--paper); }
+  .footer-bottom {
+    max-width: 1320px;
+    margin: 28px auto 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(245,238,223,0.4);
+  }
+
+  /* ============ ANIMATIONS ============ */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .reveal { opacity: 0; animation: fadeUp .9s cubic-bezier(.2,.8,.2,1) forwards; }
+  .reveal.d1 { animation-delay: .15s; }
+  .reveal.d2 { animation-delay: .3s; }
+  .reveal.d3 { animation-delay: .45s; }
+  .reveal.d4 { animation-delay: .6s; }
+  .reveal.d5 { animation-delay: .75s; }
+  .reveal.d6 { animation-delay: .9s; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 1100px) {
+    .hero-inner { grid-template-columns: 1fr; }
+    .hero-card { max-width: 560px; margin: 40px auto 0; }
+    .mag-grid { grid-template-columns: repeat(6, 1fr); }
+    .mag-card.big { grid-column: span 6; grid-row: span 1; }
+    .mag-card.med { grid-column: span 3; }
+    .mag-card.wide { grid-column: span 6; }
+    .mag-card.tall { grid-column: span 3; grid-row: span 1; }
+    .mag-card.tall .mc-image { aspect-ratio: 16/10; }
+    .wanted-item { grid-template-columns: 80px 140px 1fr auto; gap: 18px; }
+    .wanted-item .rk { font-size: 64px; }
+    .wanted-item .col-pill,
+    .wanted-item .col-trend { display: none; }
+    .series-wall { grid-template-columns: 1fr 1fr; }
+    .anatomy { grid-template-columns: 1fr; }
+    .anatomy-img { grid-column: 1; }
+    .anatomy-left .spec::before,
+    .anatomy-right .spec::before { display: none; }
+    .anatomy-left .spec,
+    .anatomy-right .spec { transform: rotate(0); }
+    .collector-grid { grid-template-columns: 1fr; gap: 60px; }
+    .footer-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
+  }
+  @media (max-width: 720px) {
+    .tape-top { padding: 8px 14px; font-size: 9px; gap: 12px; }
+    .tape-top .badge { display: none; }
+    .nav { padding: 14px 16px; }
+    .nav-links { display: none; }
+    .nav-right .cta-btn { display: none; }
+    .hero { padding: 40px 16px 60px; }
+    .hero-stats { flex-wrap: wrap; }
+    .hero-stats .stat { min-width: 50%; border-bottom: var(--border); }
+    .section, .catalog, .wanted-section, .series-section, .anatomy-section, .collector-section, .zine-section { padding: 60px 16px; }
+    .section-head { flex-direction: column; align-items: flex-start; }
+    .section-head .num { font-size: 80px; }
+    .search-box { flex-direction: column; }
+    .search-box .icon { width: 100%; height: 50px; border-right: none; border-bottom: var(--border-thick); }
+    .search-box .submit { border-left: none; border-top: var(--border-thick); padding: 16px; }
+    .mag-grid { grid-template-columns: 1fr; }
+    .mag-card.big, .mag-card.med, .mag-card.wide, .mag-card.tall, .mag-card.full { grid-column: span 1; }
+    .mag-card { transform: rotate(0) !important; }
+    .wanted-item { grid-template-columns: 50px 1fr; gap: 14px; padding: 18px; }
+    .wanted-item .rk { font-size: 44px; }
+    .wanted-item .thumb,
+    .wanted-item .col-stat,
+    .wanted-item .col-pill,
+    .wanted-item .col-trend { display: none; }
+    .series-wall { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: 1fr; gap: 36px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TAPE TOP -->
+<div class="tape-top">
+  <span class="dot">EDICIÓN #024 · MAYO 2026 · MX/LATAM</span>
+  <div class="right">
+    <a href="#">Iniciar Sesión</a>
+    <a href="#">Mi Vitrina</a>
+    <a href="#">Carrito · 0</a>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="#" class="logo">
+    <span class="stamp">HW</span>
+    <span class="name">CATÁLOGO<em>·</em>64</span>
+    <span class="scale">1:64</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#catalogo" class="active">Catálogo</a></li>
+    <li><a href="#valoradas">Valoradas</a></li>
+    <li><a href="#buscadas">Buscadas</a></li>
+    <li><a href="#series">Series</a></li>
+    <li><a href="#anatomia">Anatomía</a></li>
+    <li><a href="#perfil">Coleccionista</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="icon-btn" aria-label="Buscar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+    </button>
+    <button class="icon-btn" aria-label="Vitrina">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21V13h6v8"/></svg>
+      <span class="count">3</span>
+    </button>
+    <a href="#" class="cta-btn">Únete →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg-dots"></div>
+  <div class="hero-bg-blob"></div>
+
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-eyebrow reveal">REVISTA DEL COLECCIONISTA · DESDE 2017</div>
+      <h1 class="hero-title reveal d1">
+        <span class="l1">CARROS</span>
+        <span class="l2">DE JUGUETE</span>
+        <span class="l3">PARA <em>GENTE</em> SERIA.</span>
+      </h1>
+      <p class="hero-lead reveal d2">
+        Catálogo curado de Hot Wheels coleccionables. Cada pieza <strong>autenticada, valuada y rastreada</strong>. La fuente número uno de los fanáticos del fierro miniatura en México y Latinoamérica.
+      </p>
+      <div class="hero-actions reveal d3">
+        <a href="#valoradas" class="btn-pop primary">Ver Catálogo →</a>
+        <a href="#perfil" class="btn-pop ghost">Coleccionista del Mes</a>
+      </div>
+      <div class="hero-stats reveal d4">
+        <div class="stat">
+          <div class="n"><em>47</em>.8K</div>
+          <div class="l">Piezas catalogadas</div>
+        </div>
+        <div class="stat">
+          <div class="n">8.4K</div>
+          <div class="l">Coleccionistas</div>
+        </div>
+        <div class="stat">
+          <div class="n">$2.4M</div>
+          <div class="l">Vol. mensual</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-card reveal d2">
+      <div class="hero-card-img">
+        <img src="https://images.unsplash.com/photo-1755053757496-376ed1bcebc9?w=900&q=80&auto=format" alt="Hot Wheels en empaque original">
+      </div>
+      <div class="hero-card-info">
+        <div>
+          <div class="casting">CASTING #GTC92 · SERIE 2026</div>
+          <h3>'67 CAMARO Z/28<br>SPECTRAFLAME</h3>
+        </div>
+        <div class="price">
+          <small>Tasación</small>
+          $4,250
+        </div>
+      </div>
+      <div class="sticker s1">¡SUPER TH!</div>
+      <div class="sticker s2">87 / 12,000</div>
+      <div class="sticker starburst s3">¡EDICIÓN<br>LIMITADA!</div>
+    </div>
+  </div>
+</section>
+
+<!-- TAPE DIVIDER -->
+<div class="tape-divider">
+  <div class="tape-marquee">
+    <span>Subasta en vivo <em>→</em></span>
+    <span>VW Drag Bus RLC '69 <em>•</em> 6 ofertas restantes</span>
+    <span>Drop oficial mainline 2026 <em>•</em></span>
+    <span>Convención CDMX <em>•</em> 14-16 Junio</span>
+    <span>Subasta en vivo <em>→</em></span>
+    <span>VW Drag Bus RLC '69 <em>•</em> 6 ofertas restantes</span>
+    <span>Drop oficial mainline 2026 <em>•</em></span>
+    <span>Convención CDMX <em>•</em> 14-16 Junio</span>
+  </div>
+</div>
+
+<!-- MARKET TICKER -->
+<div class="market-ticker">
+  <div class="label">MERCADO EN VIVO</div>
+  <div class="feed">
+    <div class="feed-inner">
+      <span><b>Hace 2 min</b> · @octavio.diecast vendió <b>'82 Toyota Supra MK2</b> por <span class="price-up">$4,800</span> <span class="sep">•</span></span>
+      <span><b>Hace 4 min</b> · @mariarueda.hw subastó <b>RLC Drag Bus '69</b> por <span class="price-up">$9,200</span> <span class="sep">•</span></span>
+      <span><b>Hace 7 min</b> · @racerjuan compró <b>Datsun 240Z Custom</b> por <span class="price-down">$3,100</span> <span class="sep">•</span></span>
+      <span><b>Hace 9 min</b> · @kenshiro.collect intercambió <b>Skyline R34 Premium</b> <span class="sep">•</span></span>
+      <span><b>Hace 12 min</b> · @paco.fierro vendió <b>'70 Road Runner TH</b> por <span class="price-up">$890</span> <span class="sep">•</span></span>
+      <span><b>Hace 14 min</b> · @alondra.lopez compró <b>Mazda RX-7 FD3S</b> por <span class="price-up">$1,250</span> <span class="sep">•</span></span>
+      <span><b>Hace 2 min</b> · @octavio.diecast vendió <b>'82 Toyota Supra MK2</b> por <span class="price-up">$4,800</span> <span class="sep">•</span></span>
+      <span><b>Hace 4 min</b> · @mariarueda.hw subastó <b>RLC Drag Bus '69</b> por <span class="price-up">$9,200</span> <span class="sep">•</span></span>
+      <span><b>Hace 7 min</b> · @racerjuan compró <b>Datsun 240Z Custom</b> por <span class="price-down">$3,100</span> <span class="sep">•</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- CATALOG SEARCH -->
+<section class="catalog" id="catalogo">
+  <div class="catalog-wrap">
+    <div class="catalog-head">
+      <div>
+        <div class="tag">Sección 01 / Buscador</div>
+        <h2>BUSCA TU <em>PRÓXIMO</em><br>FIERRITO.</h2>
+      </div>
+      <div class="meta">
+        Resultados<br>
+        <span class="n" id="resultsCount">47,829</span><br>
+        piezas catalogadas
+      </div>
+    </div>
+
+    <div class="search-box">
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+      </div>
+      <input type="text" id="searchInput" placeholder="Modelo, año, casting, color, serie…">
+      <button class="submit">BUSCAR →</button>
+    </div>
+
+    <div class="chips">
+      <span class="chips-label">FILTROS:</span>
+      <button class="chip active" data-filter="all">Todos <span class="ct">· 47.8K</span></button>
+      <button class="chip" data-filter="th">Treasure Hunt <span class="ct">· 312</span></button>
+      <button class="chip" data-filter="sth">Super TH <span class="ct">· 87</span></button>
+      <button class="chip" data-filter="rlc">RLC <span class="ct">· 1.2K</span></button>
+      <button class="chip" data-filter="premium">Premium <span class="ct">· 4.6K</span></button>
+      <button class="chip" data-filter="vintage">Redline Era <span class="ct">· 3.1K</span></button>
+      <button class="chip" data-filter="japan">JDM <span class="ct">· 2.4K</span></button>
+      <button class="chip">+ FILTROS</button>
+      <select class="sort">
+        <option>Más valorados</option>
+        <option>Más buscados</option>
+        <option>Precio ↓</option>
+        <option>Precio ↑</option>
+        <option>Más recientes</option>
+      </select>
+    </div>
+  </div>
+</section>
+
+<!-- MAGAZINE GRID — VALORADAS -->
+<section class="section" id="valoradas">
+  <div class="section-head">
+    <div class="section-head-row">
+      <div class="num">02</div>
+      <div class="titles">
+        <div class="tag">Top 6 / Mayo 2026</div>
+        <h2>LAS <em>JOYAS</em> DEL<br><span class="outline">FIERRITO MAYOR</span></h2>
+      </div>
+    </div>
+    <div class="actions">
+      Actualizado 26 May 2026<br>
+      <a href="#">Ver todas las colecciones →</a>
+    </div>
+  </div>
+
+  <div class="mag-grid">
+
+    <article class="mag-card big t-l">
+      <div class="mc-image">
+        <span class="mc-rank">01</span>
+        <span class="mc-stamp gold">★ ELITE</span>
+        <img src="https://images.unsplash.com/photo-1515281239448-2abe329fe5e5?w=1000&q=80&auto=format" alt="Colección de Hot Wheels en exhibidor">
+      </div>
+      <div class="mc-body">
+        <div class="mc-meta">
+          <span class="series">REDLINE ERA · 1968–1977</span>
+          <span>NM/M+ · Originales sin reproducción</span>
+        </div>
+        <h3>EL GARAGE DE<br>DON OCTAVIO</h3>
+        <div class="mc-owner">
+          <span class="av">DO</span>
+          @octavio.diecast · Monterrey, MX · Miembro desde 2017
+        </div>
+        <div class="mc-foot">
+          <div>
+            <div class="label">Valor total estimado</div>
+            <div class="v">$1.8M MXN</div>
+          </div>
+          <div class="pieces">
+            <strong>312</strong> piezas<br>
+            98% completa
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="mag-card med t-r">
+      <div class="mc-image">
+        <span class="mc-rank">02</span>
+        <span class="mc-stamp pink">SUPER TH</span>
+        <img src="https://images.unsplash.com/photo-1755053757286-138b8fd660a1?w=800&q=80&auto=format" alt="Hot Wheels en blister sellado">
+      </div>
+      <div class="mc-body">
+        <div class="mc-meta"><span class="series">SUPER TH · 2010–2026</span></div>
+        <h3>SPECTRAFLAME HUNT</h3>
+        <div class="mc-owner"><span class="av">MR</span>@mariarueda.hw · CDMX</div>
+        <div class="mc-foot">
+          <div><div class="label">Valor</div><div class="v">$986K</div></div>
+          <div class="pieces"><strong>87/93</strong><br>completas</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="mag-card med t-l">
+      <div class="mc-image">
+        <span class="mc-rank">03</span>
+        <span class="mc-stamp blue">RLC EXCLUSIVE</span>
+        <img src="https://images.unsplash.com/photo-1732947656004-1df82d7b9029?w=800&q=80&auto=format" alt="Caja de Hot Wheels coleccionables">
+      </div>
+      <div class="mc-body">
+        <div class="mc-meta"><span class="series">RLC · DRAG SERIES</span></div>
+        <h3>DRAG STRIP LEGENDS</h3>
+        <div class="mc-owner"><span class="av">RJ</span>@racerjuan · Guadalajara</div>
+        <div class="mc-foot">
+          <div><div class="label">Valor</div><div class="v">$742K</div></div>
+          <div class="pieces"><strong>54</strong> piezas<br>Ed. especial</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="mag-card tall t-r">
+      <div class="mc-image">
+        <span class="mc-rank">04</span>
+        <span class="mc-stamp">JDM</span>
+        <img src="https://images.unsplash.com/photo-1566137966241-b713866d24ea?w=800&q=80&auto=format" alt="Exhibidor de autos a escala die-cast">
+      </div>
+      <div class="mc-body">
+        <div class="mc-meta"><span class="series">JAPAN HISTORICS · CAR CULTURE</span></div>
+        <h3>JDM<br>HERITAGE<br>VAULT</h3>
+        <div class="mc-owner"><span class="av">KS</span>@kenshiro.collect · Puebla</div>
+        <div class="mc-foot">
+          <div><div class="label">Valor</div><div class="v">$634K</div></div>
+          <div class="pieces"><strong>128</strong> piezas<br>100% NM/M</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="mag-card wide t-c">
+      <div class="mc-image">
+        <span class="mc-rank">05</span>
+        <span class="mc-stamp pink">PREMIUM</span>
+        <img src="https://images.unsplash.com/photo-1700613519047-12fb656c22b5?w=900&q=80&auto=format" alt="Mesa con autos de juguete coleccionables">
+      </div>
+      <div class="mc-body">
+        <div class="mc-meta"><span class="series">BOULEVARD · MODERN CLASSICS</span></div>
+        <h3>BOULEVARD KNIGHTS</h3>
+        <div class="mc-owner"><span class="av">AL</span>@alondra.lopez · Querétaro · 2019</div>
+        <div class="mc-foot">
+          <div><div class="label">Valor</div><div class="v">$512K</div></div>
+          <div class="pieces"><strong>76/82</strong><br>en blister</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="mag-card med t-r">
+      <div class="mc-image">
+        <span class="mc-rank">06</span>
+        <span class="mc-stamp gold">VINTAGE</span>
+        <img src="https://images.unsplash.com/photo-1613536491198-a0afa1916b3b?w=800&q=80&auto=format" alt="Autos die-cast originales">
+      </div>
+      <div class="mc-body">
+        <div class="mc-meta"><span class="series">MATTEL ORIGINALES · 1968</span></div>
+        <h3>SWEET 16 OG</h3>
+        <div class="mc-owner"><span class="av">PF</span>@paco.fierro · Tijuana</div>
+        <div class="mc-foot">
+          <div><div class="label">Valor</div><div class="v">$2.1M</div></div>
+          <div class="pieces"><strong>16/16</strong><br>colección OG</div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- MOST WANTED -->
+<section class="wanted-section" id="buscadas">
+  <div class="section-head">
+    <div class="section-head-row">
+      <div class="num">03</div>
+      <div class="titles">
+        <div class="tag">Ranking · Tiempo real</div>
+        <h2>LAS PIEZAS<br><em>MÁS CAZADAS</em></h2>
+      </div>
+    </div>
+    <div class="actions">
+      Datos: últimos 30 días<br>
+      <a href="#">Ver Top 100 →</a>
+    </div>
+  </div>
+
+  <div class="wanted-list">
+
+    <div class="wanted-item">
+      <div class="rk">01</div>
+      <div class="thumb"><img src="https://images.unsplash.com/photo-1609395464110-7116592351c6?w=400&q=80&auto=format" alt="Auto a escala en empaque"></div>
+      <div class="info">
+        <div class="casting">CASTING FYG75 · 2024 · SPECTRAFLAME RED</div>
+        <h3>'82 TOYOTA SUPRA MK2</h3>
+        <div class="desc">Tirada de 8,500 unidades, llantas Real Riders, base ZAMAC. La pieza más buscada del año por coleccionistas JDM.</div>
+      </div>
+      <div class="col-pill"><span class="w-pill sth">SUPER TH</span></div>
+      <div class="stat col-stat">
+        <div class="l">Búsquedas / mes</div>
+        <div class="v orange">12,847</div>
+        <div class="trend">▲ +28%</div>
+      </div>
+      <div class="stat col-trend">
+        <div class="l">Rango precio</div>
+        <div class="v">$3.8K – $5.2K</div>
+      </div>
+    </div>
+
+    <div class="wanted-item">
+      <div class="rk">02</div>
+      <div class="thumb"><img src="https://images.unsplash.com/photo-1568145399976-4c694e90bb20?w=400&q=80&auto=format" alt="Carros de juguete coleccionables"></div>
+      <div class="info">
+        <div class="casting">CASTING HKC83 · RLC EDITION · AERO POP</div>
+        <h3>VW DRAG BUS '69</h3>
+        <div class="desc">Edición aniversario RLC, sólo 12,000 unidades. Empaque exclusivo con membresía y certificado de autenticidad.</div>
+      </div>
+      <div class="col-pill"><span class="w-pill rlc">RLC</span></div>
+      <div class="stat col-stat">
+        <div class="l">Búsquedas / mes</div>
+        <div class="v orange">9,412</div>
+        <div class="trend">▲ +14%</div>
+      </div>
+      <div class="stat col-trend">
+        <div class="l">Rango precio</div>
+        <div class="v">$6.8K – $9.5K</div>
+      </div>
+    </div>
+
+    <div class="wanted-item">
+      <div class="rk">03</div>
+      <div class="thumb"><img src="https://images.unsplash.com/photo-1751110479226-1efab2c7584d?w=400&q=80&auto=format" alt="Hot Wheels en repisa"></div>
+      <div class="info">
+        <div class="casting">CASTING GTC92 · JAPAN HISTORICS IV · KANDY APPLE</div>
+        <h3>DATSUN 240Z CUSTOM</h3>
+        <div class="desc">Tampo serigrafiado a mano, llantas dorada widebody, suspensión funcional. Edición de 6,300 piezas.</div>
+      </div>
+      <div class="col-pill"><span class="w-pill sth">SUPER TH</span></div>
+      <div class="stat col-stat">
+        <div class="l">Búsquedas / mes</div>
+        <div class="v orange">8,910</div>
+        <div class="trend">▲ +9%</div>
+      </div>
+      <div class="stat col-trend">
+        <div class="l">Rango precio</div>
+        <div class="v">$2.9K – $4.1K</div>
+      </div>
+    </div>
+
+    <div class="wanted-item">
+      <div class="rk">04</div>
+      <div class="thumb"><img src="https://images.unsplash.com/photo-1597670250484-0e9aff7f8804?w=400&q=80&auto=format" alt="Modelos a escala Camaro"></div>
+      <div class="info">
+        <div class="casting">CASTING DXG88 · PREMIUM · MODERN CLASSICS</div>
+        <h3>NISSAN SKYLINE GT-R R34</h3>
+        <div class="desc">Edición Bayside Blue, detalle interior visible por techo. Pieza estrella de la serie Modern Classics 2025.</div>
+      </div>
+      <div class="col-pill"><span class="w-pill premium">PREMIUM</span></div>
+      <div class="stat col-stat">
+        <div class="l">Búsquedas / mes</div>
+        <div class="v orange">7,621</div>
+        <div class="trend">▲ +33%</div>
+      </div>
+      <div class="stat col-trend">
+        <div class="l">Rango precio</div>
+        <div class="v">$1.4K – $2.2K</div>
+      </div>
+    </div>
+
+    <div class="wanted-item">
+      <div class="rk">05</div>
+      <div class="thumb"><img src="https://images.unsplash.com/photo-1625039217696-403773390a30?w=400&q=80&auto=format" alt="Carritos de juguete surtidos"></div>
+      <div class="info">
+        <div class="casting">CASTING JRT44 · TREASURE HUNT 2026</div>
+        <h3>'70 PLYMOUTH ROAD RUNNER</h3>
+        <div class="desc">TH regular con sello dorado característico, casting renovado para 2026 con detalle de motor visible.</div>
+      </div>
+      <div class="col-pill"><span class="w-pill th">TH</span></div>
+      <div class="stat col-stat">
+        <div class="l">Búsquedas / mes</div>
+        <div class="v orange">6,889</div>
+        <div class="trend">▲ +6%</div>
+      </div>
+      <div class="stat col-trend">
+        <div class="l">Rango precio</div>
+        <div class="v">$680 – $920</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- SERIES WALL -->
+<section class="series-section" id="series">
+  <div class="section-head">
+    <div class="section-head-row">
+      <div class="num">04</div>
+      <div class="titles">
+        <div class="tag">Sub-mundos del coleccionismo</div>
+        <h2>EXPLORA<br>POR <em>SERIE</em></h2>
+      </div>
+    </div>
+    <div class="actions">
+      14 series activas · 38 sub-líneas<br>
+      <a href="#">Índice completo →</a>
+    </div>
+  </div>
+
+  <div class="series-wall">
+
+    <div class="series-tile">
+      <div class="tile-img">
+        <img src="https://images.unsplash.com/photo-1621870536302-95e22e738b8c?w=800&q=80&auto=format" alt="Hot Wheels Super Treasure Hunt">
+        <span class="tile-stamp">MENSUAL</span>
+      </div>
+      <div class="tile-body">
+        <h3>SUPER<br>TREASURE HUNT</h3>
+        <p>Tirada limitada con tampo especial, llantas Real Riders y empaque holográfico. La cima de la cacería mainline.</p>
+        <div class="tile-foot">
+          <div class="count"><strong>87</strong> piezas activas</div>
+          <a href="#" class="go">Ver serie →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="series-tile">
+      <div class="tile-img">
+        <img src="https://images.unsplash.com/photo-1709281425779-0f8f6693ff0e?w=800&q=80&auto=format" alt="Set de Hot Wheels RLC">
+        <span class="tile-stamp">SOLO MIEMBROS</span>
+      </div>
+      <div class="tile-body">
+        <h3>RLC<br>EXCLUSIVES</h3>
+        <p>Red Line Club: ediciones numeradas exclusivas para miembros. Empaque premium, llantas de goma, base metálica.</p>
+        <div class="tile-foot">
+          <div class="count"><strong>1,247</strong> piezas históricas</div>
+          <a href="#" class="go">Ver serie →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="series-tile">
+      <div class="tile-img">
+        <img src="https://images.unsplash.com/photo-1511415518647-9e5da4fd803f?w=800&q=80&auto=format" alt="Auto die-cast vintage">
+        <span class="tile-stamp">VINTAGE</span>
+      </div>
+      <div class="tile-body">
+        <h3>REDLINE<br>ERA</h3>
+        <p>La edad de oro: 1968-1977. Originales Mattel con la icónica línea roja en las llantas. Pieza de museo.</p>
+        <div class="tile-foot">
+          <div class="count"><strong>312</strong> piezas catalogadas</div>
+          <a href="#" class="go">Ver serie →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="series-tile">
+      <div class="tile-img">
+        <img src="https://images.unsplash.com/photo-1732947656004-11d9c08d90f7?w=800&q=80&auto=format" alt="Vitrina de autos a escala Car Culture">
+        <span class="tile-stamp">DETAIL OBSESSED</span>
+      </div>
+      <div class="tile-body">
+        <h3>CAR<br>CULTURE</h3>
+        <p>Curaduría por temáticas: JDM, Euro Style, Modern Classics, Off-Road. Premium con llantas de goma siempre.</p>
+        <div class="tile-foot">
+          <div class="count"><strong>418</strong> piezas premium</div>
+          <a href="#" class="go">Ver serie →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="series-tile">
+      <div class="tile-img">
+        <img src="https://images.unsplash.com/photo-1755053757767-db2c9aef7d00?w=800&q=80&auto=format" alt="Hot Wheels Boulevard en exhibidor">
+        <span class="tile-stamp">METAL FUNDIDO</span>
+      </div>
+      <div class="tile-body">
+        <h3>BOULEVARD</h3>
+        <p>Iconos automotrices con acabado premium, llantas de goma y empaque tipo "blister duro" coleccionable.</p>
+        <div class="tile-foot">
+          <div class="count"><strong>189</strong> piezas curadas</div>
+          <a href="#" class="go">Ver serie →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="series-tile">
+      <div class="tile-img">
+        <img src="https://images.unsplash.com/photo-1566137966241-b713866d24ea?w=800&q=80&auto=format" alt="Hot Wheels Treasure Hunt en exhibidor">
+        <span class="tile-stamp">ANUAL</span>
+      </div>
+      <div class="tile-body">
+        <h3>TREASURE<br>HUNT</h3>
+        <p>El clásico desde 1995: 15 piezas anuales mainline con sello dorado, tampos especiales y empaque señalizado.</p>
+        <div class="tile-foot">
+          <div class="count"><strong>684</strong> piezas históricas</div>
+          <a href="#" class="go">Ver serie →</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ANATOMY SECTION -->
+<section class="anatomy-section" id="anatomia">
+  <div class="anatomy">
+    <div class="anatomy-title">
+      <div class="section-head" style="margin-bottom: 0;">
+        <div class="section-head-row" style="margin: 0 auto;">
+          <div class="num">05</div>
+          <div class="titles">
+            <div class="tag">Despiece técnico · ¿Qué buscas en una pieza?</div>
+            <h2>ANATOMÍA <em>1:64</em></h2>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="anatomy-left">
+      <div class="spec">
+        <div class="num">01</div>
+        <h4>Tampo serigrafiado</h4>
+        <p>Logotipos, números y detalles impresos sin imperfecciones. Crítico en TH y Super TH.</p>
+      </div>
+      <div class="spec">
+        <div class="num">02</div>
+        <h4>Cristales tintados</h4>
+        <p>Acrílico transparente o ahumado. Las piezas premium llevan tinte uniforme sin burbujas.</p>
+      </div>
+      <div class="spec">
+        <div class="num">03</div>
+        <h4>Pintura Spectraflame</h4>
+        <p>Acabado metálico con base de zinc pulido. Característica de la Redline Era y Super TH.</p>
+      </div>
+    </div>
+
+    <div class="anatomy-img">
+      <img src="https://images.unsplash.com/photo-1755053757286-138b8fd660a1?w=900&q=80&auto=format" alt="Hot Wheels en blister con número de casting">
+    </div>
+
+    <div class="anatomy-right">
+      <div class="spec">
+        <div class="num">04</div>
+        <h4>Llantas Real Riders</h4>
+        <p>Goma negra real con rin metálico. Marca distintiva de Super TH, RLC y series Premium.</p>
+      </div>
+      <div class="spec">
+        <div class="num">05</div>
+        <h4>Chasis ZAMAC</h4>
+        <p>Aleación de zinc, aluminio, magnesio y cobre. Base metálica fundida, no plástica.</p>
+      </div>
+      <div class="spec">
+        <div class="num">06</div>
+        <h4>Casting number</h4>
+        <p>Código único en el chasis (ej. FYG75). Identifica modelo, año y origen de la pieza.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COLLECTOR OF THE MONTH -->
+<section class="collector-section" id="perfil">
+  <div class="collector-grid">
+    <div class="collector-img-wrap">
+      <span class="collector-tag t1">PERFIL · MAY 2026</span>
+      <div class="collector-img">
+        <img src="https://images.unsplash.com/photo-1515281239448-2abe329fe5e5?w=900&q=80&auto=format" alt="Colección de Don Octavio en exhibidor">
+      </div>
+      <span class="collector-tag t2">312 piezas</span>
+    </div>
+    <div class="collector-info">
+      <div class="tag">✦ Coleccionista del Mes</div>
+      <h2>DON <em>OCTAVIO</em><br>NAVARRO</h2>
+      <div class="from">Monterrey, NL · Coleccionista desde 1989</div>
+      <blockquote>
+        "No coleccionas Hot Wheels. Las Hot Wheels te coleccionan a ti."
+      </blockquote>
+      <p>
+        37 años, dos garajes y un mapa de la Redline Era que pocos podrían reproducir. Don Octavio empezó con un Custom Camaro '68 que su papá le trajo de Houston. Hoy su vitrina —documentada pieza por pieza— vale más que algunos coches reales. Lo entrevistamos sobre el arte de la cacería paciente.
+      </p>
+      <div class="collector-stats">
+        <div class="s">
+          <div class="l">Piezas</div>
+          <div class="v">312</div>
+        </div>
+        <div class="s">
+          <div class="l">Valor</div>
+          <div class="v">$1.8M</div>
+        </div>
+        <div class="s">
+          <div class="l">Años</div>
+          <div class="v">37</div>
+        </div>
+        <div class="s">
+          <div class="l">Trofeos</div>
+          <div class="v">12</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ZINE / NEWSLETTER -->
+<section class="zine-section" id="zine">
+  <div class="tag">ZINE MENSUAL · GRATIS</div>
+  <h2>SUSCRÍBETE <em>AL ZINE.</em><br>SIN MAMADAS.</h2>
+  <p class="lead">
+    Una vez al mes: el ranking más buscado, drops anticipados, análisis de mercado y la entrevista del coleccionista del mes. Cero relleno. Cero spam.
+  </p>
+  <form class="zine-form" onsubmit="event.preventDefault(); this.querySelector('button').textContent='¡VAS DENTRO! ✓';">
+    <input type="email" placeholder="tu-correo@coleccionista.mx" required>
+    <button type="submit">SUSCRIBIR</button>
+  </form>
+  <div class="zine-extra"><strong>+8,400</strong> coleccionistas reciben el zine cada mes</div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="#" class="logo">
+        <span class="stamp">HW</span>
+        <span class="name">CATÁLOGO<em>·</em>64</span>
+      </a>
+      <p>La revista digital de los coleccionistas Hot Wheels en México y Latinoamérica. Catalogación, valuación y mercado verificado desde 2017.</p>
+      <div class="social">
+        <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg></a>
+        <a href="#" aria-label="YouTube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8c.3-1.6.4-3.2.4-4.8s-.1-3.2-.4-4.8zM10 15V9l5 3-5 3z"/></svg></a>
+        <a href="#" aria-label="TikTok"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.6 6.3a4.8 4.8 0 0 1-3.8-2.5h-3.3v13.4a2.7 2.7 0 1 1-2.7-2.7c.3 0 .6 0 .9.1V11a6 6 0 1 0 5.3 6V9.6a8 8 0 0 0 4.5 1.4V7.7c-.3 0-.6-.5-.9-1.4z"/></svg></a>
+        <a href="#" aria-label="Discord"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.3 5.4A17 17 0 0 0 15 4l-.2.4a13 13 0 0 0-5.7 0L9 4a17 17 0 0 0-4.3 1.4 18 18 0 0 0-3 12 17 17 0 0 0 5.2 2.6 12 12 0 0 0 1.1-1.8 10 10 0 0 1-1.7-.8l.4-.3a12 12 0 0 0 10.7 0l.4.3-1.7.8a12 12 0 0 0 1.1 1.8 17 17 0 0 0 5.2-2.6 18 18 0 0 0-3-12zM9 14c-1 0-1.8-1-1.8-2s.8-2 1.8-2 1.8 1 1.8 2-.8 2-1.8 2zm6 0c-1 0-1.8-1-1.8-2s.8-2 1.8-2 1.8 1 1.8 2-.8 2-1.8 2z"/></svg></a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <h4>Catálogo</h4>
+      <ul>
+        <li><a href="#">Treasure Hunt</a></li>
+        <li><a href="#">Super TH</a></li>
+        <li><a href="#">RLC</a></li>
+        <li><a href="#">Premium</a></li>
+        <li><a href="#">Redline</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Mercado</h4>
+      <ul>
+        <li><a href="#">Subastas</a></li>
+        <li><a href="#">Vender pieza</a></li>
+        <li><a href="#">Mi vitrina</a></li>
+        <li><a href="#">Valuación</a></li>
+        <li><a href="#">Envíos</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Comunidad</h4>
+      <ul>
+        <li><a href="#">Foro</a></li>
+        <li><a href="#">Convenciones</a></li>
+        <li><a href="#">Coleccionista del mes</a></li>
+        <li><a href="#">Autenticadores</a></li>
+        <li><a href="#">Anatomía 1:64</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Acerca</h4>
+      <ul>
+        <li><a href="#">Ayuda</a></li>
+        <li><a href="#">Contacto</a></li>
+        <li><a href="#">Términos</a></li>
+        <li><a href="#">Privacidad</a></li>
+        <li><a href="#">FAQ</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div>© 2026 CATÁLOGO 1:64 · Edición #024</div>
+    <div>HOT WHEELS® · MARCA REG. DE MATTEL, INC. · COMUNIDAD INDEPENDIENTE</div>
+  </div>
+</footer>
+
+<script>
+  // Filter chip behavior
+  const chips = document.querySelectorAll('.chip[data-filter]');
+  const resultsCount = document.getElementById('resultsCount');
+  const counts = {
+    all: '47,829',
+    th: '312',
+    sth: '87',
+    rlc: '1,247',
+    premium: '4,612',
+    vintage: '3,108',
+    japan: '2,418',
+  };
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const f = chip.dataset.filter;
+      if (counts[f]) resultsCount.textContent = counts[f];
+    });
+  });
+
+  // Live filter on most wanted list
+  const searchInput = document.getElementById('searchInput');
+  const wantedItems = document.querySelectorAll('.wanted-item');
+  searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    wantedItems.forEach(it => {
+      const name = it.querySelector('h3')?.textContent.toLowerCase() || '';
+      const casting = it.querySelector('.casting')?.textContent.toLowerCase() || '';
+      const desc = it.querySelector('.desc')?.textContent.toLowerCase() || '';
+      it.style.display = (!q || name.includes(q) || casting.includes(q) || desc.includes(q)) ? 'grid' : 'none';
+    });
+  });
+
+  // Subtle parallax on hero card
+  const heroCard = document.querySelector('.hero-card');
+  if (heroCard && window.matchMedia('(hover: hover)').matches) {
+    document.querySelector('.hero').addEventListener('mousemove', (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      const x = ((e.clientX - r.left) / r.width - 0.5) * 6;
+      const y = ((e.clientY - r.top) / r.height - 0.5) * 6;
+      heroCard.style.transform = `rotate(${2.2 - x*0.3}deg) translate(${x}px, ${y}px)`;
+    });
+  }
+</script>
+
+</body>
+</html>

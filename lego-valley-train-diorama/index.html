@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Brick Valley Railway — a LEGO-style 3D diorama</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b1220;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;}
+  canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+  canvas.dragging{cursor:grabbing}
+
+  .hud{position:fixed;left:26px;top:22px;color:#fff;pointer-events:none;
+    text-shadow:0 2px 14px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.4);}
+  .hud .title{font-size:26px;font-weight:800;letter-spacing:-.3px;line-height:1.1}
+  .hud .title b{color:#FFD23F}
+  .hud .sub{margin-top:6px;font-size:12.5px;font-weight:500;opacity:.82;letter-spacing:.2px}
+
+  .panel{position:fixed;left:22px;bottom:22px;display:flex;gap:8px;flex-wrap:wrap;max-width:min(92vw,560px)}
+  .panel button{
+    -webkit-appearance:none;appearance:none;border:1px solid rgba(255,255,255,.18);
+    background:rgba(14,20,34,.52);backdrop-filter:blur(14px) saturate(1.2);
+    color:#eef2f8;font-size:12.5px;font-weight:650;letter-spacing:.2px;
+    padding:9px 13px;border-radius:11px;cursor:pointer;transition:.18s ease;
+    box-shadow:0 6px 20px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.09);}
+  .panel button:hover{background:rgba(32,44,68,.72);transform:translateY(-1px)}
+  .panel button:active{transform:translateY(0) scale(.98)}
+  .panel button.on{background:rgba(255,210,63,.92);color:#20180a;border-color:rgba(255,255,255,.5)}
+
+  .legend{position:fixed;right:22px;bottom:22px;color:rgba(255,255,255,.5);font-size:11px;
+    text-align:right;line-height:1.6;pointer-events:none;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+
+  #loader{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 30%,#1b2c4a,#080d17 70%);
+    display:flex;align-items:center;justify-content:center;flex-direction:column;gap:22px;z-index:20;
+    transition:opacity .7s ease}
+  #loader.hide{opacity:0;pointer-events:none}
+  .stack{position:relative;width:96px;height:74px}
+  .stack i{position:absolute;left:50%;border-radius:3px;display:block;
+    box-shadow:inset 0 -6px 0 rgba(0,0,0,.16), inset 0 3px 0 rgba(255,255,255,.22);
+    animation:pop .9s cubic-bezier(.2,1.5,.4,1) infinite}
+  .stack i:nth-child(1){width:78px;height:20px;margin-left:-39px;bottom:0;background:#C91A09;animation-delay:0s}
+  .stack i:nth-child(2){width:60px;height:20px;margin-left:-30px;bottom:24px;background:#F2CD37;animation-delay:.15s}
+  .stack i:nth-child(3){width:40px;height:20px;margin-left:-20px;bottom:48px;background:#0055BF;animation-delay:.3s}
+  @keyframes pop{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-7px)}}
+  #loader span{color:#cbd6e6;font-size:13px;letter-spacing:.4px;font-weight:600}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="hud">
+  <div class="title">Brick <b>Valley</b> Railway</div>
+  <div class="sub">A studs-and-bricks diorama — drag to orbit · scroll to zoom</div>
+</div>
+
+<div class="panel">
+  <button id="btnDay">☀ Daytime</button>
+  <button id="btnTrain">⏸ Pause train</button>
+  <button id="btnSpin" class="on">⟳ Auto-orbit</button>
+  <button id="btnCam">🎥 Ride the train</button>
+  <button id="btnReset">⤾ Reset view</button>
+</div>
+
+<div class="legend">
+  2 viaducts · 2 tunnels · 5-car steam train<br>
+  every element built from bricks &amp; studs
+</div>
+
+<div id="loader">
+  <div class="stack"><i></i><i></i><i></i></div>
+  <span>Snapping bricks together…</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   BRICK VALLEY RAILWAY
+   A procedurally assembled LEGO-style diorama.
+   Everything you see is generated from three primitives:
+   a brick (box), a stud (cylinder) and a wheel.
+   ============================================================ */
+
+/* ---------- palette (LEGO-ish colour IDs) ---------- */
+const C = {
+  red:        0xC91A09,
+  darkRed:    0x720E0F,
+  blue:       0x0A5EB0,
+  darkBlue:   0x0A3463,
+  yellow:     0xF2CD37,
+  orange:     0xFE8A18,
+  brightGreen:0x58AB41,
+  green:      0x287F46,
+  darkGreen:  0x184632,
+  sandGreen:  0xA0BCAC,
+  tan:        0xE0CB98,
+  darkTan:    0xB08E58,
+  lightGrey:  0xA3A9AD,
+  grey:       0x7A8085,
+  darkGrey:   0x545A5E,
+  slate:      0x3A4045,
+  black:      0x1A2024,
+  white:      0xF3F4F2,
+  brown:      0x60432F,
+  lightBrown: 0x8C6239,
+  pink:       0xE4A5C6,
+  lime:       0xBBE90B
+};
+
+/* ---------- geometry constants (1 unit = 1 stud pitch) ---------- */
+const BRICK_H = 1.2;         // height of one brick (3 plates)
+const PLATE_H = 0.4;
+const GAP     = 0.028;       // tiny inset so individual bricks read as separate parts
+const STUD_R  = 0.30;
+const STUD_H  = 0.19;
+const TERRACES = 7;          // number of terraces from river to plateau
+const PLATEAU = TERRACES*BRICK_H;
+const TRACK_Y = PLATEAU + BRICK_H;   // top of the trackbed (one brick above the fields)
+const RAIL_TOP = TRACK_Y + PLATE_H + 0.35;
+
+/* ---------- tiny helpers ---------- */
+const UP = new THREE.Vector3(0,1,0);
+const ONE = new THREE.Vector3(1,1,1);
+const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
+const lerp = (a,b,t)=> a+(b-a)*t;
+function hash2(x,y){ const n = Math.sin(x*127.1 + y*311.7)*43758.5453123; return n - Math.floor(n); }
+function fract(v){ return v - Math.floor(v); }
+
+/* ============================================================
+   1. THE BRICK BUILDER
+   Accumulates thousands of bricks into a handful of merged
+   meshes (one per colour) so the whole diorama draws fast.
+   ============================================================ */
+const geoCache = new Map();
+
+function cacheGeo(key, make){
+  let d = geoCache.get(key);
+  if(!d){
+    const g = make();
+    const ng = g.index ? g.toNonIndexed() : g;
+    d = { pos: ng.attributes.position.array, norm: ng.attributes.normal.array };
+    geoCache.set(key, d);
+  }
+  return d;
+}
+function boxData(w,h,d){
+  return cacheGeo('B'+w.toFixed(3)+'_'+h.toFixed(3)+'_'+d.toFixed(3), ()=>{
+    const g = new THREE.BoxGeometry(w,h,d);
+    g.translate(0,h/2,0);              // origin at the bottom face
+    return g;
+  });
+}
+function cylData(r,h,seg){
+  return cacheGeo('C'+r.toFixed(3)+'_'+h.toFixed(3)+'_'+seg, ()=>{
+    const g = new THREE.CylinderGeometry(r,r,h,seg,1,false);
+    g.translate(0,h/2,0);
+    return g;
+  });
+}
+const studData = ()=> cylData(STUD_R, STUD_H, 8);
+
+class BrickBuilder{
+  constructor(){
+    this.buf = new Map();
+    this._m  = new THREE.Matrix4();
+    this._q  = new THREE.Quaternion();
+    this._v  = new THREE.Vector3();
+    this._nm = new THREE.Matrix3();
+  }
+  _bucket(color){
+    let b = this.buf.get(color);
+    if(!b){ b = {pos:[], norm:[]}; this.buf.set(color,b); }
+    return b;
+  }
+  _append(color, data, m){
+    const b = this._bucket(color), p = data.pos, n = data.norm;
+    const e = m.elements;
+    const ne = this._nm.getNormalMatrix(m).elements;
+    const P = b.pos, N = b.norm;
+    for(let i=0;i<p.length;i+=3){
+      const x=p[i], y=p[i+1], z=p[i+2];
+      P.push(e[0]*x+e[4]*y+e[8]*z+e[12],
+             e[1]*x+e[5]*y+e[9]*z+e[13],
+             e[2]*x+e[6]*y+e[10]*z+e[14]);
+      const nx=n[i], ny=n[i+1], nz=n[i+2];
+      let ax=ne[0]*nx+ne[3]*ny+ne[6]*nz,
+          ay=ne[1]*nx+ne[4]*ny+ne[7]*nz,
+          az=ne[2]*nx+ne[5]*ny+ne[8]*nz;
+      const l = Math.sqrt(ax*ax+ay*ay+az*az) || 1;
+      N.push(ax/l, ay/l, az/l);
+    }
+  }
+  /* the workhorse: one brick, y = bottom face */
+  brick(x,y,z, w,h,d, color, opt){
+    opt = opt || {};
+    const rot = opt.rot || 0;
+    const q = this._q.setFromAxisAngle(UP, rot);
+    const m = this._m.compose(this._v.set(x,y,z), q, ONE);
+    const g = opt.gap === false ? 0 : GAP;
+    this._append(color, boxData(Math.max(0.06,w-2*g), h, Math.max(0.06,d-2*g)), m);
+
+    if(opt.studs !== false && w >= 0.75 && d >= 0.75){
+      const nx = Math.max(1, Math.round(w)), nz = Math.max(1, Math.round(d));
+      const sc = Math.cos(rot), ss = Math.sin(rot);
+      for(let i=0;i<nx;i++){
+        const lx = -w/2 + (i+0.5)*(w/nx);
+        for(let j=0;j<nz;j++){
+          const lz = -d/2 + (j+0.5)*(d/nz);
+          const wx = x + lx*sc + lz*ss;
+          const wz = z - lx*ss + lz*sc;
+          this._append(color, studData(),
+            this._m.compose(this._v.set(wx, y+h, wz), q, ONE));
+        }
+      }
+    }
+  }
+  /* a cylinder (boilers, chimneys, masts) centred on x,y,z with its
+     axis along 'x', 'y' or 'z' of the local frame */
+  cyl(x,y,z, r,len, color, axis, rot){
+    const q = this._q.setFromAxisAngle(UP, rot||0);
+    const rq = new THREE.Quaternion();
+    if(axis === 'z') rq.setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/2);
+    else if(axis === 'x') rq.setFromAxisAngle(new THREE.Vector3(0,0,1), -Math.PI/2);
+    q.multiply(rq);
+    /* cylData is built with its origin at one end — step back half a length
+       along the axis so the caller can think in terms of centres */
+    const half = len/2;
+    let ox=0, oy=0, oz=0;
+    if(axis === 'y') oy = -half;
+    else if(axis === 'z'){ ox = -half*Math.sin(rot||0); oz = -half*Math.cos(rot||0); }
+    else { ox = -half*Math.cos(rot||0); oz =  half*Math.sin(rot||0); }
+    const m = this._m.compose(this._v.set(x+ox, y+oy, z+oz), q, ONE);
+    this._append(color, cylData(r, len, 18), m);
+  }
+  build(parent, matOpts){
+    const meshes = [];
+    this.buf.forEach((b, color)=>{
+      if(!b.pos.length) return;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(b.pos,3));
+      g.setAttribute('normal',   new THREE.Float32BufferAttribute(b.norm,3));
+      g.computeBoundingSphere();
+      const mat = new THREE.MeshStandardMaterial(Object.assign({
+        color: color, roughness: 0.44, metalness: 0.03
+      }, matOpts||{}));
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      parent.add(mesh);
+      meshes.push(mesh);
+    });
+    this.buf.clear();
+    return meshes;
+  }
+}
+
+/* ============================================================
+   2. SCENE, RENDERER, SKY, LIGHT
+   ============================================================ */
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight, false);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xbfe0f5, 95, 275);
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth/window.innerHeight, 0.5, 600);
+
+/* --- gradient sky dome --- */
+const skyUniforms = {
+  top:    { value: new THREE.Color(0x2E7DD1) },
+  mid:    { value: new THREE.Color(0x9CD2F2) },
+  bottom: { value: new THREE.Color(0xEBF4F8) }
+};
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(340, 32, 20),
+  new THREE.ShaderMaterial({
+    uniforms: skyUniforms,
+    side: THREE.BackSide, depthWrite:false, fog:false,
+    vertexShader:`varying vec3 wp; void main(){ wp = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
+    fragmentShader:`
+      uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; varying vec3 wp;
+      void main(){
+        float h = normalize(wp).y;
+        vec3 c = h > 0.0 ? mix(mid, top, pow(clamp(h,0.0,1.0), 0.75))
+                         : mix(mid, bottom, pow(clamp(-h*2.2,0.0,1.0), 0.7));
+        gl_FragColor = vec4(c,1.0);
+      }`
+  })
+);
+scene.add(sky);
+
+/* --- lights --- */
+const hemi = new THREE.HemisphereLight(0xBFE2FF, 0x5B6B4A, 0.62);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xFFF4E0, 2.15);
+sun.position.set(-46, 62, 40);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left = -52; sun.shadow.camera.right = 52;
+sun.shadow.camera.top  =  52; sun.shadow.camera.bottom = -52;
+sun.shadow.camera.near = 1;  sun.shadow.camera.far = 215;
+sun.shadow.bias = -0.0008;
+sun.shadow.normalBias = 0.03;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x9DC6FF, 0.35);
+fill.position.set(38, 26, -34);
+scene.add(fill);
+const amb = new THREE.AmbientLight(0xffffff, 0.16);
+scene.add(amb);
+
+/* ============================================================
+   3. THE RAILWAY LINE  (a closed loop around the diorama)
+   ============================================================ */
+const loopPts = [];
+[[-19,-9.5],[-14,-13.4],[-6,-14.6],[3,-14.4],[12,-13.2],[18,-9.6],[20.4,-3],[20.4,3],
+ [18,9.6],[12,13.2],[3,14.4],[-6,14.6],[-14,13.4],[-19,9.5],[-20.4,3],[-20.4,-3]]
+ .forEach(p=> loopPts.push(new THREE.Vector3(p[0], TRACK_Y, p[1])));
+const track = new THREE.CatmullRomCurve3(loopPts, true, 'catmullrom', 0.5);
+const TRACK_LEN = track.getLength();
+
+/* sampled centreline, used for terrain carving + placement tests */
+const SAMPLES = 720;
+const sx = new Float32Array(SAMPLES), sz = new Float32Array(SAMPLES);
+for(let i=0;i<SAMPLES;i++){
+  const p = track.getPointAt(i/SAMPLES);
+  sx[i]=p.x; sz[i]=p.z;
+}
+function distToTrack(x,z){
+  let best = 1e9;
+  for(let i=0;i<SAMPLES;i++){
+    const dx = x - sx[i], dz = z - sz[i];
+    const d = dx*dx + dz*dz;
+    if(d < best) best = d;
+  }
+  return Math.sqrt(best);
+}
+
+/* ============================================================
+   4. THE VALLEY  (terraced brick landscape + river)
+   ============================================================ */
+const GX0=-30, GX1=30, GZ0=-21, GZ1=21;
+
+function riverCentre(z){ return 3.0*Math.sin(z*0.15) + 1.2*Math.sin(z*0.37); }
+/* the valley opens out towards the viewer: wide water + long shallow slopes at
+   the front, a tighter gorge at the back. */
+function valleyT(z){ return clamp((z - GZ0)/(GZ1-GZ0), 0, 1); }
+function riverWidth(z){ return 2.8 + 2.6*valleyT(z) + 0.5*Math.sin(z*0.23); }
+function valleySpan(z){ return 10.5 + 5.5*valleyT(z); }
+
+/* base valley: stepped terraces rising from the water to the high fields */
+function baseSteps(x,z){
+  const d = Math.abs(x - riverCentre(z));
+  const w = riverWidth(z);
+  if(d <= w) return 0;
+  const k = Math.min(1, (d - w)/valleySpan(z));
+  let s = Math.round(TERRACES*Math.pow(k, 0.9));
+  const n = hash2(Math.floor(x*0.5), Math.floor(z*0.5));
+  if(k < 0.96){ if(n > 0.78) s += 1; else if(n < 0.10) s -= 1; }
+  return clamp(s, 0, TERRACES);
+}
+/* two rocky mountains that the line tunnels through */
+const MOUNDS = [{x:-20.4,z:0.5,r:8.0,h:15}, {x:20.4,z:-0.5,r:8.0,h:15}];
+function moundSteps(x,z){
+  let extra = 0;
+  for(const m of MOUNDS){
+    const dx=x-m.x, dz=(z-m.z)*1.05;
+    const r = Math.sqrt(dx*dx+dz*dz);
+    if(r < m.r){
+      const t = 1 - r/m.r;
+      /* a broad massif rather than a spike, so the bore stays roofed */
+      let s = Math.round(m.h * Math.pow(t,0.60) + 1.3*hash2(Math.floor(x),Math.floor(z)) - 0.5);
+      extra = Math.max(extra, Math.max(0,s));
+    }
+  }
+  return extra;
+}
+
+/* The bore of the tunnels. The roof has to clear the loading gauge: the
+   locomotive's chimney is the tallest thing on the line, 5.4 above rail top. */
+const LOADING_GAUGE = 5.4;
+const BORE_W = 3.3;
+const BORE_FLOOR = TRACK_Y - BRICK_H;
+const BORE_ROOF = TRACK_Y + 7.8;   // rail top + 7.05, i.e. 1.65 over the chimney
+
+/* One landscape column, resolved into vertical spans of brick.
+   Where the railway passes through high ground this yields two spans —
+   solid rock beneath the rails, and the roof of the tunnel above them. */
+function column(x,z){
+  const s = baseSteps(x,z);
+  let top = s*BRICK_H + moundSteps(x,z)*BRICK_H;   // mountains rise out of the valley side
+  /* terrace the outer border down to the display plinth (but let the river out) */
+  const de = Math.min(x-GX0, GX1-x, z-GZ0, GZ1-z);
+  if(de < 4.2 && s > 0)
+    top = Math.min(top, Math.max(2, Math.round(de*3.6))*BRICK_H);
+
+  const dt = distToTrack(x,z);
+  const spans = [];
+  if(top > 0.001){
+    if(dt < BORE_W){
+      if(top > BORE_ROOF){
+        spans.push([0, BORE_FLOOR]);      // rock carrying the trackbed
+        spans.push([BORE_ROOF, top]);     // rock above the tunnel
+      } else {
+        spans.push([0, Math.min(top, BORE_FLOOR)]);   // open cutting
+      }
+    } else {
+      spans.push([0, top]);
+    }
+  }
+  return {spans, top, dt, steps:s, bored: spans.length > 1};
+}
+/* height the trackbed has to be built up from */
+function groundTop(x,z){
+  const sp = column(x,z).spans;
+  return sp.length ? sp[0][1] : 0;
+}
+
+/* terrace colours: sandy shore → meadow → fields → rock → snowy caps */
+function terraceColor(level, x, z){
+  const n = hash2(Math.floor(x*0.34)+31, Math.floor(z*0.34)-17);
+  switch(level){
+    case 1: return n < 0.72 ? C.tan : C.darkTan;
+    case 2: return n < 0.60 ? C.brightGreen : C.green;
+    case 3: return n < 0.45 ? C.brightGreen : C.green;
+    case 4: return n < 0.50 ? C.green : C.darkGreen;
+    case 5: return n < 0.55 ? C.green : C.brightGreen;
+    case 6: return n < 0.45 ? C.brightGreen : (n < 0.80 ? C.green : C.sandGreen);
+    /* the high plateau is farmland — a patchwork of fields */
+    case 7: return n < 0.36 ? C.brightGreen : (n < 0.68 ? C.green : (n < 0.86 ? C.sandGreen : C.darkTan));
+    default: return C.green;
+  }
+}
+function rockColor(lv, x, z){
+  const n = hash2(Math.floor(x*0.62)+7, Math.floor(z*0.62)-3);
+  if(lv >= 20) return n < 0.78 ? C.white : C.lightGrey;   // snowline
+  if(lv >= 17) return n < 0.35 ? C.lightGrey : C.grey;
+  if(lv >= 14) return n < 0.45 ? C.grey : C.darkGrey;
+  if(lv >= 10) return n < 0.55 ? C.darkGrey : C.grey;
+  return n < 0.55 ? C.sandGreen : C.grey;
+}
+
+const world = new BrickBuilder();
+
+/* ---- display base ---- */
+world.brick(0, -2.0, 0, (GX1-GX0)+2.2, 2.0, (GZ1-GZ0)+2.2, C.slate, {studs:false, gap:false});
+world.brick(0, -0.05, 0, (GX1-GX0)+0.9, 0.18, (GZ1-GZ0)+0.9, C.darkGrey, {studs:false, gap:false});
+
+/* ---- terrain columns ---- */
+for(let x=GX0; x<GX1; x++){
+  for(let z=GZ0; z<GZ1; z++){
+    const cx = x+0.5, cz = z+0.5;
+    const col = column(cx,cz);
+    if(!col.spans.length){
+      // river bed: tan plate under the water
+      world.brick(cx, 0, cz, 1, PLATE_H, 1, C.darkTan, {gap:false});
+      continue;
+    }
+    col.spans.forEach(sp=>{
+      const h = sp[1]-sp[0];
+      if(h < 0.3) return;
+      const lv = Math.round(sp[1] / BRICK_H);
+      const color = lv <= TERRACES ? terraceColor(clamp(lv,1,TERRACES), cx, cz)
+                                   : rockColor(lv, cx, cz);
+      world.brick(cx, sp[0], cz, 1, h, 1, color, {gap:false});
+    });
+  }
+}
+
+/* ============================================================
+   5. TRACKBED: embankments, stone viaducts, rails, sleepers
+   ============================================================ */
+const STEP = 1.0;
+const nSeg = Math.max(2, Math.round(TRACK_LEN/STEP));
+const segs = [];
+for(let i=0;i<nSeg;i++){
+  const u = i/nSeg;
+  const p = track.getPointAt(u);
+  const t = track.getTangentAt(u);
+  const rot = Math.atan2(t.x, t.z);
+  const g = groundTop(p.x, p.z);
+  segs.push({u, p, rot, g, bridge: (TRACK_Y - g) > 2.2});
+}
+
+/* group consecutive bridge segments into runs */
+const runs = [];
+{
+  let i = 0;
+  const isB = k => segs[(k+nSeg)%nSeg].bridge;
+  // find a non-bridge start so runs don't wrap
+  let start = 0; while(start<nSeg && isB(start)) start++;
+  for(let k=0;k<nSeg;k++){
+    const idx = (start+k)%nSeg;
+    if(segs[idx].bridge){
+      if(!runs.length || runs[runs.length-1].closed) runs.push({idx:[], closed:false});
+      runs[runs.length-1].idx.push(idx);
+    } else if(runs.length && !runs[runs.length-1].closed){
+      runs[runs.length-1].closed = true;
+    }
+  }
+}
+
+/* a bridge needs at least a few segments to be worth building — anything
+   shorter becomes embankment instead */
+for(let i=runs.length-1;i>=0;i--){
+  if(runs[i].idx.length < 5){
+    runs[i].idx.forEach(k=> segs[k].bridge = false);
+    runs.splice(i,1);
+  }
+}
+
+/* ---- embankments (fill from ground up to the trackbed) ---- */
+segs.forEach(s=>{
+  if(s.bridge) return;
+  let y = s.g;
+  let alt = 0;
+  while(TRACK_Y - y > 0.05){
+    const h = Math.min(BRICK_H, TRACK_Y - y);
+    const col = (alt++ % 2) ? C.darkTan : C.lightBrown;
+    world.brick(s.p.x, y, s.p.z, 5.9, h, STEP+0.06, col, {rot:s.rot, studs:false, gap:false});
+    y += h;
+  }
+});
+
+/* ---- viaducts: piers + semicircular arches + parapets ---- */
+runs.forEach(run=>{
+  const list = run.idx;
+  const L = list.length * STEP;
+  const nArch = Math.max(1, Math.round(L/8.5));
+  const archLen = L/nArch;
+  const R = Math.max(1.4, archLen/2 - 1.0);
+  const deckBottom = TRACK_Y - BRICK_H;
+  const ySpring = deckBottom - R;
+
+  list.forEach((idx, k)=>{
+    const s = segs[idx];
+    const sPos = (k+0.5)*STEP;
+    const ai = Math.min(nArch-1, Math.floor(sPos/archLen));
+    const u = sPos - (ai+0.5)*archLen;          // signed offset from arch centre
+    const isPier = Math.abs(u) > R + 0.28;
+
+    /* deck beam */
+    world.brick(s.p.x, deckBottom, s.p.z, 6.4, BRICK_H, STEP+0.06, C.lightGrey,
+                {rot:s.rot, studs:false, gap:false});
+
+    /* spandrel wall with arch void */
+    let y = Math.max(0, s.g);
+    let lvl = 0;
+    while(y < deckBottom - 0.05){
+      const h = Math.min(BRICK_H, deckBottom - y);
+      const vy = y + h*0.5;
+      const isVoid = vy >= ySpring
+        ? (Math.sqrt(u*u + (vy-ySpring)*(vy-ySpring)) < R)
+        : (Math.abs(u) < R);
+      if(!isVoid){
+        const w = isPier ? 6.2 : 5.2;
+        const stony = ((lvl + Math.round(sPos)) % 2) === 0;
+        world.brick(s.p.x, y, s.p.z, w, h, STEP+0.06,
+                    stony ? C.lightGrey : C.grey, {rot:s.rot, studs:false, gap:false});
+      } else if(Math.abs(Math.abs(u) - R) < 0.75 && vy >= ySpring - 0.4){
+        // voussoirs — the ring of stones outlining the arch
+        world.brick(s.p.x, y, s.p.z, 5.6, h, STEP+0.06, C.darkGrey,
+                    {rot:s.rot, studs:false, gap:false});
+      }
+      y += h; lvl++;
+    }
+    /* parapets along the deck edges */
+    const c = Math.cos(s.rot), sn = Math.sin(s.rot);
+    for(const off of [-2.95, 2.95]){
+      world.brick(s.p.x + off*c, TRACK_Y, s.p.z - off*sn, 0.7, 0.85, STEP+0.06,
+                  C.lightGrey, {rot:s.rot, studs:false, gap:false});
+    }
+  });
+});
+
+/* ---- ballast, sleepers and rails ---- */
+segs.forEach((s,i)=>{
+  world.brick(s.p.x, TRACK_Y - PLATE_H, s.p.z, 5.4, PLATE_H, STEP+0.06, C.darkGrey,
+              {rot:s.rot, studs:false, gap:false});
+  world.brick(s.p.x, TRACK_Y, s.p.z, 4.7, PLATE_H, 0.72, C.brown, {rot:s.rot, studs:false});
+  const c = Math.cos(s.rot), sn = Math.sin(s.rot);
+  for(const off of [-1.62, 1.62]){
+    world.brick(s.p.x + off*c, TRACK_Y + PLATE_H, s.p.z - off*sn,
+                0.42, 0.35, STEP+0.12, C.lightGrey, {rot:s.rot, studs:false, gap:false});
+  }
+});
+
+/* ---- tunnel portals ---- */
+function addPortal(cx, cz, rot){
+  const c = Math.cos(rot), sn = Math.sin(rot);
+  const put = (off, y, w, h, d, col)=>
+    world.brick(cx + off*c, y, cz - off*sn, w, h, d, col, {rot, studs:false, gap:false});
+  const R = 3.3;
+  const springY = BORE_ROOF - R;          // the arch crown just touches the roof
+  // jambs either side of the mouth
+  for(let y=BORE_FLOOR, lv=0; y < springY - 0.4; y+=BRICK_H, lv++){
+    put(-3.38, y, 1.5, BRICK_H, 1.3, lv%2 ? C.grey : C.lightGrey);
+    put( 3.38, y, 1.5, BRICK_H, 1.3, lv%2 ? C.lightGrey : C.grey);
+  }
+  // ring of voussoirs around the arch
+  const N = 11;
+  for(let i=0;i<N;i++){
+    const a = Math.PI*(i/(N-1));
+    put(-Math.cos(a)*R*1.06, springY + Math.sin(a)*R - 0.10,
+        1.35, 1.0, 1.3, i%2 ? C.lightGrey : C.grey);
+  }
+  // cornice and coping stones
+  put(0, BORE_ROOF + 0.15, 8.6, 0.9, 1.5, C.darkGrey);
+  put(0, BORE_ROOF + 1.05, 7.2, 0.6, 1.3, C.grey);
+}
+/* find where the line enters each mountain */
+MOUNDS.forEach(m=>{
+  const hits = [];
+  for(let i=0;i<nSeg;i++){
+    const s = segs[i], sp = segs[(i+1)%nSeg];
+    const a = column(s.p.x, s.p.z).bored;
+    const b = column(sp.p.x, sp.p.z).bored;
+    const near = Math.hypot(s.p.x-m.x, s.p.z-m.z) < m.r + 2.5;
+    if(a !== b && near) hits.push(a ? i+1 : i);
+  }
+  hits.slice(0,2).forEach(i=>{
+    const s = segs[(i+nSeg)%nSeg];
+    addPortal(s.p.x, s.p.z, s.rot);
+  });
+});
+
+/* ============================================================
+   6. SCENERY: trees, houses, rocks, fences, a little boat
+   ============================================================ */
+function addConifer(x,y,z,scale,dark){
+  const s = scale;
+  world.brick(x, y, z, 1, BRICK_H*1.5*s, 1, C.brown, {studs:false, gap:false});
+  const g1 = dark ? C.darkGreen : C.green;
+  const g2 = dark ? C.green : C.brightGreen;
+  let cy = y + BRICK_H*1.5*s;
+  const tiers = [[3.0,0.8],[2.4,0.75],[1.8,0.7],[1.15,0.62]];
+  tiers.forEach((t,i)=>{
+    world.brick(x, cy, z, t[0]*s, t[1]*s, t[0]*s, i%2?g2:g1, {studs:false, gap:false});
+    cy += t[1]*s;
+  });
+  world.brick(x, cy, z, 0.55*s, 0.5*s, 0.55*s, g2, {studs:false, gap:false});
+}
+function addRoundTree(x,y,z,scale,autumn){
+  const s = scale;
+  world.brick(x, y, z, 1, BRICK_H*1.6*s, 1, C.lightBrown, {studs:false, gap:false});
+  const cy = y + BRICK_H*1.6*s;
+  const leaf = autumn ? C.orange : C.brightGreen;
+  const leaf2 = autumn ? C.yellow : C.green;
+  world.brick(x, cy, z, 2.9*s, 1.1*s, 2.9*s, leaf, {studs:false, gap:false});
+  world.brick(x, cy+1.1*s, z, 2.2*s, 0.9*s, 2.2*s, leaf2, {studs:false, gap:false});
+  world.brick(x, cy+2.0*s, z, 1.2*s, 0.6*s, 1.2*s, leaf, {studs:false, gap:false});
+}
+function addRock(x,y,z,s){
+  world.brick(x, y, z, 2.0*s, 0.9*s, 1.7*s, C.grey, {studs:false, gap:false});
+  world.brick(x+0.3*s, y+0.9*s, z-0.2*s, 1.3*s, 0.8*s, 1.2*s, C.lightGrey, {studs:false, gap:false});
+  world.brick(x-0.4*s, y+0.6*s, z+0.4*s, 0.9*s, 0.6*s, 0.8*s, C.darkGrey, {studs:false, gap:false});
+}
+const windowLights = [];   // meshes that glow at night
+function addHouse(x,y,z,rot, wall, roof){
+  const o = {rot, studs:false, gap:false};
+  const c = Math.cos(rot), sn = Math.sin(rot);
+  const loc = (lx,lz)=> [x + lx*c + lz*sn, z - lx*sn + lz*c];
+  // foundation
+  world.brick(x, y, z, 6.4, 0.4, 5.4, C.lightGrey, o);
+  // walls
+  for(let k=0;k<3;k++)
+    world.brick(x, y+0.4+k*BRICK_H, z, 6.0, BRICK_H, 5.0, k===1? wall : wall, o);
+  // door
+  let p = loc(0, 2.55);
+  world.brick(p[0], y+0.4, p[1], 1.5, BRICK_H*1.7, 0.35, C.brown, {rot, studs:false, gap:false});
+  // windows (glowing at night)
+  const winSpots = [[-1.9,2.55,0],[1.9,2.55,0],[0,-2.55,0],[3.05,0,Math.PI/2],[-3.05,0,Math.PI/2]];
+  winSpots.forEach(w=>{
+    const q = loc(w[0], w[1]);
+    world.brick(q[0], y+1.55, q[1], 1.35, 1.0, 0.3, C.white, {rot:rot+w[2], studs:false, gap:false});
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(1.05,0.75),
+      new THREE.MeshBasicMaterial({color:0xFFD98A, transparent:true, opacity:0}));
+    g.position.set(q[0], y+2.05, q[1]);
+    g.rotation.y = rot + w[2];
+    g.position.x += Math.cos(rot+w[2])*0 ; // plane faces +z of its own rotation
+    g.translateZ(0.22);
+    scene.add(g); windowLights.push(g);
+  });
+  // gable roof, stepped like real bricks
+  let ry = y + 0.4 + 3*BRICK_H;
+  world.brick(x, ry, z, 7.0, 0.3, 6.0, C.darkGrey, o);   // eaves
+  ry += 0.3;
+  [6.3, 4.9, 3.5, 2.1, 0.9].forEach(w=>{
+    world.brick(x, ry, z, w, 0.5, 5.6, roof, o);
+    ry += 0.5;
+  });
+  // chimney
+  const ch = loc(1.9, -1.4);
+  world.brick(ch[0], y+0.4+3*BRICK_H, ch[1], 1.0, 3.1, 1.0, C.darkRed, {rot, studs:false, gap:false});
+  world.brick(ch[0], y+0.4+3*BRICK_H+3.1, ch[1], 1.25, 0.35, 1.25, C.lightGrey, {rot, studs:false, gap:false});
+}
+function addFence(x,y,z,rot,len){
+  for(let i=0;i<len;i++){
+    const c=Math.cos(rot), sn=Math.sin(rot);
+    const lx = (i - (len-1)/2)*1.5;
+    world.brick(x+lx*c, y, z-lx*sn, 0.35, 1.6, 0.35, C.lightBrown, {studs:false, gap:false});
+  }
+  const c=Math.cos(rot), sn=Math.sin(rot);
+  world.brick(x, y+1.15, z, len*1.5, 0.22, 0.22, C.lightBrown, {rot, studs:false, gap:false});
+  world.brick(x, y+0.6, z, len*1.5, 0.22, 0.22, C.lightBrown, {rot, studs:false, gap:false});
+}
+function addBoat(x,z,rot){
+  const o = {rot, studs:false, gap:false};
+  world.brick(x, 0.45, z, 2.0, 0.5, 5.0, C.red, o);
+  world.brick(x, 0.95, z, 1.6, 0.35, 4.4, C.tan, o);
+  world.brick(x, 1.3, z-0.6, 0.8, 0.6, 1.2, C.white, o);
+  world.cyl(x, 3.4, z+0.8, 0.12, 4.2, C.lightBrown, 'y', rot);
+  world.brick(x, 3.0, z+0.8, 0.12, 1.8, 2.0, C.white, o);
+}
+
+/* scatter scenery on sensible ground */
+(function scatter(){
+  let placed = 0;
+  for(let i=0;i<3400 && placed<300;i++){
+    const x = GX0+1.5 + hash2(i*1.7, 4.2)*(GX1-GX0-3);
+    const z = GZ0+1.5 + hash2(i*3.1, 8.9)*(GZ1-GZ0-3);
+    const col = column(x,z);
+    if(!col.spans.length || col.bored) continue;
+    const lv = Math.round(col.top/BRICK_H);
+    if(lv < 1 || col.dt < 4.6) continue;
+    const r = hash2(i*5.5, 1.3), r2 = hash2(i*2.3, 6.1);
+    /* woodland thins towards the water, and again above the treeline */
+    const openness = lv > TERRACES + 1 ? 0.30
+                   : [0, 0.08, 0.26, 0.40, 0.55, 0.70, 0.80, 0.88][Math.min(7,lv)];
+    if(r2 > openness) continue;
+    if(lv > TERRACES + 1){
+      if(r < 0.45) addRock(x, col.top, z, 0.7 + r*0.9);
+      else addConifer(x, col.top, z, 0.62 + r*0.2, true);
+      placed++;
+    } else if(lv >= 2){
+      if(r < 0.46) addConifer(x, col.top, z, 0.68 + hash2(i,9)*0.34, lv >= 4);
+      else if(r < 0.84) addRoundTree(x, col.top, z, 0.62 + hash2(i,3)*0.32, r > 0.80);
+      else addRock(x, col.top, z, 0.5 + hash2(i,7)*0.4);
+      placed++;
+    } else {
+      if(r < 0.45) addRock(x, col.top, z, 0.45 + r*0.4);
+      else addRoundTree(x, col.top, z, 0.6, false);
+      placed++;
+    }
+  }
+})();
+
+/* a few flocks of sheep on the meadows */
+function addSheep(x,y,z,rot){
+  const o = {rot, studs:false, gap:false};
+  world.brick(x, y+0.55, z, 1.05, 0.85, 1.7, C.white, o);
+  world.brick(x, y+0.05, z, 0.85, 0.5, 1.5, C.black, o);
+  const c = Math.cos(rot), sn = Math.sin(rot);
+  world.brick(x + 0.95*sn, y+1.0, z + 0.95*c, 0.6, 0.6, 0.6, C.black, o);
+}
+[[-11.5, 9.0],[6.5,-9.0],[13.0,3.0]].forEach((f,k)=>{
+  for(let i=0;i<4;i++){
+    const x = f[0] + (hash2(i+k*9, 2)-0.5)*3.4;
+    const z = f[1] + (hash2(i+k*9, 5)-0.5)*3.4;
+    const col = column(x,z);
+    if(!col.bored && col.top >= BRICK_H*2 && col.dt > 5)
+      addSheep(x, col.top, z, hash2(i+k*4,3)*6.28);
+  }
+});
+
+/* hand-placed villages so they always land on flat terraces */
+[[-9.5, 6.5, 0.35, C.tan, C.darkRed],
+ [ 9.0, -7.5, -0.6, C.white, C.blue],
+ [-8.0, -6.0, 2.2, C.yellow, C.darkRed],
+ [10.5, 5.0, 0.9, C.tan, C.darkGreen],
+ [-13.5, -1.5, 1.6, C.white, C.darkRed]].forEach(h=>{
+  const g = groundTop(h[0], h[1]);
+  if(g >= BRICK_H*2 && distToTrack(h[0],h[1]) > 6.5) addHouse(h[0], g, h[1], h[2], h[3], h[4]);
+});
+[[-6.5,9.5,0.3,6],[7.5,-10.5,1.2,7],[12.5,8.5,0.1,5]].forEach(f=>{
+  const g = groundTop(f[0],f[1]);
+  if(g >= BRICK_H) addFence(f[0], g, f[1], f[2], f[3]);
+});
+addBoat(1.2, 4.0, 0.35);
+addBoat(-2.4, -6.5, -0.5);
+
+/* signal lamps beside the line (these glow at night) */
+const lampLights = [];
+[0.06, 0.31, 0.56, 0.81].forEach(u=>{
+  const p = track.getPointAt(u);
+  const t = track.getTangentAt(u);
+  const rot = Math.atan2(t.x, t.z);
+  const c = Math.cos(rot), sn = Math.sin(rot);
+  const off = 4.0;
+  const lx = p.x + off*c, lz = p.z - off*sn;
+  const g = groundTop(lx,lz);
+  const base = Math.max(g, TRACK_Y - BRICK_H);
+  world.brick(lx, base, lz, 0.5, 3.4, 0.5, C.darkGrey, {studs:false, gap:false});
+  world.brick(lx, base+3.4, lz, 1.0, 0.4, 1.0, C.black, {studs:false, gap:false});
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10),
+    new THREE.MeshBasicMaterial({color:0xFFE6A8, transparent:true, opacity:0}));
+  bulb.position.set(lx, base+3.28, lz);
+  scene.add(bulb); lampLights.push(bulb);
+});
+
+/* build the whole static world into a few merged meshes */
+const worldGroup = new THREE.Group();
+scene.add(worldGroup);
+world.build(worldGroup);
+
+/* ============================================================
+   7. WATER
+   ============================================================ */
+const waterGeo = new THREE.PlaneGeometry(GX1-GX0, GZ1-GZ0, 70, 50);
+waterGeo.rotateX(-Math.PI/2);
+const waterBase = waterGeo.attributes.position.array.slice();
+const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({
+  color: 0x35A6DE, transparent:true, opacity:0.80,
+  roughness:0.12, metalness:0.18, side:THREE.DoubleSide
+}));
+water.position.set((GX0+GX1)/2, 0.62, (GZ0+GZ1)/2);
+water.receiveShadow = true;
+scene.add(water);
+
+/* ============================================================
+   8. THE TRAIN
+   ============================================================ */
+function wheelMesh(r, thick, hubColor){
+  const g = new THREE.Group();
+  const tyre = new THREE.Mesh(new THREE.CylinderGeometry(r,r,thick,18),
+    new THREE.MeshStandardMaterial({color:C.black, roughness:0.62}));
+  tyre.rotation.z = Math.PI/2;
+  tyre.castShadow = true;
+  g.add(tyre);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(r*0.58,r*0.58,thick*1.12,14),
+    new THREE.MeshStandardMaterial({color:hubColor, roughness:0.4}));
+  hub.rotation.z = Math.PI/2;
+  g.add(hub);
+  for(let i=0;i<3;i++){
+    const sp = new THREE.Mesh(new THREE.BoxGeometry(thick*0.9, r*1.55, 0.16),
+      new THREE.MeshStandardMaterial({color:hubColor, roughness:0.4}));
+    sp.rotation.x = i*Math.PI/3;
+    g.add(sp);
+  }
+  return g;
+}
+
+const cars = [];
+function makeCar(builderFn, length, wheels){
+  const group = new THREE.Group();
+  const b = new BrickBuilder();
+  builderFn(b);
+  b.build(group);
+  const wheelGroups = [];
+  wheels.forEach(w=>{
+    for(const side of [-1,1]){
+      const m = wheelMesh(w.r, 0.34, w.hub);
+      m.position.set(side*1.58, w.r, w.z);
+      group.add(m); wheelGroups.push(m);
+    }
+  });
+  scene.add(group);
+  const car = {group, len:length, wheels:wheelGroups, half:length*0.42};
+  cars.push(car);
+  return car;
+}
+
+/* --- locomotive --- */
+const loco = makeCar(b=>{
+  const no = {studs:false, gap:false};
+  b.brick(0, 0.86, 0, 3.1, 0.44, 7.6, C.black, no);              // chassis
+  b.brick(0, 1.30, -0.2, 2.9, 0.9, 7.2, C.darkRed, no);          // frame
+  b.brick(0, 2.20, 0.9, 2.7, 0.5, 4.6, C.red, no);               // boiler cradle
+  b.cyl(0, 3.05, 1.00, 1.02, 4.70, C.red, 'z', 0);               // boiler (cab front → smokebox)
+  b.cyl(0, 3.05, 3.65, 1.06, 0.60, C.darkGrey, 'z', 0);          // smokebox
+  b.cyl(0, 3.05, 4.02, 0.62, 0.18, C.lightGrey, 'z', 0);         // smokebox door
+  b.cyl(0, 4.63, 2.55, 0.40, 1.25, C.black, 'y', 0);             // chimney
+  b.cyl(0, 5.25, 2.55, 0.56, 0.30, C.black, 'y', 0);             // chimney flare
+  b.cyl(0, 4.28, 1.05, 0.48, 0.55, C.yellow, 'y', 0);            // steam dome
+  b.cyl(0, 4.21, 0.00, 0.36, 0.42, C.lightGrey, 'y', 0);         // safety valve
+  // cab
+  b.brick(0, 2.20, -2.55, 2.9, 2.5, 2.4, C.red, no);
+  b.brick( 1.35, 3.10, -2.55, 0.28, 1.1, 1.5, C.black, no);
+  b.brick(-1.35, 3.10, -2.55, 0.28, 1.1, 1.5, C.black, no);
+  b.brick(0, 3.10, -3.70, 1.6, 1.1, 0.28, C.black, no);
+  b.brick(0, 4.70, -2.55, 3.3, 0.42, 2.9, C.black, no);          // cab roof
+  b.brick(0, 5.12, -2.55, 2.5, 0.22, 2.2, C.darkGrey, no);
+  // running boards + buffer beam + cowcatcher
+  b.brick( 1.62, 2.10, 0.9, 0.7, 0.24, 6.2, C.black, no);
+  b.brick(-1.62, 2.10, 0.9, 0.7, 0.24, 6.2, C.black, no);
+  b.brick(0, 1.30, 3.85, 3.4, 0.7, 0.42, C.yellow, no);
+  b.cyl( 1.05, 1.65, 4.24, 0.24, 0.35, C.lightGrey, 'z', 0);
+  b.cyl(-1.05, 1.65, 4.24, 0.24, 0.35, C.lightGrey, 'z', 0);
+  b.brick(0, 0.60, 3.95, 2.6, 0.7, 0.5, C.black, no);
+  b.brick(0, 0.30, 4.15, 2.0, 0.45, 0.4, C.black, no);
+  // cylinders low at the front
+  b.cyl( 1.35, 1.35, 3.05, 0.42, 1.5, C.darkGrey, 'z', 0);
+  b.cyl(-1.35, 1.35, 3.05, 0.42, 1.5, C.darkGrey, 'z', 0);
+  // lamp
+  b.brick(0, 3.95, 3.55, 0.8, 0.8, 0.5, C.yellow, no);
+}, 8.6, [
+  {r:0.86, z:-1.5, hub:C.red}, {r:0.86, z:0.5, hub:C.red}, {r:0.86, z:2.5, hub:C.red},
+  {r:0.52, z:3.6, hub:C.darkGrey}
+]);
+
+/* --- tender --- */
+const tender = makeCar(b=>{
+  const no = {studs:false, gap:false};
+  b.brick(0, 0.86, 0, 3.1, 0.44, 4.8, C.black, no);
+  b.brick(0, 1.30, 0, 2.9, 2.0, 4.6, C.red, no);
+  b.brick(0, 3.30, 0, 2.5, 0.3, 4.2, C.darkRed, no);
+  // coal
+  for(let i=0;i<9;i++){
+    const hx = (hash2(i,3)-0.5)*1.7, hz = (hash2(i,7)-0.5)*3.2;
+    b.brick(hx, 3.55, hz, 0.7+hash2(i,11)*0.4, 0.45, 0.7, C.black, no);
+  }
+  b.brick(0, 1.30, 2.45, 3.2, 0.55, 0.3, C.yellow, no);
+}, 5.4, [{r:0.56, z:-1.4, hub:C.darkGrey},{r:0.56, z:1.4, hub:C.darkGrey}]);
+
+/* --- passenger carriages --- */
+function makeCarriage(bodyColor, roofColor, trim){
+  return makeCar(b=>{
+    const no = {studs:false, gap:false};
+    b.brick(0, 0.82, 0, 3.1, 0.44, 7.0, C.black, no);
+    b.brick(0, 1.26, 0, 2.95, 0.5, 6.8, trim, no);
+    b.brick(0, 1.76, 0, 2.9, 2.5, 6.6, bodyColor, no);
+    // windows
+    for(const z of [-2.2, -0.75, 0.75, 2.2]){
+      b.brick( 1.46, 2.35, z, 0.24, 1.25, 1.15, C.black, no);
+      b.brick(-1.46, 2.35, z, 0.24, 1.25, 1.15, C.black, no);
+    }
+    // doors
+    for(const z of [-3.05, 3.05]){
+      b.brick(0, 1.76, z, 1.7, 2.2, 0.26, trim, no);
+      b.brick(0, 2.55, z, 1.2, 0.85, 0.3, C.black, no);
+    }
+    // roof: two stepped layers
+    b.brick(0, 4.26, 0, 3.15, 0.45, 7.0, roofColor, no);
+    b.brick(0, 4.71, 0, 2.5, 0.4, 6.6, roofColor, no);
+    b.brick(0, 5.11, 0, 1.4, 0.22, 5.8, C.lightGrey, no);
+    // buffers
+    for(const z of [-3.55, 3.55]){
+      b.brick(0, 1.26, z, 3.1, 0.5, 0.3, C.darkGrey, no);
+      b.cyl( 0.95, 1.5, z + (z>0?0.30:-0.30), 0.2, 0.3, C.lightGrey, 'z', 0);
+      b.cyl(-0.95, 1.5, z + (z>0?0.30:-0.30), 0.2, 0.3, C.lightGrey, 'z', 0);
+    }
+  }, 7.6, [{r:0.56, z:-2.4, hub:C.lightGrey},{r:0.56, z:2.4, hub:C.lightGrey}]);
+}
+makeCarriage(C.blue,   C.white, C.yellow);
+makeCarriage(C.yellow, C.white, C.blue);
+makeCarriage(C.green,  C.white, C.tan);
+
+/* place the cars along the line, nose to tail */
+const CAR_GAP = 0.75;
+let acc = 0;
+cars.forEach((c,i)=>{
+  c.offset = -(acc + c.len/2);
+  acc += c.len + CAR_GAP;
+});
+const TRAIN_LEN = acc;
+
+const _p1 = new THREE.Vector3(), _p2 = new THREE.Vector3(), _mid = new THREE.Vector3();
+function placeCars(headS){
+  cars.forEach(c=>{
+    const s = headS + c.offset;
+    const u1 = fract(((s - c.half)/TRACK_LEN) + 1);
+    const u2 = fract(((s + c.half)/TRACK_LEN) + 1);
+    track.getPointAt(u1, _p1);
+    track.getPointAt(u2, _p2);
+    _mid.addVectors(_p1,_p2).multiplyScalar(0.5);
+    c.group.position.set(_mid.x, RAIL_TOP, _mid.z);
+    c.group.rotation.y = Math.atan2(_p2.x-_p1.x, _p2.z-_p1.z);
+  });
+}
+
+/* ---------- steam ---------- */
+const PUFFS = 46;
+const puffs = [];
+const puffGeo = new THREE.IcosahedronGeometry(0.5, 1);
+for(let i=0;i<PUFFS;i++){
+  const mat = new THREE.MeshStandardMaterial({
+    color:0xFFFFFF, transparent:true, opacity:0, roughness:1, metalness:0,
+    depthWrite:false
+  });
+  const m = new THREE.Mesh(puffGeo, mat);
+  m.visible = false;
+  scene.add(m);
+  puffs.push({mesh:m, mat, life:0, ttl:1, vel:new THREE.Vector3()});
+}
+let puffTimer = 0, puffIdx = 0;
+const chimneyLocal = new THREE.Vector3(0, 5.4, 2.55);
+const _cw = new THREE.Vector3();
+function emitSteam(dt, speed){
+  puffTimer -= dt;
+  const rate = 0.075 + 0.25/Math.max(0.4, speed);
+  if(puffTimer <= 0 && speed > 0.15){
+    puffTimer = rate;
+    const p = puffs[puffIdx++ % PUFFS];
+    _cw.copy(chimneyLocal); loco.group.localToWorld(_cw);
+    p.mesh.position.copy(_cw);
+    p.mesh.visible = true;
+    p.life = 0; p.ttl = 2.4 + Math.random()*1.4;
+    const s = 0.30 + Math.random()*0.14;
+    p.mesh.scale.setScalar(s);
+    p.vel.set((Math.random()-0.5)*0.5, 2.1+Math.random()*0.9, (Math.random()-0.5)*0.5);
+  }
+  puffs.forEach(p=>{
+    if(!p.mesh.visible) return;
+    p.life += dt;
+    const t = p.life/p.ttl;
+    if(t >= 1){ p.mesh.visible = false; p.mat.opacity = 0; return; }
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.vel.y += dt*0.35;
+    p.vel.x += dt*0.55;               // drifts on the breeze
+    p.mesh.scale.setScalar(0.30 + t*2.6);
+    p.mat.opacity = 0.85*Math.pow(1-t, 1.5);
+  });
+}
+
+/* ---------- clouds & birds ---------- */
+const clouds = new THREE.Group();
+scene.add(clouds);
+(function makeClouds(){
+  const cb = new BrickBuilder();
+  for(let i=0;i<11;i++){
+    const cx = -70 + hash2(i,21)*150;
+    const cy = 30 + hash2(i,33)*22;
+    const cz = -70 + hash2(i,45)*150;
+    const s = 2.2 + hash2(i,57)*2.6;
+    for(let k=0;k<7;k++){
+      const tier = k < 4 ? 0 : 1;
+      const ox = (hash2(i*7+k, 3)-0.5)*(tier?3.0:5.2)*s;
+      const oz = (hash2(i*7+k,13)-0.5)*(tier?2.0:3.4)*s;
+      const w = (tier ? 1.1+hash2(i*7+k,17)*1.1 : 1.7+hash2(i*7+k,17)*1.8)*s;
+      cb.brick(cx+ox, cy + tier*0.85*s, cz+oz, w, 0.9*s, w*0.8, C.white, {studs:false, gap:false});
+    }
+  }
+  cb.build(clouds, {roughness:0.95, metalness:0, fog:false}).forEach(m=>{
+    m.castShadow = false; m.receiveShadow = false;
+  });
+})();
+
+/* ============================================================
+   9. CAMERA CONTROLS  (compact orbit implementation)
+   ============================================================ */
+const ctrl = {
+  target: new THREE.Vector3(0, 6.5, 0),
+  theta: 0.56, phi: 0.96, radius: 92,
+  tTheta: 0.56, tPhi: 0.96, tRadius: 92,
+  autoRotate: true, idle: 0, dragging: false
+};
+function applyCamera(){
+  ctrl.theta = lerp(ctrl.theta, ctrl.tTheta, 0.12);
+  ctrl.phi   = lerp(ctrl.phi,   ctrl.tPhi,   0.12);
+  ctrl.radius= lerp(ctrl.radius,ctrl.tRadius,0.10);
+  const sp = Math.sin(ctrl.phi);
+  camera.position.set(
+    ctrl.target.x + ctrl.radius*sp*Math.sin(ctrl.theta),
+    ctrl.target.y + ctrl.radius*Math.cos(ctrl.phi),
+    ctrl.target.z + ctrl.radius*sp*Math.cos(ctrl.theta)
+  );
+  camera.lookAt(ctrl.target);
+}
+let last = null;
+canvas.addEventListener('pointerdown', e=>{
+  ctrl.dragging = true; ctrl.idle = 0;
+  last = {x:e.clientX, y:e.clientY};
+  canvas.classList.add('dragging');
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', e=>{
+  if(!ctrl.dragging || !last) return;
+  const dx = e.clientX-last.x, dy = e.clientY-last.y;
+  last = {x:e.clientX, y:e.clientY};
+  ctrl.tTheta -= dx*0.0055;
+  ctrl.tPhi = clamp(ctrl.tPhi - dy*0.0045, 0.16, 1.46);
+  ctrl.idle = 0;
+});
+function endDrag(e){
+  ctrl.dragging = false; last = null;
+  canvas.classList.remove('dragging');
+  if(e && e.pointerId!=null && canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  ctrl.tRadius = clamp(ctrl.tRadius * (1 + Math.sign(e.deltaY)*Math.min(0.18, Math.abs(e.deltaY)*0.0016)), 14, 150);
+  ctrl.idle = 0;
+}, {passive:false});
+/* pinch zoom */
+let pinch = null;
+canvas.addEventListener('touchstart', e=>{
+  if(e.touches.length===2){
+    pinch = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    ctrl.dragging = false;
+  }
+}, {passive:true});
+canvas.addEventListener('touchmove', e=>{
+  if(e.touches.length===2 && pinch){
+    const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    ctrl.tRadius = clamp(ctrl.tRadius * (pinch/d), 14, 150);
+    pinch = d; ctrl.idle = 0;
+  }
+}, {passive:true});
+canvas.addEventListener('touchend', ()=>{ pinch = null; }, {passive:true});
+
+/* ============================================================
+   10. UI
+   ============================================================ */
+const btnDay   = document.getElementById('btnDay');
+const btnTrain = document.getElementById('btnTrain');
+const btnSpin  = document.getElementById('btnSpin');
+const btnCam   = document.getElementById('btnCam');
+const btnReset = document.getElementById('btnReset');
+
+let night = 0, nightTarget = 0;
+let trainRunning = true;
+let rideMode = false;
+
+btnDay.onclick = ()=>{
+  nightTarget = nightTarget > 0.5 ? 0 : 1;
+  btnDay.textContent = nightTarget > 0.5 ? '☾ Night' : '☀ Daytime';
+  btnDay.classList.toggle('on', nightTarget > 0.5);
+};
+btnTrain.onclick = ()=>{
+  trainRunning = !trainRunning;
+  btnTrain.textContent = trainRunning ? '⏸ Pause train' : '▶ Run train';
+};
+btnSpin.onclick = ()=>{
+  ctrl.autoRotate = !ctrl.autoRotate;
+  btnSpin.classList.toggle('on', ctrl.autoRotate);
+};
+btnCam.onclick = ()=>{
+  rideMode = !rideMode;
+  btnCam.classList.toggle('on', rideMode);
+  btnCam.textContent = rideMode ? '🎥 Aerial view' : '🎥 Ride the train';
+  if(!rideMode){ ctrl.tRadius = 92; ctrl.tPhi = 0.96; ctrl.target.set(0,6.5,0); }
+};
+btnReset.onclick = ()=>{
+  rideMode = false;
+  btnCam.classList.remove('on');
+  btnCam.textContent = '🎥 Ride the train';
+  ctrl.tTheta = 0.56; ctrl.tPhi = 0.96; ctrl.tRadius = 92;
+  ctrl.target.set(0,6.5,0);
+};
+
+/* day / night colour sets */
+const DAY = {
+  top:new THREE.Color(0x2E7DD1), mid:new THREE.Color(0x9CD2F2), bot:new THREE.Color(0xEBF4F8),
+  sun:new THREE.Color(0xFFF4E0), sunI:2.15, hemiS:new THREE.Color(0xBFE2FF), hemiG:new THREE.Color(0x5B6B4A),
+  hemiI:0.62, ambI:0.16, fog:new THREE.Color(0xBFE0F5), water:new THREE.Color(0x35A6DE), exposure:1.06
+};
+const NIGHT = {
+  top:new THREE.Color(0x040A1C), mid:new THREE.Color(0x12224A), bot:new THREE.Color(0x2A3C64),
+  sun:new THREE.Color(0x8FB0E8), sunI:0.55, hemiS:new THREE.Color(0x2A3F6B), hemiG:new THREE.Color(0x101822),
+  hemiI:0.30, ambI:0.07, fog:new THREE.Color(0x121F3C), water:new THREE.Color(0x123A63), exposure:1.16
+};
+const _c = new THREE.Color();
+function applyDayNight(t){
+  const mix=(a,b)=> _c.copy(a).lerp(b,t);
+  skyUniforms.top.value.copy(mix(DAY.top, NIGHT.top));
+  skyUniforms.mid.value.copy(mix(DAY.mid, NIGHT.mid));
+  skyUniforms.bottom.value.copy(mix(DAY.bot, NIGHT.bot));
+  sun.color.copy(mix(DAY.sun, NIGHT.sun));
+  sun.intensity = lerp(DAY.sunI, NIGHT.sunI, t);
+  hemi.color.copy(mix(DAY.hemiS, NIGHT.hemiS));
+  hemi.groundColor.copy(mix(DAY.hemiG, NIGHT.hemiG));
+  hemi.intensity = lerp(DAY.hemiI, NIGHT.hemiI, t);
+  amb.intensity = lerp(DAY.ambI, NIGHT.ambI, t);
+  scene.fog.color.copy(mix(DAY.fog, NIGHT.fog));
+  water.material.color.copy(mix(DAY.water, NIGHT.water));
+  renderer.toneMappingExposure = lerp(DAY.exposure, NIGHT.exposure, t);
+  const glow = Math.max(0, (t-0.15)/0.85);
+  windowLights.forEach(w=> w.material.opacity = glow*0.95);
+  lampLights.forEach(l=> l.material.opacity = glow);
+}
+applyDayNight(0);
+
+/* ============================================================
+   11. ANIMATION LOOP
+   ============================================================ */
+let headS = TRACK_LEN*0.62;
+let prev = performance.now();
+const _tp = new THREE.Vector3(), _tt = new THREE.Vector3();
+
+function resize(){
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+  renderer.setSize(w,h,false);
+}
+window.addEventListener('resize', resize);
+
+function frame(now){
+  const dt = Math.min(0.05, (now - prev)/1000);
+  prev = now;
+
+  /* train */
+  const speed = trainRunning ? 6.2 : 0;
+  headS = (headS + speed*dt) % TRACK_LEN;
+  placeCars(headS);
+  cars.forEach(c=>{
+    c.wheels.forEach(w=>{ w.rotation.x -= speed*dt/0.7; });
+  });
+  emitSteam(dt, speed);
+
+  /* water ripples */
+  {
+    const pos = water.geometry.attributes.position;
+    const a = pos.array;
+    const t = now*0.0011;
+    for(let i=0;i<a.length;i+=3){
+      const x = waterBase[i], z = waterBase[i+2];
+      a[i+1] = 0.16*Math.sin(x*0.55 + t*2.1) + 0.11*Math.sin(z*0.72 - t*1.6)
+             + 0.06*Math.sin((x+z)*1.1 + t*3.0);
+    }
+    pos.needsUpdate = true;
+    water.geometry.computeVertexNormals();
+  }
+
+  /* clouds drift */
+  clouds.position.x = ((clouds.position.x + dt*0.55) % 150);
+
+  /* camera */
+  if(rideMode){
+    const u = fract((headS + 7)/TRACK_LEN);
+    track.getPointAt(u, _tp);
+    track.getPointAt(fract(u + 0.035), _tt);
+    ctrl.target.lerp(_tt.setY(TRACK_Y+2.6), 0.08);
+    ctrl.tRadius = 15;
+    ctrl.tPhi = 1.20;
+    ctrl.tTheta = Math.atan2(_tp.x - ctrl.target.x, _tp.z - ctrl.target.z);
+  } else {
+    ctrl.idle += dt;
+    if(ctrl.autoRotate && !ctrl.dragging && ctrl.idle > 2.2) ctrl.tTheta += dt*0.055;
+  }
+  applyCamera();
+
+  /* day/night easing */
+  if(Math.abs(night - nightTarget) > 0.001){
+    night = lerp(night, nightTarget, 0.045);
+    applyDayNight(night);
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* first frame, then reveal */
+placeCars(headS);
+applyCamera();
+renderer.render(scene, camera);
+requestAnimationFrame(frame);
+setTimeout(()=>{
+  const l = document.getElementById('loader');
+  l.classList.add('hide');
+  setTimeout(()=> l.remove(), 800);
+}, 350);
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riftbound — MOBA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Rajdhani:wght@500;600;700&family=Libre+Baskerville&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --map-base:#0a0f1a; --map-lane:#1a2332; --map-river:#0d2040; --jungle-dark:#060d14;
+    --team-blue:#4a9eff; --team-red:#ff4a4a;
+    --team-blue-glow:rgba(74,158,255,0.6); --team-red-glow:rgba(255,74,74,0.6);
+    --gold:#f0c040; --magic-purple:#c060ff; --hp-green:#20c020; --hp-low:#ff4040;
+    --mana-blue:#4080ff; --hud-bg:rgba(5,8,18,0.92); --hud-border:rgba(74,158,255,0.3);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#05060a;color:#dfe8f5;
+    font-family:'Rajdhani',sans-serif;user-select:none;}
+  canvas{display:block;position:absolute;top:0;left:0;cursor:crosshair;}
+
+  /* ---------- Pantallas (overlays) ---------- */
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;z-index:50;background:radial-gradient(circle at 50% 40%,#0c1426,#04060c 80%);}
+  .overlay h1{font-family:'Cinzel',serif;font-weight:700;letter-spacing:4px;font-size:54px;
+    color:#cfe2ff;text-shadow:0 0 28px var(--team-blue-glow);margin-bottom:6px;}
+  .overlay .sub{font-family:'Cinzel',serif;letter-spacing:8px;color:#7d93b8;margin-bottom:36px;font-size:14px;}
+
+  .cards{display:flex;gap:26px;}
+  .card{width:280px;background:linear-gradient(160deg,rgba(20,30,52,.95),rgba(8,12,22,.95));
+    border:1px solid var(--hud-border);border-radius:14px;padding:20px;cursor:pointer;
+    transition:transform .18s cubic-bezier(.23,1,.32,1),box-shadow .18s,border-color .18s;}
+  .card:hover{transform:translateY(-8px);border-color:var(--team-blue);box-shadow:0 16px 40px rgba(74,158,255,.25);}
+  .card.sel{border-color:var(--gold);box-shadow:0 0 32px rgba(240,192,64,.4);transform:translateY(-8px);}
+  .card .crest{width:84px;height:84px;border-radius:50%;margin:0 auto 14px;display:block;}
+  .card h2{font-family:'Cinzel',serif;text-align:center;font-size:22px;margin-bottom:2px;}
+  .card .role{text-align:center;color:var(--gold);letter-spacing:2px;font-size:13px;margin-bottom:14px;text-transform:uppercase;}
+  .card .ab{font-family:'Libre Baskerville',serif;font-size:11.5px;line-height:1.5;color:#aebcd4;margin-bottom:7px;}
+  .card .ab b{color:#fff;font-family:'Rajdhani';font-weight:700;}
+  .card .key{display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;
+    background:rgba(74,158,255,.18);border:1px solid var(--hud-border);border-radius:4px;
+    font-weight:700;margin-right:6px;color:#bcd4ff;}
+
+  .startbtn{margin-top:36px;font-family:'Cinzel',serif;font-weight:700;letter-spacing:3px;font-size:18px;
+    padding:14px 54px;border:1px solid var(--gold);color:#0a0f1a;border-radius:10px;cursor:pointer;
+    background:linear-gradient(180deg,#f7d873,#d39a26);box-shadow:0 8px 26px rgba(240,192,64,.3);
+    transition:transform .15s,box-shadow .15s;opacity:.4;pointer-events:none;}
+  .startbtn.on{opacity:1;pointer-events:auto;}
+  .startbtn.on:hover{transform:translateY(-3px);box-shadow:0 12px 34px rgba(240,192,64,.5);}
+
+  /* Tienda */
+  #shop{position:absolute;left:50%;bottom:0;transform:translateX(-50%) translateY(110%);
+    width:min(820px,92vw);max-height:74vh;background:var(--hud-bg);border:1px solid var(--hud-border);
+    border-bottom:none;border-radius:14px 14px 0 0;padding:18px 22px;z-index:40;overflow-y:auto;}
+  #shop.open{transform:translateX(-50%) translateY(0);}
+  #shop h2{font-family:'Cinzel',serif;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  #shop .goldtag{color:var(--gold);font-size:22px;}
+  .tier{font-family:'Cinzel';letter-spacing:3px;color:#7d93b8;font-size:12px;margin:10px 0 6px;text-transform:uppercase;}
+  .items{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .item{background:rgba(20,30,52,.7);border:1px solid var(--hud-border);border-radius:9px;padding:10px;cursor:pointer;
+    transition:transform .15s,border-color .15s,opacity .15s;}
+  .item:hover{transform:translateY(-3px);border-color:var(--team-blue);}
+  .item.poor{opacity:.45;}
+  .item .nm{font-weight:700;color:#eaf2ff;font-size:14px;}
+  .item .ds{font-family:'Libre Baskerville',serif;font-size:10.5px;color:#9fb0cc;line-height:1.4;margin:4px 0;}
+  .item .pr{color:var(--gold);font-weight:700;}
+  .closehint{font-size:12px;color:#6f84a8;}
+
+  .toast{position:absolute;left:50%;top:14%;transform:translateX(-50%);font-family:'Cinzel';font-weight:700;
+    letter-spacing:4px;font-size:40px;z-index:45;pointer-events:none;opacity:0;}
+  #help{position:absolute;left:12px;bottom:12px;font-size:12px;color:#7d93b8;line-height:1.6;z-index:30;
+    background:rgba(5,8,18,.6);padding:8px 12px;border-radius:8px;border:1px solid rgba(74,158,255,.15);}
+  #help b{color:#bcd4ff;}
+  .hidden{display:none!important;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- HUD ayuda -->
+<div id="help">
+  <b>Click der.</b> mover/atacar · <b>Q W E R</b> habilidades · <b>Ctrl+Q/W/E/R</b> subir rango<br>
+  <b>P</b> tienda · <b>B</b> recall · <b>Space</b> centrar cámara · <b>S</b> detener · <b>WASD</b> mover cámara
+</div>
+
+<!-- Tienda -->
+<div id="shop">
+  <h2><span>Tienda</span><span class="goldtag" id="shopGold">0g</span></h2>
+  <div id="shopBody"></div>
+  <div class="closehint">Pulsa <b>P</b> o <b>Esc</b> para cerrar · debes estar cerca de la base para comprar</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Selección de campeón -->
+<div class="overlay" id="select">
+  <h1>RIFTBOUND</h1>
+  <div class="sub">ELIGE TU CAMPEÓN</div>
+  <div class="cards" id="cards"></div>
+  <button class="startbtn" id="startBtn">INICIAR PARTIDA</button>
+</div>
+
+<!-- Fin de partida -->
+<div class="overlay hidden" id="endScreen">
+  <h1 id="endTitle">VICTORIA</h1>
+  <div class="sub" id="endStats"></div>
+  <button class="startbtn on" id="againBtn">JUGAR DE NUEVO</button>
+</div>
+
+<script>
+"use strict";
+/* ===================================================================
+   RIFTBOUND — un MOBA en un solo archivo.
+   Estructura general:
+     1. Constantes y configuración del mapa
+     2. Utilidades (Vector2, math, rng) y AudioEngine
+     3. Datos: campeones e items
+     4. Clases de entidades (Entity, Champion, Minion, Tower, Nexus, Projectile, Particle, FloatingText)
+     5. Estado global (GameState)
+     6. Sistemas: spawn de minions, IA, habilidades, combate
+     7. Input + Cámara
+     8. Render (mapa, entidades, HUD, minimapa)
+     9. Bucle de juego (timestep fijo) y pantallas
+   =================================================================== */
+
+/* =========================== 1. CONSTANTES =========================== */
+const MAP_W = 3200, MAP_H = 3200;
+const BLUE_NEXUS = {x:330, y:2870};
+const RED_NEXUS  = {x:2870, y:330};
+
+// Carriles como polilíneas (base azul -> base roja).
+const LANES = {
+  mid: [[330,2870],[640,2560],[960,2240],[1280,1920],[1600,1600],[1920,1280],[2240,960],[2560,640],[2870,330]],
+  top: [[330,2870],[300,2200],[300,1400],[360,720],[560,420],[1200,330],[2000,310],[2600,330],[2870,330]],
+  bot: [[330,2870],[900,2920],[1700,2900],[2480,2880],[2860,2480],[2900,1700],[2880,900],[2870,560],[2870,330]],
+};
+const LANE_NAMES = ["top","mid","bot"];
+
+// Tabla de XP acumulada por nivel (índice = nivel-1).
+const XP_TABLE = [0,280,660,1140,1720,2400,3180,4060,5040,6120,7300,8580,9960,11440,13020,14700,16480,18360];
+
+const TICK = 1000/60;            // timestep fijo (~16.67 ms)
+const TWO_PI = Math.PI*2;
+
+/* =========================== 2. UTILIDADES =========================== */
+const rand = (a,b)=>a+Math.random()*(b-a);
+const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+const lerp = (a,b,t)=>a+(b-a)*t;
+const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const dist2 = (a,b)=>{const dx=a.x-b.x,dy=a.y-b.y;return dx*dx+dy*dy;};
+function angleTo(a,b){return Math.atan2(b.y-a.y,b.x-a.x);}
+function norm(dx,dy){const m=Math.hypot(dx,dy)||1;return {x:dx/m,y:dy/m};}
+
+// Interpolación a lo largo de una polilínea por parámetro t (0..1) de longitud de arco.
+function lanePoint(pts, t){
+  let total=0; const seg=[];
+  for(let i=0;i<pts.length-1;i++){const d=Math.hypot(pts[i+1][0]-pts[i][0],pts[i+1][1]-pts[i][1]);seg.push(d);total+=d;}
+  let target=t*total;
+  for(let i=0;i<seg.length;i++){
+    if(target<=seg[i]||i===seg.length-1){
+      const f=seg[i]?target/seg[i]:0;
+      return {x:lerp(pts[i][0],pts[i+1][0],f), y:lerp(pts[i][1],pts[i+1][1],f)};
+    }
+    target-=seg[i];
+  }
+  return {x:pts[0][0],y:pts[0][1]};
+}
+
+/* --- Audio: todo con osciladores Web Audio, sin archivos --- */
+const Audio2 = {
+  ctx:null, master:null, vol:0.35,
+  init(){ if(this.ctx) return; try{
+      this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+      this.master = this.ctx.createGain(); this.master.gain.value=this.vol; this.master.connect(this.ctx.destination);
+    }catch(e){} },
+  tone(freq,dur,type="sine",vol=0.5,sweep){
+    if(!this.ctx) return;
+    const t=this.ctx.currentTime, o=this.ctx.createOscillator(), g=this.ctx.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,t);
+    if(sweep) o.frequency.exponentialRampToValueAtTime(sweep,t+dur);
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t+dur);
+  },
+  attack(){ this.tone(200,0.08,"sawtooth",0.25); },
+  cast(){ this.tone(440,0.2,"sine",0.3,880); },
+  death(){ this.tone(100,0.4,"sine",0.4); },
+  tower(){ this.tone(160,0.15,"square",0.18); },
+  level(){ [262,330,392,523].forEach((f,i)=>setTimeout(()=>this.tone(f,0.4,"triangle",0.3),i*70)); },
+  ult(){ this.tone(330,0.5,"sawtooth",0.35,110); },
+  victory(){ [392,523,659,784].forEach((f,i)=>setTimeout(()=>this.tone(f,0.6,"triangle",0.35),i*180)); },
+};
+
+/* =========================== 3. DATOS =========================== */
+// Cada campeón: estadísticas base, escalado por nivel y 4 habilidades.
+const CHAMPIONS = {
+  dawnbringer:{
+    id:"dawnbringer", name:"Dawnbringer", role:"Mago · Mid", color:"#ffd36b", accent:"#fff0b0",
+    hp:560, mana:420, ad:53, ap:0, armor:21, mr:30, ms:335, range:560, atkSpeed:0.7, ranged:true,
+    grow:{hp:80,mana:40,ad:3,armor:3,mr:1.25},
+    passive:"Cada 3ª habilidad inflige +20% de daño mágico.",
+    abilities:{
+      q:{name:"Starfire Bolt", cost:70, cd:6, range:800, type:"skillshot",
+         desc:"Proyectil lineal: 80(+0.6 AP) mágico."},
+      w:{name:"Arcane Shield", cost:80, cd:14, range:0, type:"self",
+         desc:"Escudo de 60(+0.8 AP) por 2.5s."},
+      e:{name:"Blink", cost:50, cd:12, range:400, type:"dash",
+         desc:"Parpadea 400 hacia el cursor."},
+      r:{name:"Supernova", cost:100, cd:90, range:700, type:"aoe", ult:true,
+         desc:"AoE tras 1s: 150(+1.0 AP) mágico + aturde 1.5s."},
+    }
+  },
+  ironclad:{
+    id:"ironclad", name:"Ironclad", role:"Luchador · Top", color:"#9fb8d8", accent:"#dce8ff",
+    hp:640, mana:300, ad:62, ap:0, armor:33, mr:32, ms:340, range:150, atkSpeed:0.65, ranged:false,
+    grow:{hp:95,mana:40,ad:3.4,armor:3.5,mr:1.25},
+    passive:"Matar unidades restaura 3% de vida máxima.",
+    abilities:{
+      q:{name:"Shield Slam", cost:40, cd:8, range:300, type:"dash",
+         desc:"Embiste 300; tu próximo golpe hace +60(+0.4 AD) físico."},
+      w:{name:"Fortify", cost:60, cd:18, range:0, type:"self",
+         desc:"Reduce el daño recibido 35% por 3s."},
+      e:{name:"Ground Pound", cost:50, cd:10, range:240, type:"pbaoe",
+         desc:"AoE a tu alrededor: 80(+0.5 AD) físico + ralentiza 40%/1s."},
+      r:{name:"Juggernaut", cost:120, cd:100, range:0, type:"self", ult:true,
+         desc:"3s imparable, -50% daño; al final 200(+0.7 AD) en área."},
+    }
+  },
+  shadowstep:{
+    id:"shadowstep", name:"Shadowstep", role:"Asesino · Mid", color:"#b06bff", accent:"#e2c4ff",
+    hp:580, mana:320, ad:64, ap:0, armor:28, mr:30, ms:345, range:170, atkSpeed:0.72, ranged:false,
+    grow:{hp:88,mana:40,ad:3.6,armor:3.2,mr:1.25},
+    passive:"Tras usar una habilidad, tu próximo golpe hace +40(+0.3 AD).",
+    abilities:{
+      q:{name:"Shadow Strike", cost:55, cd:7, range:600, type:"targetdash",
+         desc:"Dash al objetivo: 70(+0.5 AD) físico y lo marca 4s."},
+      w:{name:"Vanish", cost:70, cd:16, range:0, type:"self",
+         desc:"Sigilo 2.5s y +30% velocidad (se rompe al dañar)."},
+      e:{name:"Death Mark", cost:40, cd:12, range:600, type:"mark",
+         desc:"Marca al enemigo cercano; tras 3s, +15% del daño hecho."},
+      r:{name:"Execution", cost:110, cd:85, range:650, type:"targetdash", ult:true,
+         desc:"Tp tras el objetivo: 300(+0.8 AD) (x2 si <30% vida)."},
+    }
+  },
+};
+
+const ITEMS = [
+  // Tier 1
+  {id:"longsword",name:"Espada Larga",tier:1,cost:350,stats:{ad:15},desc:"+15 AD"},
+  {id:"tome",name:"Tomo Amplificador",tier:1,cost:435,stats:{ap:20},desc:"+20 AP"},
+  {id:"ruby",name:"Cristal Rubí",tier:1,cost:400,stats:{hp:150},desc:"+150 Vida"},
+  {id:"nullmantle",name:"Manto Nulo",tier:1,cost:450,stats:{mr:25},desc:"+25 RM"},
+  {id:"cloth",name:"Armadura de Tela",tier:1,cost:300,stats:{armor:15},desc:"+15 Armadura"},
+  // Tier 2
+  {id:"pickaxe",name:"Pico",tier:2,cost:875,stats:{ad:25},desc:"+25 AD"},
+  {id:"rod",name:"Vara Enorme",tier:2,cost:1250,stats:{ap:40},desc:"+40 AP"},
+  {id:"chainvest",name:"Cota de Malla",tier:2,cost:800,stats:{armor:40},desc:"+40 Armadura"},
+  {id:"negatron",name:"Capa Negatrón",tier:2,cost:720,stats:{mr:50},desc:"+50 RM"},
+  // Tier 3
+  {id:"ie",name:"Filo Infinito",tier:3,cost:3300,stats:{ad:70,crit:0.20},desc:"+70 AD, 20% crítico (225%)"},
+  {id:"deathcap",name:"Gorro de Rabadon",tier:3,cost:3500,stats:{ap:120,apAmp:0.35},desc:"+120 AP, +35% AP total"},
+  {id:"thornmail",name:"Cota de Espinas",tier:3,cost:2700,stats:{armor:80,thorns:0.25},desc:"+80 Armadura, refleja 25%"},
+  {id:"ga",name:"Ángel Guardián",tier:3,cost:2800,stats:{ad:40,armor:40,revive:true},desc:"+40 AD/Arm, revive 1x/5min"},
+  {id:"lichbane",name:"Báculo de Lich",tier:3,cost:3000,stats:{ap:80,mana:300,lichbane:true},desc:"+80 AP/+300 Mana, golpe mágico tras habilidad"},
+];
+
+/* =========================== 4. ENTIDADES =========================== */
+let UID = 1;
+class Entity{
+  constructor(x,y,team){
+    this.id=UID++; this.x=x; this.y=y; this.team=team; // team: "blue" | "red" | "neutral"
+    this.hp=1; this.maxHp=1; this.dead=false; this.radius=14; this.facing=0;
+    this.stun=0; this.slowPct=0; this.slowTime=0; this.shield=0; this.shieldTime=0;
+    this.hitFlash=0; this.lastDamageFrom=null;
+  }
+  isEnemyOf(o){ return o && o.team!=="neutral" && this.team!=="neutral" && o.team!==this.team; }
+  get speedMul(){ return this.slowTime>0 ? (1-this.slowPct) : 1; }
+}
+
+class Champion extends Entity{
+  constructor(defId, team, isPlayer){
+    const d=CHAMPIONS[defId];
+    super(0,0,team);
+    this.def=d; this.isPlayer=!!isPlayer; this.radius=18;
+    this.level=1; this.xp=0; this.skillPoints=1; this.gold=isPlayer?500:500;
+    this.ranks={q:0,w:0,e:0,r:0};
+    this.cooldowns={q:0,w:0,e:0,r:0};
+    this.items=[]; // hasta 6
+    this.kills=0; this.deaths=0; this.assists=0; this.cs=0;
+    this.abilityCount=0;          // para la pasiva de Dawnbringer
+    this.empoweredAuto=0;         // bonus físico/mágico para el próximo auto
+    this.empoweredType="phys";
+    this.lane = "mid";
+    this.recall=0;                 // tiempo de canalización
+    this.respawn=0;                // si >0, está muerto contando
+    this.buffs={};                 // mana(blue), slowOnHit(red), drake, etc.
+    this.order={type:"idle",x:0,y:0,target:null};
+    this.atkTimer=0; this.castLock=0;
+    this.recomputeStats(true);
+  }
+  recomputeStats(full){
+    const d=this.def, g=d.grow, L=this.level-1;
+    let bonus={hp:0,mana:0,ad:0,ap:0,armor:0,mr:0,crit:0,apAmp:0,ms:0};
+    for(const it of this.items){ for(const k in it.stats){ if(typeof it.stats[k]==="number") bonus[k]=(bonus[k]||0)+it.stats[k]; } }
+    this.maxHp = d.hp + g.hp*L + (bonus.hp||0);
+    this.maxMana = d.mana + g.mana*L + (bonus.mana||0);
+    this.ad = d.ad + g.ad*L + (bonus.ad||0);
+    let ap = (bonus.ap||0);
+    if(bonus.apAmp) ap*= (1+bonus.apAmp);
+    this.ap = ap;
+    this.armor = d.armor + g.armor*L + (bonus.armor||0);
+    this.mr = d.mr + g.mr*L + (bonus.mr||0);
+    this.crit = bonus.crit||0;
+    this.ms = d.ms + (bonus.ms||0);
+    this.range = d.range;
+    if(full){ this.hp=this.maxHp; this.mana=this.maxMana; }
+    else { this.hp=Math.min(this.hp,this.maxHp); this.mana=Math.min(this.mana,this.maxMana); }
+  }
+  hasItem(id){ return this.items.some(i=>i.id===id); }
+  addXp(amount){
+    if(this.level>=18) return;
+    this.xp+=amount;
+    while(this.level<18 && this.xp>=XP_TABLE[this.level]){
+      this.level++; this.skillPoints++;
+      this.recomputeStats(false); this.hp=this.maxHp; // pequeño regalo al subir
+      spawnLevelUp(this);
+      if(this.isPlayer){ Audio2.level(); }
+      autoLevelEnemy(this);
+    }
+  }
+  abilityMaxRank(slot){
+    if(slot==="r"){ // R sube a nivel 6/11/16
+      if(this.level>=16) return 3; if(this.level>=11) return 2; if(this.level>=6) return 1; return 0;
+    }
+    return 5;
+  }
+}
+
+class Minion extends Entity{
+  constructor(team, lane, kind){
+    super(0,0,team);
+    this.lane=lane; this.kind=kind; // melee | ranged | cannon | super
+    this.radius=11;
+    const base = kind==="melee"?{hp:200,ad:20,range:55,ms:185,gold:20,xp:30}
+              : kind==="ranged"?{hp:120,ad:25,range:340,ms:185,gold:16,xp:30}
+              : kind==="cannon"?{hp:420,ad:40,range:380,ms:175,gold:40,xp:50}
+              : {hp:520,ad:42,range:170,ms:200,gold:45,xp:55}; // super
+    this.maxHp=base.hp; this.hp=base.hp; this.ad=base.ad; this.atkRange=base.range;
+    this.ms=base.ms; this.gold=base.gold; this.xp=base.xp;
+    this.armor=10; this.mr=10;
+    this.wpIndex = team==="blue"?1:LANES[lane].length-2; // siguiente waypoint
+    this.atkTimer=0; this.target=null;
+  }
+}
+
+class Tower extends Entity{
+  constructor(x,y,team,lane,order,kind){
+    super(x,y,team);
+    this.lane=lane; this.order=order; this.kind=kind; // outer|inner|inhibTower|nexusTower
+    this.radius=24; this.maxHp=3000; this.hp=3000;
+    this.atkRange=620; this.atkTimer=0; this.armor=40; this.mr=40; this.target=null;
+  }
+}
+class Inhibitor extends Entity{
+  constructor(x,y,team,lane){ super(x,y,team); this.lane=lane; this.radius=22; this.maxHp=2200; this.hp=2200; this.respawn=0; this.armor=30; this.mr=30; }
+}
+class Nexus extends Entity{
+  constructor(x,y,team){ super(x,y,team); this.radius=40; this.maxHp=5000; this.hp=5000; this.armor=40; this.mr=40; }
+}
+
+class NeutralCamp extends Entity{
+  constructor(x,y,kind){ super(x,y,"neutral"); this.kind=kind; this.radius=20;
+    const m = kind==="dragon"?{hp:3400,ad:80}:kind==="baron"?{hp:6000,ad:120}
+            : kind==="blueBuff"?{hp:1400,ad:40}:{hp:1400,ad:40};
+    this.maxHp=m.hp; this.hp=m.hp; this.ad=m.ad; this.armor=30; this.mr=30;
+    this.atkRange=200; this.atkTimer=0; this.respawn=0; this.active=true; this.target=null;
+    this.gold = kind==="dragon"?200:kind==="baron"?300:90;
+    this.xp = kind==="dragon"?200:kind==="baron"?300:120;
+  }
+}
+
+class Projectile{
+  constructor(o){ Object.assign(this, {x:o.x,y:o.y,vx:0,vy:0,speed:o.speed||900,
+    dmg:o.dmg,dtype:o.dtype||"phys",team:o.team,source:o.source,radius:o.radius||10,
+    color:o.color||"#fff", life:o.life||2, homing:o.homing||null, onHit:o.onHit||null,
+    pierce:o.pierce||false, hitSet:new Set(), maxRange:o.maxRange||9999, traveled:0});
+    if(o.dir){ this.vx=o.dir.x*this.speed; this.vy=o.dir.y*this.speed; }
+    this.dead=false;
+  }
+}
+class Particle{ constructor(x,y,vx,vy,life,color,size){ this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.life=life;this.maxLife=life;this.color=color;this.size=size;this.dead=false; } }
+class FloatText{ constructor(x,y,text,color,size){ this.x=x;this.y=y;this.text=text;this.color=color;this.size=size||16;this.life=1;this.dead=false; } }
+
+/* =========================== 5. ESTADO GLOBAL =========================== */
+const G = {
+  running:false, time:0, lastWave:-30, waveCount:0,
+  champions:[], minions:[], towers:[], inhibs:[], nexus:{}, camps:[],
+  projectiles:[], particles:[], texts:[], killFeed:[],
+  player:null, playerDefId:"dawnbringer",
+  gold:{blue:0,red:0}, score:{blue:0,red:0},
+  firstBlood:false, drakeTimer:240, baronTimer:480,
+  over:false,
+};
+
+/* =========================== 6. SISTEMAS =========================== */
+// --- Construcción del mapa (torres, inhibidores, nexos, jungla) ---
+function buildMap(){
+  G.towers=[]; G.inhibs=[]; G.camps=[];
+  const team = (side)=> side; // "blue"/"red"
+  for(const lane of LANE_NAMES){
+    const pts=LANES[lane];
+    // Azul desde su base; rojo desde la suya. t pequeño = lado azul.
+    const blue=[{t:0.34,k:"outer"},{t:0.22,k:"inner"},{t:0.12,k:"inhibTower"}];
+    const red =[{t:0.66,k:"outer"},{t:0.78,k:"inner"},{t:0.88,k:"inhibTower"}];
+    blue.forEach((o,i)=>{const p=lanePoint(pts,o.t);G.towers.push(new Tower(p.x,p.y,"blue",lane,i,o.k));});
+    red.forEach((o,i)=>{const p=lanePoint(pts,o.t);G.towers.push(new Tower(p.x,p.y,"red",lane,i,o.k));});
+    const bi=lanePoint(pts,0.07), ri=lanePoint(pts,0.93);
+    G.inhibs.push(new Inhibitor(bi.x,bi.y,"blue",lane));
+    G.inhibs.push(new Inhibitor(ri.x,ri.y,"red",lane));
+  }
+  // Torres del nexo (2 por equipo) + nexo
+  G.nexus.blue=new Nexus(BLUE_NEXUS.x,BLUE_NEXUS.y,"blue");
+  G.nexus.red =new Nexus(RED_NEXUS.x,RED_NEXUS.y,"red");
+  const nt=(x,y,team)=>{const t=new Tower(x,y,team,"nexus",0,"nexusTower");t.maxHp=t.hp=3500;G.towers.push(t);};
+  nt(BLUE_NEXUS.x+120,BLUE_NEXUS.y-40,"blue"); nt(BLUE_NEXUS.x-40,BLUE_NEXUS.y-120,"blue");
+  nt(RED_NEXUS.x-120,RED_NEXUS.y+40,"red");    nt(RED_NEXUS.x+40,RED_NEXUS.y+120,"red");
+  // Jungla: buffs + río (dragon/baron)
+  G.camps.push(new NeutralCamp(1080,2050,"blueBuff"));
+  G.camps.push(new NeutralCamp(2120,1150,"redBuff"));
+  G.camps.push(new NeutralCamp(2050,2050,"dragon"));
+  G.camps.push(new NeutralCamp(1150,1150,"baron"));
+}
+
+// --- Spawns de oleadas ---
+function spawnWave(){
+  G.waveCount++;
+  const cannon = G.waveCount%3===0;
+  for(const lane of LANE_NAMES){
+    for(const team of ["blue","red"]){
+      const order=["melee","melee","melee","ranged","ranged","ranged"];
+      if(cannon) order.push("cannon");
+      // super minions si el inhibidor enemigo de ese carril está caído
+      const enemyInhib=G.inhibs.find(i=>i.team!==team && i.lane===lane);
+      const superOn = enemyInhib && enemyInhib.dead && enemyInhib.respawn>0;
+      order.forEach((kind,i)=>{
+        const m=new Minion(team,lane, superOn&&kind==="melee"?"super":kind);
+        const start=team==="blue"?LANES[lane][0]:LANES[lane][LANES[lane].length-1];
+        const off=(i-2.5)*16;
+        m.x=start[0]+rand(-20,20)+off*0.2; m.y=start[1]+rand(-20,20)+off*0.2;
+        G.minions.push(m);
+      });
+    }
+  }
+}
+
+// --- Combate: daño con armadura/RM, escudos, crítica, espinas ---
+function effective(raw, dtype, target){
+  if(dtype==="true") return raw;
+  const res = dtype==="magic"? target.mr : target.armor;
+  return raw * (100/(100+(res||0)));
+}
+function dealDamage(source, target, raw, dtype, opts={}){
+  if(!target || target.dead) return 0;
+  let dmg = effective(raw, dtype, target);
+  // Ironclad W / Juggernaut: reducción
+  if(target.buffs){
+    if(target.buffs.fortify>0) dmg*=0.65;
+    if(target.buffs.juggernaut>0) dmg*=0.5;
+  }
+  // escudo
+  if(target.shield>0){
+    const absorbed=Math.min(target.shield,dmg); target.shield-=absorbed; dmg-=absorbed;
+    if(target.shield<=0) target.shieldTime=0;
+  }
+  target.hp -= dmg; target.hitFlash=0.18; target.lastDamageFrom=source;
+  if(dmg>0.5) G.texts.push(new FloatText(target.x+rand(-8,8),target.y-target.radius-6,
+    Math.round(dmg)+"", dtype==="magic"?"#c79bff":dtype==="true"?"#f0e68c":"#ffffff",
+    clamp(13+Math.round(dmg)/8,13,28)));
+  // espinas (Thornmail): refleja 25% del daño cuerpo a cuerpo como mágico.
+  // El reflejo no lleva opts.melee, así que no vuelve a disparar espinas (sin recursión).
+  if(target instanceof Champion && target.hasItem("thornmail") && opts.melee && source && source!==target && !source.dead){
+    dealDamage(target, source, raw*0.25, "magic");
+  }
+  if(target.hp<=0 && !target.dead){ onDeath(target, source); }
+  return dmg;
+}
+
+function grantKillRewards(victim, killer){
+  if(!(killer instanceof Champion)) {
+    // last hit por minion/torre: nada para jugador
+  }
+  if(victim instanceof Minion){
+    if(killer instanceof Champion){ killer.gold+=victim.gold; killer.cs++; killer.addXp(victim.xp);
+      if(killer.isPlayer) spawnGoldText(victim, victim.gold);
+      if(killer.def.id==="ironclad"){ killer.hp=Math.min(killer.maxHp,killer.hp+killer.maxHp*0.03);} }
+    // XP compartida cercana
+    shareXp(victim, victim.xp*0.5, killer);
+  } else if(victim instanceof Champion){
+    victim.deaths++;
+    if(killer instanceof Champion){
+      killer.kills++;
+      let g=300; if(!G.firstBlood){ g+=0; firstBlood(killer); }
+      if(killer.kills>=3 && killer.kills%1===0) g=400;
+      killer.gold+=g; if(killer.isPlayer) spawnGoldText(victim,g);
+      killer.addXp(300);
+      killFeedAdd(killer, victim);
+      G.score[killer.team]++;
+      multiKill(killer);
+    }
+    // assists XP cercana
+    shareXp(victim,150,killer);
+  } else if(victim instanceof Tower){
+    if(killer instanceof Champion){ killer.gold+=300; if(killer.isPlayer) spawnGoldText(victim,300); }
+    G.texts.push(new FloatText(victim.x,victim.y-30,"¡Torre destruida!", "#f0c040",18));
+  } else if(victim instanceof NeutralCamp){
+    if(killer instanceof Champion){ applyCampReward(victim, killer); }
+  }
+}
+function shareXp(victim, amount, exclude){
+  for(const c of G.champions){ if(c.dead||c===exclude) continue;
+    if(dist(c,victim)<900 && c.team===(exclude?exclude.team:c.team)){ c.addXp(amount); } }
+}
+
+function onDeath(e, source){
+  e.dead=true;
+  spawnDeathParticles(e);
+  const killer = (source && source.source)?source.source : source; // proyectiles llevan .source
+  grantKillRewards(e, killer instanceof Champion?killer:(source instanceof Champion?source:killer));
+  if(e instanceof Champion){
+    Audio2.death();
+    e.respawn = 5 + e.level*2.5;
+    // Guardian Angel
+    if(e.hasItem("ga") && !e.gaUsed){ e.gaUsed=true; e.dead=false; e.respawn=0; e.hp=e.maxHp*0.5; e.mana=e.maxMana*0.3;
+      G.texts.push(new FloatText(e.x,e.y-40,"¡Ángel Guardián!","#f0e68c",18));
+      setTimeout(()=>{e.gaUsed=false;}, 300000); }
+  }
+  if(e instanceof Tower){ checkStructureGates(); Audio2.tower(); }
+  if(e instanceof Inhibitor){ e.respawn=180; G.texts.push(new FloatText(e.x,e.y-30,"¡Inhibidor!","#f0c040",18)); }
+  if(e instanceof Nexus){ endGame(e.team==="blue"?"red":"blue"); }
+  if(e instanceof NeutralCamp){ e.active=false;
+    e.respawn = e.kind==="dragon"?180: e.kind==="baron"?360:90; }
+}
+
+function applyCampReward(camp, killer){
+  const team=killer.team;
+  const teamChamps=G.champions.filter(c=>c.team===team);
+  teamChamps.forEach(c=>{ c.addXp(camp.xp); c.gold+=Math.round(camp.gold/teamChamps.length); });
+  if(camp.kind==="blueBuff"||camp.kind==="redBuff"){ killer.buffs[camp.kind]=120; }
+  if(camp.kind==="dragon"){ teamChamps.forEach(c=>c.buffs.drake=(c.buffs.drake||0)+99999);
+    banner("¡Dragón abatido!", team); }
+  if(camp.kind==="baron"){ teamChamps.forEach(c=>c.buffs.baron=180); banner("¡Barón Nashor abatido!", team); }
+}
+
+/* --- Compuertas de estructuras (qué puede ser atacado) --- */
+function structureAttackable(s){
+  if(s instanceof Tower){
+    if(s.lane==="nexus"){ // torre del nexo: necesita 1 inhibidor enemigo... propio del mismo equipo caído
+      const myInhibs=G.inhibs.filter(i=>i.team===s.team);
+      return myInhibs.some(i=>i.dead);
+    }
+    // torre de carril: requiere que la más externa de su carril/equipo ya esté caída
+    const laneTowers=G.towers.filter(t=>t.team===s.team && t.lane===s.lane).sort((a,b)=>a.order-b.order);
+    const idx=laneTowers.indexOf(s);
+    for(let i=0;i<idx;i++){ if(!laneTowers[i].dead) return false; }
+    return true;
+  }
+  if(s instanceof Inhibitor){
+    const laneTowers=G.towers.filter(t=>t.team===s.team && t.lane===s.lane);
+    return laneTowers.every(t=>t.dead);
+  }
+  if(s instanceof Nexus){
+    const nt=G.towers.filter(t=>t.team===s.team && t.lane==="nexus");
+    return nt.every(t=>t.dead);
+  }
+  return true;
+}
+function checkStructureGates(){ /* recalculado on-demand en structureAttackable */ }
+
+/* =========================== IA =========================== */
+function autoLevelEnemy(c){
+  if(c.isPlayer) return;
+  // prioridad simple: R > Q > E > W
+  while(c.skillPoints>0){
+    const order=["r","q","e","w"];
+    let done=false;
+    for(const s of order){ if(c.ranks[s]<c.abilityMaxRank(s)){ c.ranks[s]++; c.skillPoints--; done=true; break; } }
+    if(!done) break;
+  }
+}
+function autoLevelPlayerSuggest(){ /* el jugador sube manualmente */ }
+
+function nearestEnemyEntity(from, range, lists){
+  let best=null, bd=range*range;
+  for(const list of lists){ for(const e of list){ if(e.dead||!from.isEnemyOf(e)) continue;
+    const d=dist2(from,e); if(d<bd){ bd=d; best=e; } } }
+  return best;
+}
+
+function updateMinionAI(m){
+  if(m.dead) return;
+  m.atkTimer-=TICK/1000; if(m.slowTime>0) m.slowTime-=TICK/1000;
+  // buscar objetivo cercano (minions enemigos, campeones, torres, inhib, nexus)
+  const enemies=[G.minions, G.champions, G.towers, G.inhibs, [G.nexus.blue,G.nexus.red]];
+  let tgt=null,bd=Infinity;
+  for(const list of enemies){ for(const e of list){ if(!e||e.dead||!m.isEnemyOf(e)) continue;
+    if(e instanceof Champion && (e.dead||e.respawn>0)) continue;
+    const d=dist(m,e);
+    // los minions sólo pueden golpear estructuras atacables
+    if((e instanceof Tower||e instanceof Inhibitor||e instanceof Nexus) && !structureAttackable(e)) continue;
+    if(d<m.atkRange+e.radius+10 && d<bd){ bd=d; tgt=e; } } }
+  if(tgt){
+    m.target=tgt;
+    if(m.atkTimer<=0){
+      m.atkTimer=1.1;
+      if(m.atkRange>120){ // a distancia
+        G.projectiles.push(new Projectile({x:m.x,y:m.y,dir:norm(tgt.x-m.x,tgt.y-m.y),speed:520,
+          dmg:m.ad,dtype:"phys",team:m.team,source:m,color:m.team==="blue"?"#7fc0ff":"#ff9a9a",
+          homing:tgt, radius:6}));
+      } else { dealDamage(m,tgt,m.ad,"phys",{melee:true}); Audio2.attack(); }
+    }
+    return;
+  }
+  // si no, avanzar por waypoints
+  const pts=LANES[m.lane];
+  let wp=pts[m.wpIndex];
+  if(wp){
+    const d=dist(m,{x:wp[0],y:wp[1]});
+    if(d<40){ m.wpIndex += m.team==="blue"?1:-1; m.wpIndex=clamp(m.wpIndex,0,pts.length-1); }
+    const dir=norm(wp[0]-m.x, wp[1]-m.y);
+    const sp=m.ms*m.speedMul*(TICK/1000);
+    m.x+=dir.x*sp; m.y+=dir.y*sp; m.facing=Math.atan2(dir.y,dir.x);
+  }
+}
+
+function updateTowerAI(t){
+  if(t.dead) return;
+  t.atkTimer-=TICK/1000;
+  // prioriza minions; si no hay, campeones
+  let tgt=null,bd=Infinity, champTgt=null,cd=Infinity;
+  for(const m of G.minions){ if(m.dead||!t.isEnemyOf(m)) continue; const d=dist(t,m); if(d<t.atkRange&&d<bd){bd=d;tgt=m;} }
+  for(const c of G.champions){ if(c.dead||c.respawn>0||!t.isEnemyOf(c)) continue; const d=dist(t,c); if(d<t.atkRange&&d<cd){cd=d;champTgt=c;} }
+  const target=tgt||champTgt;
+  if(target && t.atkTimer<=0){
+    t.atkTimer=1.5;
+    G.projectiles.push(new Projectile({x:t.x,y:t.y-20,dir:norm(target.x-t.x,target.y-t.y),speed:780,
+      dmg:160+t.order*10,dtype:"phys",team:t.team,source:t,color:"#ffb060",homing:target,radius:9}));
+    Audio2.tower();
+  }
+}
+
+function updateCampAI(camp){
+  if(!camp.active){ camp.respawn-=TICK/1000; if(camp.respawn<=0){ camp.active=true; camp.dead=false; camp.hp=camp.maxHp; } return; }
+  camp.atkTimer-=TICK/1000;
+  // ataca a quien lo golpee si está cerca
+  let tgt=null,bd=camp.atkRange*camp.atkRange;
+  for(const c of G.champions){ if(c.dead||c.respawn>0) continue; const d=dist2(camp,c); if(d<bd){bd=d;tgt=c;} }
+  if(tgt && camp.atkTimer<=0){ camp.atkTimer=1.4; dealDamage(camp,tgt,camp.ad,"phys"); }
+}
+
+// IA de campeones enemigos: máquina de estados sencilla.
+function updateChampAI(c){
+  if(c.isPlayer) return;
+  if(c.respawn>0) return;
+  const lowHp = c.hp < c.maxHp*0.3;
+  const base = c.team==="blue"?BLUE_NEXUS:RED_NEXUS;
+  // Reglas: retirarse si vida baja; si está en base con vida llena -> volver a empujar
+  if(c.aiState==="recall"){
+    if(dist(c,base)<260){ c.hp=c.maxHp; c.mana=c.maxMana; c.aiState="push"; }
+    moveToward(c,base); return;
+  }
+  if(lowHp){ c.aiState="recall"; moveToward(c,base); return; }
+  if(c.hp>c.maxHp*0.85) c.aiState="push";
+
+  // objetivo: campeón enemigo en rango de pelea, si no minion enemigo, si no avanzar por carril
+  const enemyChamp = nearestEnemyEntity(c, 360, [G.champions]);
+  const enemyMin = nearestEnemyEntity(c, 520, [G.minions]);
+  let target = null;
+  if(enemyChamp && (enemyChamp instanceof Champion) && enemyChamp.respawn<=0){ target=enemyChamp; }
+  else if(enemyMin) target=enemyMin;
+
+  // usar habilidades si hay objetivo campeón cerca
+  if(enemyChamp && dist(c,enemyChamp)<560){ tryEnemyAbilities(c, enemyChamp); }
+
+  if(target){
+    const wantRange = c.def.ranged? c.range-30 : c.range+target.radius;
+    const d=dist(c,target);
+    if(d>wantRange){ moveToward(c,target); }
+    else { c.facing=angleTo(c,target); tryAutoAttack(c,target); }
+    return;
+  }
+  // avanzar por su carril hacia base enemiga
+  const pts=LANES[c.lane]; const goalIdx = c.team==="blue"?pts.length-2:1;
+  const goal={x:pts[goalIdx][0],y:pts[goalIdx][1]};
+  moveToward(c, goal);
+}
+function moveToward(c, p){
+  const d=dist(c,p); if(d<6) return;
+  const dir=norm(p.x-c.x,p.y-c.y); const sp=c.ms*c.speedMul*(TICK/1000);
+  c.x+=dir.x*sp; c.y+=dir.y*sp; c.facing=Math.atan2(dir.y,dir.x);
+}
+function tryEnemyAbilities(c, enemy){
+  const d=dist(c,enemy);
+  // intenta usar todas las que pueda
+  ["q","e","w","r"].forEach(slot=>{
+    if(c.ranks[slot]>0 && c.cooldowns[slot]<=0 && canPayMana(c,slot)){
+      const ab=c.def.abilities[slot];
+      if(ab.range===0 || d<ab.range){ castAbility(c, slot, {x:enemy.x,y:enemy.y}, enemy); }
+    }
+  });
+}
+
+/* =========================== HABILIDADES =========================== */
+function canPayMana(c,slot){ return c.mana>=c.def.abilities[slot].cost; }
+function payAbility(c,slot){
+  const ab=c.def.abilities[slot];
+  c.mana-=ab.cost;
+  let cd=ab.cd;
+  c.cooldowns[slot]=cd; c.castLock=0.18;
+  c.abilityCount++;
+  // pasiva Shadowstep: empower próximo auto
+  if(c.def.id==="shadowstep"){ c.empoweredAuto = 40 + 0.3*c.ad; c.empoweredType="phys"; }
+  // Lich Bane
+  if(c.hasItem("lichbane")){ c.lichbanePrimed=true; }
+  Audio2.cast();
+}
+function passiveBonus(c, baseDamage){
+  // Dawnbringer: cada 3ª habilidad +20%
+  if(c.def.id==="dawnbringer" && c.abilityCount%3===0) return baseDamage*1.2;
+  return baseDamage;
+}
+function rankScale(slot, c){ return c.ranks[slot]; }
+
+function castAbility(c, slot, targetPos, forcedTarget){
+  if(c.dead||c.respawn>0) return false;
+  if(c.ranks[slot]<=0) { if(c.isPlayer) flashToast("¡Sube esa habilidad! (Ctrl+"+slot.toUpperCase()+")"); return false; }
+  if(c.cooldowns[slot]>0) return false;
+  if(!canPayMana(c,slot)){ if(c.isPlayer) flashToast("Maná insuficiente"); return false; }
+  const ab=c.def.abilities[slot];
+  const id=c.def.id;
+  const aimDir = norm(targetPos.x-c.x, targetPos.y-c.y);
+  const R=c.ranks[slot];
+
+  // === DAWNBRINGER ===
+  if(id==="dawnbringer"){
+    if(slot==="q"){ payAbility(c,slot);
+      const dmg=passiveBonus(c, 80+(R-1)*35 + 0.6*c.ap);
+      G.projectiles.push(new Projectile({x:c.x,y:c.y,dir:aimDir,speed:1100,dmg,dtype:"magic",
+        team:c.team,source:c,color:"#ffd36b",radius:12,maxRange:800,
+        onHit:(t,p)=>{ dealDamage(p.source,t,p.dmg,"magic"); spawnHit(t.x,t.y,"#ffd36b"); }}));
+      return true;
+    }
+    if(slot==="w"){ payAbility(c,slot); const amt=60+(R-1)*30+0.8*c.ap; c.shield=amt; c.shieldTime=2.5;
+      spawnRing(c,"#ffe9a0"); return true; }
+    if(slot==="e"){ payAbility(c,slot); const D=Math.min(400, dist(c,targetPos));
+      c.x+=aimDir.x*D; c.y+=aimDir.y*D; clampToMap(c); spawnHit(c.x,c.y,"#ffd36b"); return true; }
+    if(slot==="r"){ payAbility(c,slot); Audio2.ult();
+      const cx=targetPos.x, cy=targetPos.y, dmg=passiveBonus(c,150+(R-1)*100+1.0*c.ap);
+      // telegrafía y detona en 1s
+      G.delayedAoe = G.delayedAoe||[];
+      G.delayedAoe.push({x:cx,y:cy,r:170,time:1.0,color:"#ffd36b",src:c,
+        fire:()=>{ for(const e of allUnits()){ if(e.dead||!c.isEnemyOf(e)) continue;
+          if(dist(e,{x:cx,y:cy})<170+e.radius){ dealDamage(c,e,dmg,"magic"); applyStun(e,1.5);} }
+          spawnExplosion(cx,cy,"#ffd36b"); }});
+      return true;
+    }
+  }
+  // === IRONCLAD ===
+  if(id==="ironclad"){
+    if(slot==="q"){ payAbility(c,slot); const D=300;
+      c.x+=aimDir.x*D; c.y+=aimDir.y*D; clampToMap(c);
+      c.empoweredAuto = 60+(R-1)*20 + 0.4*c.ad; c.empoweredType="phys"; spawnHit(c.x,c.y,"#dce8ff"); return true; }
+    if(slot==="w"){ payAbility(c,slot); c.buffs.fortify=3; spawnRing(c,"#9fb8d8"); return true; }
+    if(slot==="e"){ payAbility(c,slot); const dmg=80+(R-1)*40+0.5*c.ad;
+      for(const e of allUnits()){ if(e.dead||!c.isEnemyOf(e)) continue;
+        if(dist(e,c)<200+e.radius){ dealDamage(c,e,dmg,"phys"); applySlow(e,0.4,1);} }
+      spawnExplosion(c.x,c.y,"#9fb8d8"); return true; }
+    if(slot==="r"){ payAbility(c,slot); Audio2.ult(); c.buffs.juggernaut=3; c.stun=0;
+      spawnRing(c,"#dce8ff");
+      setTimeout(()=>{ if(c.dead) return; const dmg=200+(R-1)*100+0.7*c.ad;
+        for(const e of allUnits()){ if(e.dead||!c.isEnemyOf(e)) continue;
+          if(dist(e,c)<220+e.radius) dealDamage(c,e,dmg,"phys"); }
+        spawnExplosion(c.x,c.y,"#dce8ff"); }, 3000);
+      return true; }
+  }
+  // === SHADOWSTEP ===
+  if(id==="shadowstep"){
+    if(slot==="q"||slot==="r"){
+      // dash a objetivo
+      let tgt=forcedTarget|| nearestEnemyEntity(c, ab.range, [G.champions, G.minions, G.camps]);
+      if(!tgt){ if(c.isPlayer) flashToast("Sin objetivo en rango"); return false; }
+      payAbility(c,slot);
+      const dir=norm(tgt.x-c.x,tgt.y-c.y);
+      if(slot==="q"){ c.x=tgt.x-dir.x*(tgt.radius+30); c.y=tgt.y-dir.y*(tgt.radius+30); clampToMap(c);
+        const dmg=70+(R-1)*30+0.5*c.ad; dealDamage(c,tgt,dmg,"phys"); tgt.markedBy=c; tgt.markTime=4; spawnHit(tgt.x,tgt.y,"#b06bff"); }
+      else { Audio2.ult(); c.x=tgt.x+dir.x*(tgt.radius+30); c.y=tgt.y+dir.y*(tgt.radius+30); clampToMap(c);
+        let dmg=300+(R-1)*120+0.8*c.ad; if(tgt.hp<tgt.maxHp*0.3) dmg*=2; dealDamage(c,tgt,dmg,"phys"); spawnExplosion(tgt.x,tgt.y,"#b06bff"); }
+      return true;
+    }
+    if(slot==="w"){ payAbility(c,slot); c.buffs.vanish=2.5; c.buffs.vanishMs=0.30; spawnRing(c,"#b06bff"); return true; }
+    if(slot==="e"){ const tgt=nearestEnemyEntity(c, ab.range, [G.champions, G.minions]);
+      if(!tgt){ if(c.isPlayer) flashToast("Sin objetivo"); return false; }
+      payAbility(c,slot); tgt.deathMark={src:c,acc:0,time:3}; spawnHit(tgt.x,tgt.y,"#e2c4ff"); return true; }
+  }
+  return false;
+}
+function applyStun(e,dur){ e.stun=Math.max(e.stun,dur); }
+function applySlow(e,pct,dur){ e.slowPct=Math.max(e.slowPct,pct); e.slowTime=Math.max(e.slowTime,dur); }
+
+/* --- Auto-ataques --- */
+function tryAutoAttack(c, target){
+  if(c.atkTimer>0 || c.castLock>0 || c.stun>0) return;
+  if(!target||target.dead) return;
+  if((target instanceof Tower||target instanceof Inhibitor||target instanceof Nexus)&&!structureAttackable(target)) return;
+  const d=dist(c,target);
+  if(d> c.range + target.radius + 6) return;
+  c.atkTimer = 1/(c.def.atkSpeed*(1 + (c.buffs.baron?0.2:0)));
+  c.facing=angleTo(c,target);
+  // crítica
+  let dmg=c.ad, dtype="phys", isCrit=false;
+  if(c.crit && Math.random()<c.crit){ dmg*=2.25; isCrit=true; }
+  // empower (pasiva shadowstep / Q ironclad)
+  if(c.empoweredAuto>0){ dmg+=c.empoweredAuto; c.empoweredAuto=0; }
+  // romper vanish al atacar
+  if(c.buffs.vanish>0){ c.buffs.vanish=0; }
+  const onLand=(t)=>{
+    dealDamage(c,t,dmg,"phys",{melee:!c.def.ranged});
+    if(isCrit) G.texts.push(new FloatText(t.x,t.y-t.radius-18,"¡CRIT!","#f0c040",20));
+    // Lich Bane
+    if(c.lichbanePrimed){ c.lichbanePrimed=false; dealDamage(c,t,75+0.5*c.ap,"magic"); spawnHit(t.x,t.y,"#9fd0ff"); }
+    // red buff slow
+    if(c.buffs.redBuff>0) applySlow(t,0.3,1.2);
+    // Death Mark acumula
+    if(t.deathMark && t.deathMark.src===c){ t.deathMark.acc+=dmg; }
+    if(t.markedBy===c){ /* marca de Q da algo de bonus opcional */ }
+  };
+  if(c.def.ranged){
+    G.projectiles.push(new Projectile({x:c.x,y:c.y,dir:norm(target.x-c.x,target.y-c.y),speed:1000,
+      dmg, dtype:"phys", team:c.team, source:c, color:c.def.accent, homing:target, radius:8,
+      onHit:(t,p)=>{ if(t===target||t) onLand(t); }}));
+  } else {
+    onLand(target);
+  }
+  Audio2.attack();
+}
+
+/* =========================== PARTÍCULAS / FX =========================== */
+function spawnHit(x,y,color){ for(let i=0;i<10;i++){ const a=rand(0,TWO_PI),s=rand(40,160);
+  G.particles.push(new Particle(x,y,Math.cos(a)*s,Math.sin(a)*s,0.5,color,rand(2,5))); } }
+function spawnExplosion(x,y,color){ for(let i=0;i<16;i++){ const a=rand(0,TWO_PI),s=rand(80,260);
+  G.particles.push(new Particle(x,y,Math.cos(a)*s,Math.sin(a)*s,0.6,color,rand(3,7))); } }
+function spawnDeathParticles(e){ const col = e instanceof Champion? e.def.color : (e.team==="blue"?"#4a9eff":e.team==="red"?"#ff4a4a":"#cfcf80");
+  for(let i=0;i<12;i++){ const a=rand(0,TWO_PI),s=rand(60,220); G.particles.push(new Particle(e.x,e.y,Math.cos(a)*s,Math.sin(a)*s,0.7,col,rand(3,6))); } }
+function spawnRing(c,color){ for(let i=0;i<18;i++){ const a=i/18*TWO_PI; G.particles.push(new Particle(c.x,c.y,Math.cos(a)*120,Math.sin(a)*120,0.5,color,3)); } }
+function spawnLevelUp(c){ for(let i=0;i<20;i++){ const a=i/20*TWO_PI; G.particles.push(new Particle(c.x,c.y,Math.cos(a)*90,Math.sin(a)*90,0.7,"#f0c040",4)); }
+  G.texts.push(new FloatText(c.x,c.y-40,"¡Nivel "+c.level+"!","#f0c040",18)); }
+function spawnGoldText(e,amt){ G.texts.push(new FloatText(e.x,e.y-20,"+"+amt+"g","#f0c040",15)); }
+
+/* =========================== KILL FEED / BANNERS =========================== */
+function killFeedAdd(killer, victim){
+  G.killFeed.unshift({killer:killer.def.name,kc:killer.def.color,victim:victim.def.name,vc:victim.def.color,t:5});
+  if(G.killFeed.length>5) G.killFeed.pop();
+}
+function firstBlood(killer){ G.firstBlood=true; banner("PRIMERA SANGRE", killer.team, "#ff4a4a"); }
+function multiKill(c){ /* simple: anuncia rachas */ if(c.kills===2) banner("DOBLE BAJA",c.team); else if(c.kills===3) banner("TRIPLE BAJA",c.team); else if(c.kills>=5) banner("¡PENTAKILL!",c.team,"#f0c040"); }
+let bannerState=null;
+function banner(text, team, color){ bannerState={text,color:color||(team==="blue"?"#4a9eff":team==="red"?"#ff4a4a":"#f0c040"),t:2.2}; }
+function flashToast(text){ const el=document.getElementById('toast'); el.textContent=text; el.style.color="#cfe2ff";
+  el.style.transition="none"; el.style.opacity="1"; el.style.transform="translateX(-50%) scale(1.05)";
+  requestAnimationFrame(()=>{ el.style.transition="opacity .8s, transform .8s"; el.style.opacity="0"; el.style.transform="translateX(-50%) scale(1)"; }); }
+
+/* =========================== UTILIDADES DE ENTIDADES =========================== */
+function allUnits(){ return [...G.champions, ...G.minions, ...G.towers, ...G.inhibs, G.nexus.blue, G.nexus.red, ...G.camps].filter(Boolean); }
+function clampToMap(e){ e.x=clamp(e.x,40,MAP_W-40); e.y=clamp(e.y,40,MAP_H-40); }
+
+/* =========================== 7. CÁMARA E INPUT =========================== */
+const cam={x:BLUE_NEXUS.x,y:BLUE_NEXUS.y,follow:true};
+const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
+let VW=window.innerWidth, VH=window.innerHeight;
+function resize(){ VW=window.innerWidth; VH=window.innerHeight; canvas.width=VW; canvas.height=VH; }
+window.addEventListener('resize',resize); resize();
+
+function worldToScreen(p){ return {x:(p.x-cam.x)+VW/2, y:(p.y-cam.y)+VH/2}; }
+function screenToWorld(sx,sy){ return {x:sx-VW/2+cam.x, y:sy-VH/2+cam.y}; }
+
+const keys={};
+const mouse={x:0,y:0,wx:0,wy:0};
+const MINIMAP={size:210, pad:14};
+function minimapRect(){ return {x:VW-MINIMAP.size-MINIMAP.pad, y:VH-MINIMAP.size-MINIMAP.pad, s:MINIMAP.size}; }
+function inMinimap(sx,sy){ const r=minimapRect(); return sx>=r.x&&sx<=r.x+r.s&&sy>=r.y&&sy<=r.y+r.s; }
+
+window.addEventListener('keydown',e=>{
+  if(!G.running) return;
+  const k=e.key.toLowerCase();
+  keys[k]=true;
+  if(e.ctrlKey && ["q","w","e","r"].includes(k)){ e.preventDefault(); levelUpAbility(k); return; }
+  if(k==="p"){ toggleShop(); }
+  if(k==="escape"){ if(shopOpen) toggleShop(false); }
+  if(["q","w","e","r"].includes(k) && !e.ctrlKey){ playerCast(k); }
+  if(k==="b"){ startRecall(); }
+  if(k==="s"){ if(G.player){ G.player.order={type:"hold"}; } }
+  if(k===" "){ cam.follow=true; }
+});
+window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+canvas.addEventListener('mousemove',e=>{ mouse.x=e.clientX; mouse.y=e.clientY; const w=screenToWorld(mouse.x,mouse.y); mouse.wx=w.x; mouse.wy=w.y; });
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('mousedown',e=>{
+  if(!G.running||!G.player||G.player.dead) {}
+  if(inMinimap(e.clientX,e.clientY)){ const r=minimapRect(); const wx=(e.clientX-r.x)/r.s*MAP_W, wy=(e.clientY-r.y)/r.s*MAP_H;
+    cam.x=wx; cam.y=wy; cam.follow=false; return; }
+  if(e.button===2){ // click derecho: mover o atacar
+    e.preventDefault(); if(!G.player||G.player.dead||G.player.recall>0){ if(G.player) G.player.recall=0; }
+    issuePlayerOrder(e.clientX,e.clientY);
+  }
+});
+
+function issuePlayerOrder(sx,sy){
+  const p=G.player; if(!p||p.dead) return;
+  p.recall=0;
+  const w=screenToWorld(sx,sy);
+  // ¿hay un enemigo bajo el cursor?
+  let tgt=null,bd=Infinity;
+  for(const e of allUnits()){ if(e.dead||!p.isEnemyOf(e)) continue;
+    if(e instanceof Champion && e.respawn>0) continue;
+    const d=dist({x:w.x,y:w.y},e); if(d<e.radius+18 && d<bd){ bd=d; tgt=e; } }
+  if(tgt){ p.order={type:"attack",target:tgt}; }
+  else { p.order={type:"move",x:w.x,y:w.y}; }
+}
+
+function playerCast(slot){
+  const p=G.player; if(!p||p.dead) return;
+  const target={x:mouse.wx,y:mouse.wy};
+  castAbility(p, slot, target, null);
+}
+function levelUpAbility(slot){
+  const p=G.player; if(!p) return;
+  if(p.skillPoints<=0){ flashToast("Sin puntos de habilidad"); return; }
+  if(p.ranks[slot]>=p.abilityMaxRank(slot)){ flashToast(slot==="r"?"R requiere nivel 6/11/16":"Rango máximo"); return; }
+  p.ranks[slot]++; p.skillPoints--; flashToast(p.def.abilities[slot].name+" → rango "+p.ranks[slot]);
+}
+function startRecall(){ const p=G.player; if(!p||p.dead) return; const base=p.team==="blue"?BLUE_NEXUS:RED_NEXUS;
+  if(dist(p,base)<260){ p.hp=p.maxHp; p.mana=p.maxMana; flashToast("Ya estás en base"); return; }
+  p.recall=4; flashToast("Volviendo (B)..."); }
+
+/* --- Movimiento del jugador (ejecuta su orden) --- */
+function updatePlayer(p){
+  if(p.dead) return;
+  // pan de cámara con WASD / bordes
+  if(keys["a"]) { cam.x-=10; cam.follow=false; }
+  if(keys["d"]) { cam.x+=10; cam.follow=false; }
+  if(keys["w"]) { cam.y-=10; cam.follow=false; }
+  if(keys["s"] && !keys["shift"]) {} // s = stop ya gestionado
+  // recall
+  if(p.recall>0){ p.recall-=TICK/1000; if(p.order&&(p.order.type==="move"||p.order.type==="attack")) p.recall=0;
+    if(p.recall<=0 && p.recallDone!==true){ const base=p.team==="blue"?BLUE_NEXUS:RED_NEXUS; p.x=base.x;p.y=base.y; p.hp=p.maxHp;p.mana=p.maxMana; spawnRing(p,"#4a9eff"); }
+    if(p.recall>0) return; }
+  const o=p.order;
+  if(!o||o.type==="idle"||o.type==="hold"){ /* quieto: auto-ataca lo cercano si lo hay */
+    const near=nearestEnemyEntity(p, p.range+40, [G.minions,G.champions]); if(near) tryAutoAttack(p,near); return; }
+  if(o.type==="move"){ const g={x:o.x,y:o.y}; if(dist(p,g)<8){ p.order={type:"idle"}; } else moveToward(p,g); return; }
+  if(o.type==="attack"){ const t=o.target;
+    if(!t||t.dead||(t instanceof Champion&&t.respawn>0)){ p.order={type:"idle"}; return; }
+    const d=dist(p,t), want=p.range+t.radius;
+    if(d>want){ moveToward(p,t); } else { p.facing=angleTo(p,t); tryAutoAttack(p,t); }
+  }
+}
+
+/* =========================== 8. ACTUALIZACIÓN GLOBAL =========================== */
+function update(){
+  if(!G.running||G.over) return;
+  const dt=TICK/1000;
+  G.time+=dt;
+
+  // objetivos / oro pasivo
+  for(const c of G.champions){ if(!c.dead) c.passiveGoldAcc=(c.passiveGoldAcc||0)+dt; }
+  if((G.time|0)%2===0 && !G._goldTick){ G._goldTick=true; for(const c of G.champions){ if(!c.dead) c.gold+=5; } }
+  if((G.time|0)%2===1) G._goldTick=false;
+
+  // oleadas cada 30s (primera a los 5s para arrancar rápido)
+  if(G.time-G.lastWave>=30 || (G.waveCount===0 && G.time>5)){ G.lastWave=G.time; spawnWave(); }
+
+  // timers de objetivos
+  G.drakeTimer=Math.max(0,240-(G.time%300)); // informativo
+
+  // CC y timers de entidades
+  for(const e of allUnits()){
+    if(e.hitFlash>0) e.hitFlash-=dt;
+    if(e.stun>0) e.stun-=dt;
+    if(e.slowTime>0) e.slowTime-=dt; if(e.slowTime<=0) e.slowPct=0;
+    if(e.shieldTime>0){ e.shieldTime-=dt; if(e.shieldTime<=0){ e.shield=0; } }
+    if(e.markTime>0){ e.markTime-=dt; if(e.markTime<=0) e.markedBy=null; }
+    if(e.deathMark){ e.deathMark.time-=dt; if(e.deathMark.time<=0){ const dm=e.deathMark; e.deathMark=null;
+        if(dm.acc>0 && dm.src && !dm.src.dead) dealDamage(dm.src,e,dm.acc*0.15,"magic"); } }
+  }
+
+  // campeones
+  for(const c of G.champions){
+    if(c.respawn>0){ c.respawn-=dt; if(c.respawn<=0){ respawnChampion(c); } continue; }
+    if(c.dead) continue;
+    if(c.castLock>0) c.castLock-=dt;
+    if(c.atkTimer>0) c.atkTimer-=dt;
+    for(const s of ["q","w","e","r"]) if(c.cooldowns[s]>0) c.cooldowns[s]-=dt;
+    // buffs de duración
+    for(const b in c.buffs){ if(["fortify","juggernaut","vanish","blueBuff","redBuff","baron"].includes(b)){ c.buffs[b]-=dt; if(c.buffs[b]<=0) delete c.buffs[b]; } }
+    if(c.buffs.juggernaut>0){ c.stun=0; } // imparable
+    // regen
+    c.hp=Math.min(c.maxHp, c.hp + (c.maxHp*0.004 + (c.buffs.drake?2:0))*dt);
+    c.mana=Math.min(c.maxMana, c.mana + (c.maxMana*0.01 + (c.buffs.blueBuff?6:0))*dt);
+    if(c.stun>0){ continue; }
+    if(c.isPlayer) updatePlayer(c); else updateChampAI(c);
+  }
+  // minions, torres, camps
+  for(const m of G.minions) updateMinionAI(m);
+  for(const t of G.towers) updateTowerAI(t);
+  for(const c of G.camps) updateCampAI(c);
+
+  // proyectiles
+  for(const p of G.projectiles){
+    if(p.dead) continue;
+    if(p.homing && !p.homing.dead){ const d=norm(p.homing.x-p.x,p.homing.y-p.y); p.vx=d.x*p.speed; p.vy=d.y*p.speed; }
+    const step={x:p.vx*dt,y:p.vy*dt}; p.x+=step.x; p.y+=step.y; p.traveled+=Math.hypot(step.x,step.y);
+    p.life-=dt; if(p.life<=0||p.traveled>p.maxRange){ p.dead=true; continue; }
+    // colisión
+    if(p.homing){ if(!p.homing.dead && dist(p,p.homing)<p.homing.radius+p.radius){ if(p.onHit) p.onHit(p.homing,p); else dealDamage(p.source,p.homing,p.dmg,p.dtype); p.dead=true; } }
+    else { for(const e of allUnits()){ if(e.dead||!p.source||!p.source.isEnemyOf(e)) continue;
+        if(p.hitSet.has(e.id)) continue;
+        if((e instanceof Tower||e instanceof Inhibitor||e instanceof Nexus)&&!structureAttackable(e)) continue;
+        if(dist(p,e)<e.radius+p.radius){ if(p.onHit) p.onHit(e,p); else dealDamage(p.source,e,p.dmg,p.dtype);
+          p.hitSet.add(e.id); if(!p.pierce){ p.dead=true; break; } } } }
+  }
+  // AoE retardadas (R Dawnbringer)
+  if(G.delayedAoe){ for(const a of G.delayedAoe){ a.time-=dt; if(a.time<=0&&!a.fired){ a.fired=true; a.fire(); } }
+    G.delayedAoe=G.delayedAoe.filter(a=>!a.fired || a.time>-0.2); }
+
+  // partículas y textos
+  for(const pt of G.particles){ pt.x+=pt.vx*dt; pt.y+=pt.vy*dt; pt.vx*=0.92; pt.vy*=0.92; pt.life-=dt; if(pt.life<=0) pt.dead=true; }
+  for(const ft of G.texts){ ft.y-=24*dt; ft.life-=dt; if(ft.life<=0) ft.dead=true; }
+  for(const kf of G.killFeed){ kf.t-=dt; }
+  if(bannerState){ bannerState.t-=dt; if(bannerState.t<=0) bannerState=null; }
+
+  // limpieza
+  G.minions=G.minions.filter(m=>!m.dead);
+  G.projectiles=G.projectiles.filter(p=>!p.dead);
+  G.particles=G.particles.filter(p=>!p.dead);
+  G.texts=G.texts.filter(t=>!t.dead);
+  G.killFeed=G.killFeed.filter(k=>k.t>0);
+  // inhibidores respawn
+  for(const inh of G.inhibs){ if(inh.dead){ inh.respawn-=dt; if(inh.respawn<=0){ inh.dead=false; inh.hp=inh.maxHp; } } }
+
+  // cámara sigue al jugador
+  if(cam.follow && G.player && !G.player.dead){ cam.x=lerp(cam.x,G.player.x,0.1); cam.y=lerp(cam.y,G.player.y,0.1); }
+  cam.x=clamp(cam.x,VW/2-200,MAP_W-VW/2+200); cam.y=clamp(cam.y,VH/2-200,MAP_H-VH/2+200);
+
+  // totales de oro/equipo
+  G.gold.blue=G.champions.filter(c=>c.team==="blue").reduce((a,c)=>a+c.gold,0);
+  G.gold.red=G.champions.filter(c=>c.team==="red").reduce((a,c)=>a+c.gold,0);
+}
+
+function respawnChampion(c){
+  const base=c.team==="blue"?BLUE_NEXUS:RED_NEXUS;
+  c.dead=false; c.x=base.x; c.y=base.y; c.hp=c.maxHp; c.mana=c.maxMana; c.stun=0;
+  c.order={type:"idle"}; c.recall=0; c.aiState="push";
+  spawnRing(c,c.def.color);
+}
+
+/* =========================== 9. RENDER =========================== */
+const grassPatches=[];
+function initGrass(){ grassPatches.length=0; const spots=[[1500,2050],[1700,1150],[820,1500],[2380,1700],[1300,1500],[1900,1700],[1500,1300]];
+  for(const s of spots){ const poly=[]; const n=7; for(let i=0;i<n;i++){ const a=i/n*TWO_PI; const r=120+rand(-30,40); poly.push([s[0]+Math.cos(a)*r,s[1]+Math.sin(a)*r]); } grassPatches.push(poly); } }
+
+function render(){
+  ctx.clearRect(0,0,VW,VH);
+  // fondo base
+  ctx.fillStyle="#0a0f1a"; ctx.fillRect(0,0,VW,VH);
+
+  ctx.save();
+  ctx.translate(VW/2-cam.x, VH/2-cam.y);
+
+  drawTerrain();
+  drawCamps();
+  drawStructures();
+  drawMinions();
+  drawProjectiles();
+  drawChampions();
+  drawParticles();
+  drawTexts();
+  drawDelayedAoe();
+
+  ctx.restore();
+
+  drawHUD();
+  drawMinimap();
+  drawBanner();
+}
+
+function drawTerrain(){
+  // límites del mapa
+  ctx.fillStyle="#080d16"; ctx.fillRect(0,0,MAP_W,MAP_H);
+  // jungla (clusters de árboles)
+  ctx.fillStyle="#060d14";
+  const treeSpots=[[800,1200],[1200,800],[2000,2400],[2400,2000],[700,1800],[2500,1400],[1400,2500],[1800,700]];
+  for(const t of treeSpots){ for(let i=0;i<7;i++){ ctx.beginPath(); ctx.arc(t[0]+rand(-160,160),t[1]+rand(-160,160),rand(40,80),0,TWO_PI); ctx.fill(); } }
+  // río (diagonal anti) con onda
+  ctx.save();
+  ctx.strokeStyle="#0d2040"; ctx.lineWidth=170; ctx.lineCap="round"; ctx.globalAlpha=0.9;
+  ctx.beginPath(); ctx.moveTo(150,150); ctx.lineTo(MAP_W-150,MAP_H-150); ctx.stroke();
+  // brillo del agua animado
+  ctx.globalAlpha=0.25; ctx.strokeStyle="#2b5fa0"; ctx.lineWidth=10;
+  for(let k=0;k<3;k++){ ctx.beginPath();
+    for(let s=0;s<=1;s+=0.02){ const x=lerp(150,MAP_W-150,s), y=lerp(150,MAP_H-150,s);
+      const off=Math.sin(s*40 + G.time*2 + k*2)*22; ctx.lineTo(x+off,y-off); }
+    ctx.stroke(); }
+  ctx.restore();
+
+  // carriles (camino claro)
+  for(const lane of LANE_NAMES){ const pts=LANES[lane];
+    ctx.strokeStyle="#1a2332"; ctx.lineWidth=110; ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();
+    ctx.strokeStyle="#223049"; ctx.lineWidth=84; ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();
+  }
+  // arbustos (grass)
+  ctx.fillStyle="rgba(40,120,60,0.32)";
+  for(const poly of grassPatches){ ctx.beginPath(); ctx.moveTo(poly[0][0],poly[0][1]); for(let i=1;i<poly.length;i++) ctx.lineTo(poly[i][0],poly[i][1]); ctx.closePath(); ctx.fill(); }
+
+  // áreas de base brillantes
+  drawBaseGlow(BLUE_NEXUS,"#4a9eff"); drawBaseGlow(RED_NEXUS,"#ff4a4a");
+}
+function drawBaseGlow(c,color){ const g=ctx.createRadialGradient(c.x,c.y,20,c.x,c.y,360);
+  g.addColorStop(0,color+"33"); g.addColorStop(1,"transparent"); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(c.x,c.y,360,0,TWO_PI); ctx.fill(); }
+
+function drawStructures(){
+  // inhibidores
+  for(const inh of G.inhibs){ if(inh.dead) continue; const col=inh.team==="blue"?"#4a9eff":"#ff4a4a";
+    ctx.fillStyle="#0c1424"; ctx.strokeStyle=col; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(inh.x,inh.y,inh.radius,0,TWO_PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=col; ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(inh.x,inh.y,inh.radius*0.5,0,TWO_PI); ctx.fill(); ctx.globalAlpha=1;
+    drawBar(inh.x,inh.y-inh.radius-10,46,5,inh.hp/inh.maxHp,col); }
+  // torres
+  for(const t of G.towers){ if(t.dead) continue; const col=t.team==="blue"?"#4a9eff":"#ff4a4a";
+    const attackable=structureAttackable(t);
+    // base con anillo rotando
+    ctx.save(); ctx.translate(t.x,t.y);
+    ctx.strokeStyle=attackable?col:"#445"; ctx.globalAlpha=attackable?0.6:0.25; ctx.lineWidth=3;
+    ctx.beginPath(); for(let i=0;i<8;i++){ const a=i/8*TWO_PI+G.time*0.5; const r=t.radius+8; if(i===0) ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r); else ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r); } ctx.closePath(); ctx.stroke();
+    ctx.globalAlpha=1;
+    // pilar
+    ctx.fillStyle="#10182a"; ctx.strokeStyle=col; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(0,0,t.radius,0,TWO_PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=attackable?col:"#2a3550"; ctx.beginPath(); ctx.arc(0,-6,7,0,TWO_PI); ctx.fill();
+    ctx.restore();
+    drawBar(t.x,t.y-t.radius-14,54,6,t.hp/t.maxHp,col);
+  }
+  // nexos
+  for(const team of ["blue","red"]){ const n=G.nexus[team]; if(n.dead) continue; const col=team==="blue"?"#4a9eff":"#ff4a4a";
+    ctx.save(); ctx.translate(n.x,n.y);
+    const pulse=1+Math.sin(G.time*2)*0.08;
+    const g=ctx.createRadialGradient(0,0,8,0,0,n.radius*1.6*pulse); g.addColorStop(0,col); g.addColorStop(1,"transparent");
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,n.radius*1.6*pulse,0,TWO_PI); ctx.fill();
+    ctx.rotate(G.time*0.3); ctx.fillStyle="#0c1426"; ctx.strokeStyle=col; ctx.lineWidth=4;
+    ctx.beginPath(); for(let i=0;i<6;i++){ const a=i/6*TWO_PI; const r=n.radius; if(i===0) ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r); else ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);} ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    const attackable=structureAttackable(n);
+    drawBar(n.x,n.y-n.radius-16,80,8,n.hp/n.maxHp,col);
+    if(!attackable){ ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.font="12px Rajdhani"; ctx.textAlign="center"; ctx.fillText("protegido",n.x,n.y-n.radius-22); }
+  }
+}
+
+function drawCamps(){
+  for(const c of G.camps){ if(!c.active) continue;
+    const col = c.kind==="dragon"?"#ff7a3a": c.kind==="baron"?"#b06bff": c.kind==="blueBuff"?"#4a9eff":"#ff4a4a";
+    ctx.fillStyle="#0c1424"; ctx.strokeStyle=col; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(c.x,c.y,c.radius,0,TWO_PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=col; ctx.globalAlpha=0.6; ctx.beginPath(); ctx.arc(c.x,c.y,c.radius*0.55,0,TWO_PI); ctx.fill(); ctx.globalAlpha=1;
+    drawBar(c.x,c.y-c.radius-10,c.kind==="dragon"||c.kind==="baron"?60:40,5,c.hp/c.maxHp,col);
+    ctx.fillStyle="#cdd9ee"; ctx.font="11px Rajdhani"; ctx.textAlign="center";
+    const label=c.kind==="dragon"?"Dragón":c.kind==="baron"?"Barón":c.kind==="blueBuff"?"Azul":"Rojo";
+    ctx.fillText(label,c.x,c.y+c.radius+14);
+  }
+}
+
+function drawMinions(){
+  for(const m of G.minions){ const col=m.team==="blue"?"#4a9eff":"#ff4a4a";
+    const g=ctx.createRadialGradient(m.x-3,m.y-3,1,m.x,m.y,m.radius); g.addColorStop(0,"#dfe9ff"); g.addColorStop(1,col);
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(m.x,m.y,m.radius,0,TWO_PI); ctx.fill();
+    if(m.kind==="cannon"||m.kind==="super"){ ctx.strokeStyle="#f0c040"; ctx.lineWidth=2; ctx.stroke(); }
+    if(m.hitFlash>0){ ctx.fillStyle="rgba(255,255,255,0.6)"; ctx.beginPath(); ctx.arc(m.x,m.y,m.radius,0,TWO_PI); ctx.fill(); }
+    drawBar(m.x,m.y-m.radius-6,22,3,m.hp/m.maxHp,col);
+  }
+}
+function drawProjectiles(){
+  for(const p of G.projectiles){ ctx.save(); ctx.globalAlpha=0.9;
+    ctx.fillStyle=p.color; ctx.shadowColor=p.color; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.radius,0,TWO_PI); ctx.fill(); ctx.restore(); }
+}
+function drawChampions(){
+  for(const c of G.champions){
+    if(c.dead||c.respawn>0) continue;
+    const col=c.def.color, teamCol=c.team==="blue"?"#4a9eff":"#ff4a4a";
+    ctx.save(); ctx.translate(c.x,c.y);
+    // sombra / anillo de equipo
+    ctx.fillStyle="rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(0,c.radius*0.7,c.radius*1.1,c.radius*0.5,0,0,TWO_PI); ctx.fill();
+    ctx.strokeStyle=teamCol; ctx.lineWidth=3; ctx.globalAlpha=0.9; ctx.beginPath(); ctx.arc(0,0,c.radius+5,0,TWO_PI); ctx.stroke(); ctx.globalAlpha=1;
+    // sigilo
+    if(c.buffs.vanish>0){ ctx.globalAlpha=0.4; }
+    // cuerpo
+    const g=ctx.createRadialGradient(-4,-4,2,0,0,c.radius); g.addColorStop(0,c.def.accent); g.addColorStop(1,col);
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,c.radius,0,TWO_PI); ctx.fill();
+    // indicador de dirección / arma
+    ctx.rotate(c.facing); ctx.fillStyle=c.def.accent; ctx.shadowColor=col; ctx.shadowBlur=12;
+    ctx.fillRect(c.radius-2,-3,16,6); ctx.shadowBlur=0; ctx.rotate(-c.facing);
+    if(c.hitFlash>0){ ctx.globalAlpha=Math.min(0.6,c.hitFlash*3); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(0,0,c.radius,0,TWO_PI); ctx.fill(); ctx.globalAlpha=1; }
+    // escudo
+    if(c.shield>0){ ctx.strokeStyle="#ffe9a0"; ctx.lineWidth=3; ctx.globalAlpha=0.8; ctx.beginPath(); ctx.arc(0,0,c.radius+9,0,TWO_PI); ctx.stroke(); ctx.globalAlpha=1; }
+    // stun
+    if(c.stun>0){ ctx.fillStyle="#f0e68c"; ctx.font="14px Rajdhani"; ctx.textAlign="center"; ctx.fillText("✦",0,-c.radius-16); }
+    ctx.restore();
+    // barras y nombre
+    drawBar(c.x,c.y-c.radius-16,52,6,c.hp/c.maxHp, c.hp<c.maxHp*0.3?"#ff4040":"#20c020");
+    drawBar(c.x,c.y-c.radius-9,52,3,c.mana/c.maxMana,"#4080ff");
+    ctx.fillStyle="#dfe8f5"; ctx.font="bold 11px Rajdhani"; ctx.textAlign="center";
+    ctx.fillText((c.isPlayer?"★ ":"")+c.def.name+" ("+c.level+")", c.x, c.y-c.radius-22);
+  }
+}
+function drawParticles(){ for(const p of G.particles){ ctx.globalAlpha=Math.max(0,p.life/p.maxLife); ctx.fillStyle=p.color;
+  ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,TWO_PI); ctx.fill(); } ctx.globalAlpha=1; }
+function drawTexts(){ ctx.textAlign="center"; for(const t of G.texts){ ctx.globalAlpha=Math.max(0,t.life);
+  ctx.fillStyle=t.color; ctx.font="bold "+t.size+"px Cinzel, serif"; ctx.strokeStyle="rgba(0,0,0,0.6)"; ctx.lineWidth=3;
+  ctx.strokeText(t.text,t.x,t.y); ctx.fillText(t.text,t.x,t.y); } ctx.globalAlpha=1; }
+function drawDelayedAoe(){ if(!G.delayedAoe) return; for(const a of G.delayedAoe){ if(a.fired) continue;
+  ctx.strokeStyle=a.color; ctx.globalAlpha=0.6; ctx.lineWidth=3; ctx.setLineDash([8,8]);
+  ctx.beginPath(); ctx.arc(a.x,a.y,a.r,0,TWO_PI); ctx.stroke();
+  ctx.globalAlpha=0.18; ctx.fillStyle=a.color; ctx.beginPath(); ctx.arc(a.x,a.y,a.r*(1-a.time),0,TWO_PI); ctx.fill();
+  ctx.setLineDash([]); ctx.globalAlpha=1; } }
+
+function drawBar(x,y,w,h,frac,color){ frac=clamp(frac,0,1);
+  ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(x-w/2-1,y-1,w+2,h+2);
+  ctx.fillStyle=color; ctx.fillRect(x-w/2,y,w*frac,h); }
+
+/* --- HUD (canvas) --- */
+function drawHUD(){
+  const p=G.player; if(!p) return;
+  // timer arriba-centro
+  const mm=String((G.time/60)|0).padStart(2,"0"), ss=String((G.time|0)%60).padStart(2,"0");
+  ctx.textAlign="center";
+  panel(VW/2-120,8,240,54);
+  ctx.fillStyle="#cfe2ff"; ctx.font="bold 26px Rajdhani"; ctx.fillText(mm+":"+ss,VW/2,38);
+  ctx.font="13px Rajdhani"; ctx.fillStyle="#4a9eff"; ctx.textAlign="left"; ctx.fillText(Math.round(G.gold.blue)+"g",VW/2-110,54);
+  ctx.fillStyle="#ff4a4a"; ctx.textAlign="right"; ctx.fillText(Math.round(G.gold.red)+"g",VW/2+110,54);
+
+  // marcador K (arriba)
+  ctx.textAlign="center"; ctx.font="bold 16px Rajdhani";
+  ctx.fillStyle="#4a9eff"; ctx.fillText(G.score.blue, VW/2-150,32);
+  ctx.fillStyle="#ff4a4a"; ctx.fillText(G.score.red, VW/2+150,32);
+
+  // kill feed (arriba derecha)
+  let ky=70; ctx.textAlign="right"; ctx.font="13px Rajdhani";
+  for(const k of G.killFeed){ ctx.globalAlpha=clamp(k.t,0,1);
+    ctx.fillStyle=k.kc; ctx.fillText(k.killer, VW-130, ky);
+    ctx.fillStyle="#fff"; ctx.fillText("⚔", VW-118, ky);
+    ctx.fillStyle=k.vc; ctx.textAlign="left"; ctx.fillText(k.victim, VW-108, ky); ctx.textAlign="right";
+    ky+=20; }
+  ctx.globalAlpha=1;
+
+  // panel inferior central
+  const PW=560, PH=98, PX=VW/2-PW/2, PY=VH-PH-6;
+  panel(PX,PY,PW,PH);
+  // retrato
+  ctx.fillStyle=p.def.color; ctx.beginPath(); ctx.arc(PX+44,PY+44,30,0,TWO_PI); ctx.fill();
+  ctx.fillStyle="#0a0f1a"; ctx.font="bold 22px Cinzel"; ctx.textAlign="center"; ctx.fillText(p.def.name[0],PX+44,PY+52);
+  ctx.fillStyle="#0a0f1a"; ctx.beginPath(); ctx.arc(PX+44,PY+74,13,0,TWO_PI); ctx.fillStyle="#f0c040"; ctx.fill();
+  ctx.fillStyle="#0a0f1a"; ctx.font="bold 14px Rajdhani"; ctx.fillText(p.level, PX+44,PY+79);
+  // barras HP/mana
+  const bx=PX+86, bw=200;
+  ctx.fillStyle="#1a2332"; ctx.fillRect(bx,PY+18,bw,16);
+  ctx.fillStyle= p.hp<p.maxHp*0.3?"#ff4040":"#20c020"; ctx.fillRect(bx,PY+18,bw*clamp(p.hp/p.maxHp,0,1),16);
+  ctx.fillStyle="#1a2332"; ctx.fillRect(bx,PY+38,bw,12);
+  ctx.fillStyle="#4080ff"; ctx.fillRect(bx,PY+38,bw*clamp(p.mana/p.maxMana,0,1),12);
+  ctx.fillStyle="#fff"; ctx.font="11px Rajdhani"; ctx.textAlign="center";
+  ctx.fillText(Math.round(p.hp)+" / "+Math.round(p.maxHp), bx+bw/2, PY+31);
+  ctx.fillText(Math.round(p.mana)+" / "+Math.round(p.maxMana), bx+bw/2, PY+48);
+  // oro + cs
+  ctx.textAlign="left"; ctx.fillStyle="#f0c040"; ctx.font="bold 15px Rajdhani";
+  ctx.fillText(Math.round(p.gold)+"g  ·  CS "+p.cs+"  ·  "+p.kills+"/"+p.deaths+"/"+p.assists, bx, PY+68);
+  if(p.skillPoints>0){ ctx.fillStyle="#f0c040"; ctx.fillText("◆ "+p.skillPoints+" punto(s) — Ctrl+Q/W/E/R", bx, PY+86); }
+
+  // iconos de habilidades
+  const slots=["q","w","e","r"]; const ix=PX+300, iy=PY+18, isz=52, gap=8;
+  slots.forEach((s,i)=>{ drawAbilityIcon(p,s, ix+i*(isz+gap), iy, isz); });
+
+  // slots de items (derecha)
+  const six=VW-58, siy=VH/2-110;
+  for(let i=0;i<6;i++){ const yy=siy+i*36;
+    ctx.fillStyle="rgba(5,8,18,0.85)"; ctx.strokeStyle="rgba(74,158,255,0.3)"; ctx.lineWidth=1;
+    ctx.fillRect(six,yy,32,32); ctx.strokeRect(six,yy,32,32);
+    const it=p.items[i]; if(it){ ctx.fillStyle=itemColor(it); ctx.fillRect(six+3,yy+3,26,26);
+      ctx.fillStyle="#0a0f1a"; ctx.font="bold 13px Rajdhani"; ctx.textAlign="center"; ctx.fillText(it.name[0],six+16,yy+21); } }
+
+  // estado muerto
+  if(p.dead||p.respawn>0){ ctx.fillStyle="rgba(20,20,30,0.32)"; ctx.fillRect(0,0,VW,VH);
+    ctx.fillStyle="#ff5555"; ctx.font="bold 40px Cinzel"; ctx.textAlign="center"; ctx.fillText("HAS MUERTO",VW/2,VH/2-30);
+    ctx.fillStyle="#cfe2ff"; ctx.font="22px Rajdhani"; ctx.fillText("Reaparición en "+Math.ceil(p.respawn)+"s",VW/2,VH/2+12); }
+  if(p.recall>0){ ctx.fillStyle="#4a9eff"; ctx.font="18px Rajdhani"; ctx.textAlign="center"; ctx.fillText("Volviendo a base... "+p.recall.toFixed(1)+"s",VW/2,VH-130);
+    const w=160; ctx.fillStyle="#1a2332"; ctx.fillRect(VW/2-w/2,VH-122,w,8); ctx.fillStyle="#4a9eff"; ctx.fillRect(VW/2-w/2,VH-122,w*(1-p.recall/4),8); }
+}
+function panel(x,y,w,h){ ctx.fillStyle="rgba(5,8,18,0.92)"; ctx.strokeStyle="rgba(74,158,255,0.3)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(x,y,w,h,8); ctx.fill(); ctx.stroke(); }
+function drawAbilityIcon(c,slot,x,y,sz){
+  const ab=c.def.abilities[slot]; const rank=c.ranks[slot]; const cd=c.cooldowns[slot];
+  const cantPay=c.mana<ab.cost; const locked=rank<=0;
+  ctx.fillStyle="#0c1426"; ctx.strokeStyle= locked?"#33405a":"#4a9eff"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(x,y,sz,sz,6); ctx.fill(); ctx.stroke();
+  // color de habilidad
+  ctx.fillStyle = locked? "#1a2230" : (slot==="r"? "#f0c040" : c.def.color);
+  ctx.globalAlpha= locked?0.3: (cantPay?0.4:0.85);
+  ctx.beginPath(); ctx.roundRect(x+4,y+4,sz-8,sz-8,4); ctx.fill(); ctx.globalAlpha=1;
+  // letra
+  ctx.fillStyle="#0a0f1a"; ctx.font="bold 20px Cinzel"; ctx.textAlign="center"; ctx.fillText(slot.toUpperCase(),x+sz/2,y+sz/2+7);
+  // cooldown sweep
+  if(cd>0){ ctx.fillStyle="rgba(5,8,18,0.78)"; ctx.beginPath(); ctx.moveTo(x+sz/2,y+sz/2);
+    const frac=cd/ab.cd; ctx.arc(x+sz/2,y+sz/2,sz, -Math.PI/2, -Math.PI/2 + TWO_PI*frac); ctx.closePath();
+    ctx.save(); ctx.beginPath(); ctx.rect(x,y,sz,sz); ctx.clip(); ctx.fill(); ctx.restore();
+    ctx.fillStyle="#fff"; ctx.font="bold 16px Rajdhani"; ctx.fillText(Math.ceil(cd),x+sz/2,y+sz/2+6); }
+  // rango (puntos)
+  for(let i=0;i<5;i++){ ctx.fillStyle=i<rank?"#f0c040":"#33405a"; ctx.beginPath(); ctx.arc(x+8+i*9,y+sz-6,2.5,0,TWO_PI); ctx.fill(); }
+  // costo
+  ctx.fillStyle="#7fb0ff"; ctx.font="9px Rajdhani"; ctx.textAlign="right"; ctx.fillText(ab.cost,x+sz-4,y+12);
+}
+function itemColor(it){ if(it.stats.ad) return "#ff9a6b"; if(it.stats.ap) return "#c060ff"; if(it.stats.armor) return "#f0d060"; if(it.stats.mr) return "#60c0ff"; return "#80c080"; }
+
+function drawMinimap(){
+  const r=minimapRect();
+  ctx.fillStyle="rgba(5,8,18,0.9)"; ctx.strokeStyle="rgba(74,158,255,0.4)"; ctx.lineWidth=2;
+  ctx.fillRect(r.x,r.y,r.s,r.s); ctx.strokeRect(r.x,r.y,r.s,r.s);
+  const sc=r.s/MAP_W; const mp=(p)=>({x:r.x+p.x*sc,y:r.y+p.y*sc});
+  // carriles
+  ctx.strokeStyle="rgba(60,90,140,0.4)"; ctx.lineWidth=6;
+  for(const lane of LANE_NAMES){ const pts=LANES[lane]; ctx.beginPath(); pts.forEach((pt,i)=>{ const m=mp({x:pt[0],y:pt[1]}); i?ctx.lineTo(m.x,m.y):ctx.moveTo(m.x,m.y); }); ctx.stroke(); }
+  // fog: enemigos visibles sólo cerca del jugador o estructuras aliadas
+  const visList=[];
+  if(G.player&&!G.player.dead) visList.push(G.player);
+  for(const t of G.towers) if(t.team===G.player.team && !t.dead) visList.push(t);
+  const visible=(e)=> visList.some(v=>dist(v,e)<1000) || !e.team || e.team===G.player.team;
+  // estructuras
+  for(const t of G.towers){ if(t.dead) continue; const m=mp(t); ctx.fillStyle=t.team==="blue"?"#4a9eff":"#ff4a4a"; ctx.fillRect(m.x-2,m.y-2,4,4); }
+  for(const inh of G.inhibs){ if(inh.dead) continue; const m=mp(inh); ctx.fillStyle=inh.team==="blue"?"#7fc0ff":"#ff9a9a"; ctx.fillRect(m.x-2,m.y-2,4,4); }
+  for(const team of ["blue","red"]){ const n=G.nexus[team]; if(n.dead) continue; const m=mp(n); ctx.fillStyle=team==="blue"?"#4a9eff":"#ff4a4a"; ctx.beginPath(); ctx.arc(m.x,m.y,4,0,TWO_PI); ctx.fill(); }
+  // camps
+  for(const c of G.camps){ if(!c.active) continue; const m=mp(c); ctx.fillStyle=c.kind==="dragon"?"#ff7a3a":c.kind==="baron"?"#b06bff":"#aaa"; ctx.beginPath(); ctx.arc(m.x,m.y,2.5,0,TWO_PI); ctx.fill(); }
+  // minions
+  for(const mm2 of G.minions){ if(mm2.team!==G.player.team && !visible(mm2)) continue; const m=mp(mm2); ctx.fillStyle=mm2.team==="blue"?"#6fb0ff":"#ff8a8a"; ctx.fillRect(m.x-1,m.y-1,2,2); }
+  // campeones
+  for(const c of G.champions){ if(c.dead||c.respawn>0) continue; if(c.team!==G.player.team && !visible(c)) continue;
+    const m=mp(c); ctx.fillStyle=c.isPlayer?"#fff":c.def.color; ctx.beginPath(); ctx.arc(m.x,m.y,c.isPlayer?4:3,0,TWO_PI); ctx.fill();
+    ctx.strokeStyle=c.team==="blue"?"#4a9eff":"#ff4a4a"; ctx.lineWidth=1.5; ctx.stroke(); }
+  // rectángulo de cámara
+  ctx.strokeStyle="rgba(255,255,255,0.4)"; ctx.lineWidth=1;
+  ctx.strokeRect(r.x+(cam.x-VW/2)*sc, r.y+(cam.y-VH/2)*sc, VW*sc, VH*sc);
+}
+function drawBanner(){ if(!bannerState) return; const a=clamp(bannerState.t,0,1);
+  ctx.globalAlpha=Math.min(1,a*1.5); ctx.fillStyle=bannerState.color;
+  ctx.fillRect(0,VH*0.18,VW,3); ctx.fillRect(0,VH*0.18+58,VW,3);
+  ctx.fillStyle="rgba(5,8,18,0.6)"; ctx.fillRect(0,VH*0.18+3,VW,55);
+  ctx.fillStyle=bannerState.color; ctx.font="bold 38px Cinzel"; ctx.textAlign="center";
+  ctx.fillText(bannerState.text, VW/2, VH*0.18+44); ctx.globalAlpha=1; }
+
+/* =========================== TIENDA (DOM) =========================== */
+let shopOpen=false;
+function toggleShop(force){ shopOpen = force!==undefined?force: !shopOpen;
+  const el=document.getElementById('shop');
+  el.style.transition='transform .28s cubic-bezier(.23,1,.32,1)'; // se añade aquí para evitar el destello en la primera carga
+  el.classList.toggle('open',shopOpen);
+  if(shopOpen) renderShop(); }
+function renderShop(){
+  const p=G.player; if(!p) return;
+  document.getElementById('shopGold').textContent=Math.round(p.gold)+"g";
+  const body=document.getElementById('shopBody'); body.innerHTML="";
+  [1,2,3].forEach(tier=>{
+    const h=document.createElement('div'); h.className="tier"; h.textContent="Tier "+tier; body.appendChild(h);
+    const grid=document.createElement('div'); grid.className="items";
+    ITEMS.filter(i=>i.tier===tier).forEach(it=>{
+      const d=document.createElement('div'); d.className="item"+(p.gold<it.cost?" poor":"");
+      d.innerHTML=`<div class="nm">${it.name}</div><div class="ds">${it.desc}</div><div class="pr">${it.cost}g</div>`;
+      d.onclick=()=>buyItem(it); grid.appendChild(d);
+    });
+    body.appendChild(grid);
+  });
+}
+function buyItem(it){
+  const p=G.player; const base=p.team==="blue"?BLUE_NEXUS:RED_NEXUS;
+  if(dist(p,base)>360){ flashToast("Debes estar en la base"); return; }
+  if(p.items.length>=6){ flashToast("Inventario lleno"); return; }
+  if(p.gold<it.cost){ flashToast("Oro insuficiente"); return; }
+  p.gold-=it.cost; p.items.push(it); p.recomputeStats(false);
+  flashToast(it.name+" comprado"); renderShop();
+}
+
+/* =========================== ARRANQUE / PANTALLAS =========================== */
+function buildSelectCards(){
+  const wrap=document.getElementById('cards'); wrap.innerHTML="";
+  Object.values(CHAMPIONS).forEach(d=>{
+    const c=document.createElement('div'); c.className="card"; c.dataset.id=d.id;
+    let abs=""; for(const s of ["q","w","e","r"]){ const a=d.abilities[s]; abs+=`<div class="ab"><span class="key">${s.toUpperCase()}</span><b>${a.name}:</b> ${a.desc}</div>`; }
+    c.innerHTML=`
+      <canvas class="crest" width="84" height="84"></canvas>
+      <h2 style="color:${d.color}">${d.name}</h2>
+      <div class="role">${d.role}</div>
+      <div class="ab" style="color:#f0c040"><b>Pasiva:</b> ${d.passive}</div>
+      ${abs}`;
+    c.onclick=()=>selectChamp(d.id,c); wrap.appendChild(c);
+    // dibujar emblema
+    const cv=c.querySelector('.crest'), cc=cv.getContext('2d');
+    cc.fillStyle=d.color; cc.beginPath(); cc.arc(42,42,34,0,TWO_PI); cc.fill();
+    cc.fillStyle=d.accent; cc.beginPath(); cc.arc(36,36,18,0,TWO_PI); cc.fill();
+    cc.fillStyle="#0a0f1a"; cc.font="bold 30px Cinzel"; cc.textAlign="center"; cc.fillText(d.name[0],42,53);
+  });
+}
+let selectedDef=null;
+function selectChamp(id,el){ selectedDef=id; G.playerDefId=id;
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel')); el.classList.add('sel');
+  document.getElementById('startBtn').classList.add('on'); }
+
+function setupGame(){
+  // reset estado
+  Object.assign(G,{ running:false, time:0, lastWave:-30, waveCount:0,
+    champions:[], minions:[], towers:[], inhibs:[], nexus:{}, camps:[],
+    projectiles:[], particles:[], texts:[], killFeed:[],
+    gold:{blue:0,red:0}, score:{blue:0,red:0}, firstBlood:false, over:false, delayedAoe:[] });
+  buildMap(); initGrass();
+  // jugador
+  const player=new Champion(G.playerDefId,"blue",true); player.lane="mid"; player.x=BLUE_NEXUS.x; player.y=BLUE_NEXUS.y;
+  player.order={type:"idle"}; player.aiState="push"; G.player=player; G.champions.push(player);
+  // aliados (2) y enemigos (3 visibles) — repartidos por carriles
+  const others=Object.keys(CHAMPIONS).filter(id=>id!==G.playerDefId);
+  // 2 aliados bots
+  const allyLanes=["top","bot"]; const allyDefs=[others[0],others[1]];
+  allyDefs.forEach((id,i)=>{ const a=new Champion(id,"blue",false); a.lane=allyLanes[i]; const s=LANES[a.lane][1]; a.x=BLUE_NEXUS.x;a.y=BLUE_NEXUS.y; a.aiState="push"; G.champions.push(a); });
+  // 3 enemigos
+  const enemyLanes=["top","mid","bot"]; const enemyDefs=[Object.keys(CHAMPIONS)[0],Object.keys(CHAMPIONS)[1],Object.keys(CHAMPIONS)[2]];
+  enemyDefs.forEach((id,i)=>{ const e=new Champion(id,"red",false); e.lane=enemyLanes[i]; e.x=RED_NEXUS.x;e.y=RED_NEXUS.y; e.aiState="push"; G.champions.push(e); });
+  cam.x=player.x; cam.y=player.y; cam.follow=true;
+  // primer punto de habilidad sugerido (jugador empieza con Q rango 1)
+  player.skillPoints=1;
+}
+
+function startGame(){
+  Audio2.init();
+  document.getElementById('select').classList.add('hidden');
+  document.getElementById('endScreen').classList.add('hidden');
+  setupGame();
+  // cuenta atrás 3s
+  let count=3; banner("¡PREPÁRATE!", null, "#f0c040");
+  G.running=true;
+  const cd=setInterval(()=>{ if(count>0){ banner(count+"", null, "#f0c040"); Audio2.tone(330,0.15,"square",0.3); count--; }
+    else { clearInterval(cd); banner("¡COMIENZA!", null, "#20c020"); Audio2.tone(523,0.4,"triangle",0.35); } },1000);
+}
+
+function endGame(winner){
+  G.over=true; G.running=false;
+  const win = winner===G.player.team;
+  if(win) Audio2.victory(); else Audio2.death();
+  document.getElementById('endTitle').textContent = win?"VICTORIA":"DERROTA";
+  document.getElementById('endTitle').style.color = win?"#4a9eff":"#ff4a4a";
+  document.getElementById('endTitle').style.textShadow = "0 0 30px "+(win?"var(--team-blue-glow)":"var(--team-red-glow)");
+  const p=G.player; const mm=String((G.time/60)|0).padStart(2,"0"), ss=String((G.time|0)%60).padStart(2,"0");
+  document.getElementById('endStats').innerHTML =
+    `KDA ${p.kills}/${p.deaths}/${p.assists} · CS ${p.cs} · ${Math.round(p.gold)}g · Duración ${mm}:${ss}`;
+  document.getElementById('endScreen').classList.remove('hidden');
+}
+
+/* =========================== BUCLE (timestep fijo) =========================== */
+let acc=0, lastT=performance.now();
+function loop(now){
+  const frame=Math.min(50, now-lastT); lastT=now; acc+=frame;
+  while(acc>=TICK){ update(); acc-=TICK; }
+  render();
+  requestAnimationFrame(loop);
+}
+
+// listeners de UI
+document.getElementById('startBtn').onclick=()=>{ if(selectedDef) startGame(); };
+document.getElementById('againBtn').onclick=()=>{ document.getElementById('endScreen').classList.add('hidden');
+  document.getElementById('select').classList.remove('hidden'); selectedDef=null;
+  document.getElementById('startBtn').classList.remove('on'); document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel')); };
+
+// roundRect fallback (navegadores viejos)
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){ this.beginPath();
+    this.moveTo(x+r,y); this.arcTo(x+w,y,x+w,y+h,r); this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r); this.arcTo(x,y,x+w,y,r); this.closePath(); return this; };
+}
+
+buildSelectCards();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

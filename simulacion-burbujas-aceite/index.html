@@ -1,0 +1,1977 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Oil Bubble Phase Field</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:736px;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Oil Bubble Phase Field" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Oil Bubble Phase Field&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(--background) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: light-dark(rgb(255 255 255), rgb(24 24 24));
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 12.5px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--viz-font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;style&gt;
+  #chns-oil-lab {
+    color: var(--foreground);
+    width: 100%;
+  }
+
+  #chns-oil-lab .chns-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  #chns-oil-lab .chns-metrics,
+  #chns-oil-lab .chns-legend {
+    font-variant-numeric: tabular-nums;
+  }
+
+  #chns-oil-lab .chns-value {
+    font-weight: 500;
+  }
+
+  #chns-oil-lab .chns-stage {
+    width: 100%;
+    max-width: 680px;
+    margin: 14px auto 0;
+  }
+
+  #chns-oil-lab canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    background: var(--muted);
+  }
+
+  #chns-oil-lab .chns-legend {
+    justify-content: center;
+    margin-top: 10px;
+  }
+
+  #chns-oil-lab .chns-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #chns-oil-lab .chns-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+  }
+
+  #chns-oil-lab .chns-water { background: var(--viz-series-2); }
+  #chns-oil-lab .chns-interface { background: var(--viz-series-3); }
+  #chns-oil-lab .chns-oil { background: var(--viz-series-1); }
+
+  #chns-oil-lab .chns-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 18px;
+    margin-top: 14px;
+  }
+
+  #chns-oil-lab .chns-label-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  #chns-oil-lab output {
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  #chns-oil-lab details {
+    margin-top: 12px;
+  }
+
+  #chns-oil-lab summary {
+    color: var(--foreground);
+    cursor: pointer;
+  }
+
+  #chns-oil-lab .chns-error {
+    margin: 10px 0 0;
+  }
+
+  @media (max-width: 600px) {
+    #chns-oil-lab .chns-controls-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 390px) {
+    #chns-oil-lab .chns-controls-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+&lt;/style&gt;
+
+&lt;div id=&quot;chns-oil-lab&quot;&gt;
+  &lt;div class=&quot;chns-toolbar&quot;&gt;
+    &lt;div class=&quot;viz-controls&quot; aria-label=&quot;Simulation controls&quot;&gt;
+      &lt;button type=&quot;button&quot; class=&quot;btn btn-primary&quot; id=&quot;chns-run&quot;&gt;Pause&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;btn&quot; id=&quot;chns-step&quot;&gt;Single step&lt;/button&gt;
+      &lt;label class=&quot;form-check form-switch&quot;&gt;
+        &lt;input class=&quot;form-check-input&quot; id=&quot;chns-vectors&quot; type=&quot;checkbox&quot; checked&gt;
+        &lt;span class=&quot;form-check-label&quot;&gt;Velocity vectors&lt;/span&gt;
+      &lt;/label&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;viz-row chns-metrics text-small&quot; id=&quot;chns-status&quot; aria-label=&quot;Simulation diagnostics&quot;&gt;
+      &lt;span&gt;&lt;span class=&quot;text-muted&quot;&gt;t&lt;/span&gt; &lt;span class=&quot;chns-value&quot; id=&quot;chns-time&quot;&gt;0.00&lt;/span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;span class=&quot;text-muted&quot;&gt;oil&lt;/span&gt; &lt;span class=&quot;chns-value&quot; id=&quot;chns-area&quot;&gt;0.0%&lt;/span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;span class=&quot;text-muted&quot;&gt;regions&lt;/span&gt; &lt;span class=&quot;chns-value&quot; id=&quot;chns-regions&quot;&gt;20&lt;/span&gt;&lt;/span&gt;
+      &lt;span&gt;&lt;span class=&quot;text-muted&quot;&gt;u rms&lt;/span&gt; &lt;span class=&quot;chns-value&quot; id=&quot;chns-speed&quot;&gt;0.000&lt;/span&gt;&lt;/span&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;p class=&quot;text-small text-destructive chns-error&quot; id=&quot;chns-error&quot; role=&quot;alert&quot; hidden&gt;&lt;/p&gt;
+
+  &lt;div class=&quot;chns-stage&quot;&gt;
+    &lt;canvas id=&quot;chns-canvas&quot; width=&quot;640&quot; height=&quot;640&quot; role=&quot;img&quot; aria-describedby=&quot;chns-description&quot;&gt;
+      Periodic oil-water phase field with velocity vectors.
+    &lt;/canvas&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;viz-row chns-legend text-small&quot; aria-label=&quot;Phase legend&quot;&gt;
+    &lt;span class=&quot;chns-key&quot;&gt;&lt;span class=&quot;chns-swatch chns-water&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;water, φ = −1&lt;/span&gt;
+    &lt;span class=&quot;chns-key&quot;&gt;&lt;span class=&quot;chns-swatch chns-interface&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;diffuse interface&lt;/span&gt;
+    &lt;span class=&quot;chns-key&quot;&gt;&lt;span class=&quot;chns-swatch chns-oil&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;oil, φ = +1&lt;/span&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;chns-controls-grid&quot; aria-label=&quot;Physical parameters&quot;&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;chns-mean-radius&quot;&gt;
+      &lt;span class=&quot;chns-label-line&quot;&gt;&lt;span&gt;Mean radius&lt;/span&gt;&lt;output id=&quot;chns-mean-radius-out&quot;&gt;0.046&lt;/output&gt;&lt;/span&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;chns-mean-radius&quot; type=&quot;range&quot; min=&quot;0.038&quot; max=&quot;0.060&quot; value=&quot;0.046&quot; step=&quot;0.001&quot;&gt;
+    &lt;/label&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;chns-radius-sd&quot;&gt;
+      &lt;span class=&quot;chns-label-line&quot;&gt;&lt;span&gt;Radius SD&lt;/span&gt;&lt;output id=&quot;chns-radius-sd-out&quot;&gt;0.011&lt;/output&gt;&lt;/span&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;chns-radius-sd&quot; type=&quot;range&quot; min=&quot;0.004&quot; max=&quot;0.020&quot; value=&quot;0.011&quot; step=&quot;0.001&quot;&gt;
+    &lt;/label&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;chns-epsilon&quot;&gt;
+      &lt;span class=&quot;chns-label-line&quot;&gt;&lt;span&gt;Interface ε&lt;/span&gt;&lt;output id=&quot;chns-epsilon-out&quot;&gt;0.018&lt;/output&gt;&lt;/span&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;chns-epsilon&quot; type=&quot;range&quot; min=&quot;0.014&quot; max=&quot;0.026&quot; value=&quot;0.018&quot; step=&quot;0.001&quot;&gt;
+    &lt;/label&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;chns-kick&quot;&gt;
+      &lt;span class=&quot;chns-label-line&quot;&gt;&lt;span&gt;Initial kick&lt;/span&gt;&lt;output id=&quot;chns-kick-out&quot;&gt;0.45&lt;/output&gt;&lt;/span&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;chns-kick&quot; type=&quot;range&quot; min=&quot;0.10&quot; max=&quot;0.90&quot; value=&quot;0.45&quot; step=&quot;0.05&quot;&gt;
+    &lt;/label&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;chns-tension&quot;&gt;
+      &lt;span class=&quot;chns-label-line&quot;&gt;&lt;span&gt;Surface tension&lt;/span&gt;&lt;output id=&quot;chns-tension-out&quot;&gt;0.45&lt;/output&gt;&lt;/span&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;chns-tension&quot; type=&quot;range&quot; min=&quot;0.10&quot; max=&quot;1.00&quot; value=&quot;0.45&quot; step=&quot;0.05&quot;&gt;
+    &lt;/label&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;chns-viscosity&quot;&gt;
+      &lt;span class=&quot;chns-label-line&quot;&gt;&lt;span&gt;Viscosity ν&lt;/span&gt;&lt;output id=&quot;chns-viscosity-out&quot;&gt;0.004&lt;/output&gt;&lt;/span&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;chns-viscosity&quot; type=&quot;range&quot; min=&quot;0.001&quot; max=&quot;0.012&quot; value=&quot;0.004&quot; step=&quot;0.001&quot;&gt;
+    &lt;/label&gt;
+  &lt;/div&gt;
+
+  &lt;details&gt;
+    &lt;summary class=&quot;text-small&quot;&gt;Numerics &amp;amp; phase kinetics&lt;/summary&gt;
+    &lt;div class=&quot;chns-controls-grid&quot;&gt;
+      &lt;label class=&quot;form-label&quot; for=&quot;chns-mobility&quot;&gt;
+        &lt;span class=&quot;chns-label-line&quot;&gt;&lt;span&gt;Mobility M&lt;/span&gt;&lt;output id=&quot;chns-mobility-out&quot;&gt;0.0030&lt;/output&gt;&lt;/span&gt;
+        &lt;input class=&quot;form-range&quot; id=&quot;chns-mobility&quot; type=&quot;range&quot; min=&quot;0.0008&quot; max=&quot;0.0070&quot; value=&quot;0.0030&quot; step=&quot;0.0002&quot;&gt;
+      &lt;/label&gt;
+      &lt;label class=&quot;form-label&quot; for=&quot;chns-reaction&quot;&gt;
+        &lt;span class=&quot;chns-label-line&quot;&gt;&lt;span&gt;Conservative reaction&lt;/span&gt;&lt;output id=&quot;chns-reaction-out&quot;&gt;0.06&lt;/output&gt;&lt;/span&gt;
+        &lt;input class=&quot;form-range&quot; id=&quot;chns-reaction&quot; type=&quot;range&quot; min=&quot;0.00&quot; max=&quot;0.40&quot; value=&quot;0.06&quot; step=&quot;0.02&quot;&gt;
+      &lt;/label&gt;
+      &lt;label class=&quot;form-label&quot; for=&quot;chns-rate&quot;&gt;
+        &lt;span class=&quot;chns-label-line&quot;&gt;&lt;span&gt;Steps per frame&lt;/span&gt;&lt;output id=&quot;chns-rate-out&quot;&gt;2&lt;/output&gt;&lt;/span&gt;
+        &lt;input class=&quot;form-range&quot; id=&quot;chns-rate&quot; type=&quot;range&quot; min=&quot;1&quot; max=&quot;5&quot; value=&quot;2&quot; step=&quot;1&quot;&gt;
+      &lt;/label&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
+
+  &lt;span class=&quot;sr-only&quot; id=&quot;chns-description&quot;&gt;The scalar field is positive in oil and negative in water. Twenty initially separated, lognormally sized droplets move in a divergence-free flow on a periodic unit square, so structures crossing one edge reappear on the opposite edge.&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+(() =&gt; {
+  const root = document.getElementById(&#x27;chns-oil-lab&#x27;);
+  if (!root) return;
+
+  const N = 64;
+  const SIZE = N * N;
+  const DX = 1 / N;
+  const INV_2DX = 1 / (2 * DX);
+  const INV_DX2 = 1 / (DX * DX);
+  const TAU = Math.PI * 2;
+  const BASE_DT = 0.0012;
+  const DROPLET_COUNT = 20;
+
+  const canvas = root.querySelector(&#x27;#chns-canvas&#x27;);
+  const ctx = canvas.getContext(&#x27;2d&#x27;, { alpha: false });
+  const fieldCanvas = document.createElement(&#x27;canvas&#x27;);
+  fieldCanvas.width = N;
+  fieldCanvas.height = N;
+  const fieldCtx = fieldCanvas.getContext(&#x27;2d&#x27;, { alpha: false });
+  const fieldImage = fieldCtx.createImageData(N, N);
+
+  const refs = {
+    run: root.querySelector(&#x27;#chns-run&#x27;),
+    step: root.querySelector(&#x27;#chns-step&#x27;),
+    vectors: root.querySelector(&#x27;#chns-vectors&#x27;),
+    error: root.querySelector(&#x27;#chns-error&#x27;),
+    time: root.querySelector(&#x27;#chns-time&#x27;),
+    area: root.querySelector(&#x27;#chns-area&#x27;),
+    regions: root.querySelector(&#x27;#chns-regions&#x27;),
+    speed: root.querySelector(&#x27;#chns-speed&#x27;)
+  };
+
+  const params = {
+    meanRadius: 0.046,
+    radiusSD: 0.011,
+    epsilon: 0.018,
+    kick: 0.45,
+    tension: 0.45,
+    viscosity: 0.004,
+    mobility: 0.003,
+    reaction: 0.06,
+    rate: 2
+  };
+
+  const phi = new Float64Array(SIZE);
+  const u = new Float64Array(SIZE);
+  const v = new Float64Array(SIZE);
+  const mu = new Float64Array(SIZE);
+  const nonlinear = new Float64Array(SIZE);
+  const advPhi = new Float64Array(SIZE);
+  const uStar = new Float64Array(SIZE);
+  const vStar = new Float64Array(SIZE);
+
+  const rPhi = new Float64Array(SIZE);
+  const iPhi = new Float64Array(SIZE);
+  const rNonlinear = new Float64Array(SIZE);
+  const iNonlinear = new Float64Array(SIZE);
+  const rAdv = new Float64Array(SIZE);
+  const iAdv = new Float64Array(SIZE);
+  const rU = new Float64Array(SIZE);
+  const iU = new Float64Array(SIZE);
+  const rV = new Float64Array(SIZE);
+  const iV = new Float64Array(SIZE);
+
+  const kx = new Float64Array(SIZE);
+  const ky = new Float64Array(SIZE);
+  const k2 = new Float64Array(SIZE);
+  const laplacianSymbol = new Float64Array(SIZE);
+  const dealiased = new Uint8Array(SIZE);
+  const left = new Int32Array(SIZE);
+  const right = new Int32Array(SIZE);
+  const up = new Int32Array(SIZE);
+  const down = new Int32Array(SIZE);
+  const bitReverse = new Int32Array(N);
+  const tempRe = new Float64Array(N);
+  const tempIm = new Float64Array(N);
+  const visited = new Uint8Array(SIZE);
+  const queue = new Int32Array(SIZE);
+
+  for (let i = 0; i &lt; N; i++) {
+    let x = i;
+    let reversed = 0;
+    for (let b = 0; b &lt; 6; b++) {
+      reversed = (reversed &lt;&lt; 1) | (x &amp; 1);
+      x &gt;&gt;= 1;
+    }
+    bitReverse[i] = reversed;
+  }
+
+  for (let y = 0; y &lt; N; y++) {
+    const modeY = y &lt;= N / 2 ? y : y - N;
+    for (let x = 0; x &lt; N; x++) {
+      const modeX = x &lt;= N / 2 ? x : x - N;
+      const id = y * N + x;
+      kx[id] = Math.sin(TAU * modeX / N) / DX;
+      ky[id] = Math.sin(TAU * modeY / N) / DX;
+      k2[id] = kx[id] * kx[id] + ky[id] * ky[id];
+      laplacianSymbol[id] = 4 * INV_DX2 * (
+        Math.sin(Math.PI * modeX / N) ** 2 +
+        Math.sin(Math.PI * modeY / N) ** 2
+      );
+      dealiased[id] = Math.abs(modeX) &lt;= N / 3 &amp;&amp; Math.abs(modeY) &lt;= N / 3 ? 1 : 0;
+      left[id] = y * N + (x + N - 1) % N;
+      right[id] = y * N + (x + 1) % N;
+      up[id] = ((y + N - 1) % N) * N + x;
+      down[id] = ((y + 1) % N) * N + x;
+    }
+  }
+
+  function fft1D(real, imag, inverse) {
+    for (let i = 0; i &lt; N; i++) {
+      const j = bitReverse[i];
+      if (j &gt; i) {
+        let t = real[i]; real[i] = real[j]; real[j] = t;
+        t = imag[i]; imag[i] = imag[j]; imag[j] = t;
+      }
+    }
+
+    for (let length = 2; length &lt;= N; length &lt;&lt;= 1) {
+      const angle = (inverse ? TAU : -TAU) / length;
+      const stepCos = Math.cos(angle);
+      const stepSin = Math.sin(angle);
+      const half = length &gt;&gt; 1;
+      for (let start = 0; start &lt; N; start += length) {
+        let wr = 1;
+        let wi = 0;
+        for (let j = 0; j &lt; half; j++) {
+          const even = start + j;
+          const odd = even + half;
+          const oddR = real[odd] * wr - imag[odd] * wi;
+          const oddI = real[odd] * wi + imag[odd] * wr;
+          const evenR = real[even];
+          const evenI = imag[even];
+          real[even] = evenR + oddR;
+          imag[even] = evenI + oddI;
+          real[odd] = evenR - oddR;
+          imag[odd] = evenI - oddI;
+          const nextWr = wr * stepCos - wi * stepSin;
+          wi = wr * stepSin + wi * stepCos;
+          wr = nextWr;
+        }
+      }
+    }
+
+    if (inverse) {
+      for (let i = 0; i &lt; N; i++) {
+        real[i] /= N;
+        imag[i] /= N;
+      }
+    }
+  }
+
+  function fft2(real, imag, inverse) {
+    for (let y = 0; y &lt; N; y++) {
+      const offset = y * N;
+      for (let x = 0; x &lt; N; x++) {
+        tempRe[x] = real[offset + x];
+        tempIm[x] = imag[offset + x];
+      }
+      fft1D(tempRe, tempIm, inverse);
+      for (let x = 0; x &lt; N; x++) {
+        real[offset + x] = tempRe[x];
+        imag[offset + x] = tempIm[x];
+      }
+    }
+
+    for (let x = 0; x &lt; N; x++) {
+      for (let y = 0; y &lt; N; y++) {
+        const id = y * N + x;
+        tempRe[y] = real[id];
+        tempIm[y] = imag[id];
+      }
+      fft1D(tempRe, tempIm, inverse);
+      for (let y = 0; y &lt; N; y++) {
+        const id = y * N + x;
+        real[id] = tempRe[y];
+        imag[id] = tempIm[y];
+      }
+    }
+  }
+
+  function forwardReal(source, real, imag) {
+    real.set(source);
+    imag.fill(0);
+    fft2(real, imag, false);
+  }
+
+  function inverseReal(real, imag, target) {
+    fft2(real, imag, true);
+    for (let i = 0; i &lt; SIZE; i++) target[i] = real[i];
+  }
+
+  function mulberry32(seed) {
+    return function random() {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ t &gt;&gt;&gt; 15, t | 1);
+      t ^= t + Math.imul(t ^ t &gt;&gt;&gt; 7, t | 61);
+      return ((t ^ t &gt;&gt;&gt; 14) &gt;&gt;&gt; 0) / 4294967296;
+    };
+  }
+
+  function gaussian(random) {
+    const a = Math.max(random(), 1e-12);
+    const b = random();
+    return Math.sqrt(-2 * Math.log(a)) * Math.cos(TAU * b);
+  }
+
+  let simTime = 0;
+  let stepCount = 0;
+  let initialOil = 0;
+  let targetMeanPhi = 0;
+  let lastMaxSpeed = params.kick;
+  let lastRegions = DROPLET_COUNT;
+  let running = !window.matchMedia(&#x27;(prefers-reduced-motion: reduce)&#x27;).matches;
+  let lastStatusAt = 0;
+
+  function initialize() {
+    const random = mulberry32(0xC0FFEE);
+    const logVariance = Math.log(1 + (params.radiusSD * params.radiusSD) / (params.meanRadius * params.meanRadius));
+    const logSigma = Math.sqrt(logVariance);
+    const logMean = Math.log(params.meanRadius) - 0.5 * logVariance;
+    const radii = [];
+
+    for (let i = 0; i &lt; DROPLET_COUNT; i++) {
+      radii.push(Math.exp(logMean + logSigma * gaussian(random)));
+    }
+    const sampledMean = radii.reduce((sum, value) =&gt; sum + value, 0) / radii.length;
+    for (let i = 0; i &lt; radii.length; i++) {
+      radii[i] = Math.min(0.074, Math.max(0.027, radii[i] * params.meanRadius / sampledMean));
+    }
+
+    const droplets = [];
+    const orderedRadii = radii.slice().sort((a, b) =&gt; b - a);
+    const minimumGap = Math.max(0.5 * params.epsilon, 0.9 * DX);
+    for (const radius of orderedRadii) {
+      let accepted = null;
+      let best = null;
+      let bestClearance = -Infinity;
+      for (let attempt = 0; attempt &lt; 2500; attempt++) {
+        const candidate = { x: random(), y: random(), r: radius };
+        let clearance = Infinity;
+        for (const placed of droplets) {
+          let ddx = Math.abs(candidate.x - placed.x);
+          let ddy = Math.abs(candidate.y - placed.y);
+          ddx = Math.min(ddx, 1 - ddx);
+          ddy = Math.min(ddy, 1 - ddy);
+          clearance = Math.min(clearance, Math.hypot(ddx, ddy) - candidate.r - placed.r);
+        }
+        if (clearance &gt; bestClearance) {
+          bestClearance = clearance;
+          best = candidate;
+        }
+        if (clearance &gt;= minimumGap) {
+          accepted = candidate;
+          break;
+        }
+      }
+      droplets.push(accepted || best);
+    }
+
+    const interfaceScale = Math.sqrt(2) * params.epsilon;
+    let phiSum = 0;
+    for (let y = 0; y &lt; N; y++) {
+      const py = (y + 0.5) / N;
+      for (let x = 0; x &lt; N; x++) {
+        const px = (x + 0.5) / N;
+        let signedDistance = -Infinity;
+        for (const droplet of droplets) {
+          let ddx = Math.abs(px - droplet.x);
+          let ddy = Math.abs(py - droplet.y);
+          ddx = Math.min(ddx, 1 - ddx);
+          ddy = Math.min(ddy, 1 - ddy);
+          signedDistance = Math.max(signedDistance, droplet.r - Math.hypot(ddx, ddy));
+        }
+        const id = y * N + x;
+        phi[id] = Math.tanh(signedDistance / interfaceScale);
+        phiSum += phi[id];
+      }
+    }
+    targetMeanPhi = phiSum / SIZE;
+
+    u.fill(0);
+    v.fill(0);
+    const modes = [];
+    for (let m = 0; m &lt; 8; m++) {
+      let mx = Math.floor(random() * 7) - 3;
+      let my = Math.floor(random() * 7) - 3;
+      if (mx === 0 &amp;&amp; my === 0) mx = 1;
+      const magnitude2 = mx * mx + my * my;
+      modes.push({
+        mx,
+        my,
+        phase: TAU * random(),
+        amplitude: gaussian(random) / Math.pow(magnitude2, 1.25)
+      });
+    }
+
+    const desiredKicks = new Array(droplets.length);
+    const unpaired = droplets.map((_, index) =&gt; index);
+    while (unpaired.length &gt; 1) {
+      const first = unpaired.shift();
+      let partnerPosition = 0;
+      let partnerDx = 0;
+      let partnerDy = 0;
+      let nearest = Infinity;
+      for (let p = 0; p &lt; unpaired.length; p++) {
+        let ddx = droplets[unpaired[p]].x - droplets[first].x;
+        let ddy = droplets[unpaired[p]].y - droplets[first].y;
+        ddx -= Math.round(ddx);
+        ddy -= Math.round(ddy);
+        const distance = Math.hypot(ddx, ddy);
+        if (distance &lt; nearest) {
+          nearest = distance;
+          partnerPosition = p;
+          partnerDx = ddx;
+          partnerDy = ddy;
+        }
+      }
+      const second = unpaired.splice(partnerPosition, 1)[0];
+      const inverseDistance = 1 / Math.max(nearest, 1e-12);
+      const directionX = partnerDx * inverseDistance;
+      const directionY = partnerDy * inverseDistance;
+      desiredKicks[first] = { x: directionX, y: directionY };
+      desiredKicks[second] = { x: -directionX, y: -directionY };
+    }
+
+    const kickWidth2 = 0.0144;
+    const degrees = droplets.length * 2;
+    const stride = degrees + 1;
+    const augmented = new Float64Array(degrees * stride);
+    for (let target = 0; target &lt; droplets.length; target++) {
+      const rowX = 2 * target;
+      const rowY = rowX + 1;
+      for (let source = 0; source &lt; droplets.length; source++) {
+        let ddx = droplets[target].x - droplets[source].x;
+        let ddy = droplets[target].y - droplets[source].y;
+        ddx -= Math.round(ddx);
+        ddy -= Math.round(ddy);
+        const weight = Math.exp(-0.5 * (ddx * ddx + ddy * ddy) / kickWidth2);
+        const basisXX = (1 - ddy * ddy / kickWidth2) * weight;
+        const basisXY = ddx * ddy / kickWidth2 * weight;
+        const basisYY = (1 - ddx * ddx / kickWidth2) * weight;
+        augmented[rowX * stride + 2 * source] = basisXX;
+        augmented[rowX * stride + 2 * source + 1] = basisXY;
+        augmented[rowY * stride + 2 * source] = basisXY;
+        augmented[rowY * stride + 2 * source + 1] = basisYY;
+      }
+      augmented[rowX * stride + rowX] += 0.04;
+      augmented[rowY * stride + rowY] += 0.04;
+      augmented[rowX * stride + degrees] = desiredKicks[target].x;
+      augmented[rowY * stride + degrees] = desiredKicks[target].y;
+    }
+
+    for (let column = 0; column &lt; degrees; column++) {
+      let pivot = column;
+      let pivotMagnitude = Math.abs(augmented[pivot * stride + column]);
+      for (let row = column + 1; row &lt; degrees; row++) {
+        const magnitude = Math.abs(augmented[row * stride + column]);
+        if (magnitude &gt; pivotMagnitude) {
+          pivot = row;
+          pivotMagnitude = magnitude;
+        }
+      }
+      if (pivot !== column) {
+        for (let entry = column; entry &lt;= degrees; entry++) {
+          const a = column * stride + entry;
+          const b = pivot * stride + entry;
+          const temporary = augmented[a];
+          augmented[a] = augmented[b];
+          augmented[b] = temporary;
+        }
+      }
+      const pivotValue = augmented[column * stride + column];
+      if (Math.abs(pivotValue) &lt; 1e-10) continue;
+      for (let entry = column; entry &lt;= degrees; entry++) {
+        augmented[column * stride + entry] /= pivotValue;
+      }
+      for (let row = 0; row &lt; degrees; row++) {
+        if (row === column) continue;
+        const factor = augmented[row * stride + column];
+        if (Math.abs(factor) &lt; 1e-14) continue;
+        for (let entry = column; entry &lt;= degrees; entry++) {
+          augmented[row * stride + entry] -= factor * augmented[column * stride + entry];
+        }
+      }
+    }
+    const kickCoefficients = new Float64Array(degrees);
+    for (let i = 0; i &lt; degrees; i++) kickCoefficients[i] = augmented[i * stride + degrees];
+
+    for (let y = 0; y &lt; N; y++) {
+      const py = (y + 0.5) / N;
+      for (let x = 0; x &lt; N; x++) {
+        const px = (x + 0.5) / N;
+        const id = y * N + x;
+        let ux = 0;
+        let vy = 0;
+        for (let source = 0; source &lt; droplets.length; source++) {
+          let ddx = px - droplets[source].x;
+          let ddy = py - droplets[source].y;
+          ddx -= Math.round(ddx);
+          ddy -= Math.round(ddy);
+          const gaussianWeight = Math.exp(-0.5 * (ddx * ddx + ddy * ddy) / kickWidth2);
+          const coefficientX = kickCoefficients[2 * source];
+          const coefficientY = kickCoefficients[2 * source + 1];
+          const streamLinear = coefficientX * ddy - coefficientY * ddx;
+          ux += (coefficientX - streamLinear * ddy / kickWidth2) * gaussianWeight;
+          vy += (coefficientY + streamLinear * ddx / kickWidth2) * gaussianWeight;
+        }
+        for (const mode of modes) {
+          const c = Math.cos(TAU * (mode.mx * px + mode.my * py) + mode.phase);
+          ux += 0.08 * mode.amplitude * TAU * mode.my * c;
+          vy -= 0.08 * mode.amplitude * TAU * mode.mx * c;
+        }
+        u[id] = ux;
+        v[id] = vy;
+      }
+    }
+
+    let velocityEnergy = 0;
+    for (let i = 0; i &lt; SIZE; i++) velocityEnergy += u[i] * u[i] + v[i] * v[i];
+    const scale = params.kick / Math.max(Math.sqrt(velocityEnergy / SIZE), 1e-12);
+    lastMaxSpeed = 0;
+    for (let i = 0; i &lt; SIZE; i++) {
+      u[i] *= scale;
+      v[i] *= scale;
+      lastMaxSpeed = Math.max(lastMaxSpeed, Math.hypot(u[i], v[i]));
+    }
+
+    simTime = 0;
+    stepCount = 0;
+    lastStatusAt = performance.now();
+    initialOil = oilFraction();
+    lastRegions = countRegions();
+    refs.error.hidden = true;
+    updateRunButton();
+    updateStatus();
+    render();
+  }
+
+  function buildSpatialTerms(dt) {
+    const epsilon2 = params.epsilon * params.epsilon;
+    for (let id = 0; id &lt; SIZE; id++) {
+      const p = phi[id];
+      const laplacian = (phi[left[id]] + phi[right[id]] + phi[up[id]] + phi[down[id]] - 4 * p) * INV_DX2;
+      nonlinear[id] = p * p * p - p;
+      mu[id] = nonlinear[id] - epsilon2 * laplacian;
+    }
+
+    for (let id = 0; id &lt; SIZE; id++) {
+      const l = left[id];
+      const r = right[id];
+      const t = up[id];
+      const b = down[id];
+      const ux = u[id];
+      const vy = v[id];
+      const duDx = (u[r] - u[l]) * INV_2DX;
+      const duDy = (u[b] - u[t]) * INV_2DX;
+      const dvDx = (v[r] - v[l]) * INV_2DX;
+      const dvDy = (v[b] - v[t]) * INV_2DX;
+      const dMuDx = (mu[r] - mu[l]) * INV_2DX;
+      const dMuDy = (mu[b] - mu[t]) * INV_2DX;
+      const advU = ux * duDx + vy * duDy;
+      const advV = ux * dvDx + vy * dvDy;
+      const capillaryX = -params.tension * phi[id] * dMuDx;
+      const capillaryY = -params.tension * phi[id] * dMuDy;
+      uStar[id] = ux + dt * (-advU + capillaryX);
+      vStar[id] = vy + dt * (-advV + capillaryY);
+      advPhi[id] = (
+        u[r] * phi[r] - u[l] * phi[l] +
+        v[b] * phi[b] - v[t] * phi[t]
+      ) * INV_2DX;
+    }
+  }
+
+  function projectVelocity(dt) {
+    forwardReal(uStar, rU, iU);
+    forwardReal(vStar, rV, iV);
+
+    for (let id = 0; id &lt; SIZE; id++) {
+      if (!dealiased[id]) {
+        rU[id] = 0; iU[id] = 0; rV[id] = 0; iV[id] = 0;
+        continue;
+      }
+      if (k2[id] === 0) {
+        rU[id] = 0; iU[id] = 0; rV[id] = 0; iV[id] = 0;
+        continue;
+      }
+      const inverseK2 = 1 / k2[id];
+      const dotReal = kx[id] * rU[id] + ky[id] * rV[id];
+      const dotImag = kx[id] * iU[id] + ky[id] * iV[id];
+      const damping = 1 / (1 + dt * params.viscosity * laplacianSymbol[id]);
+      rU[id] = (rU[id] - kx[id] * dotReal * inverseK2) * damping;
+      iU[id] = (iU[id] - kx[id] * dotImag * inverseK2) * damping;
+      rV[id] = (rV[id] - ky[id] * dotReal * inverseK2) * damping;
+      iV[id] = (iV[id] - ky[id] * dotImag * inverseK2) * damping;
+    }
+
+    inverseReal(rU, iU, u);
+    inverseReal(rV, iV, v);
+  }
+
+  function advancePhase(dt) {
+    forwardReal(phi, rPhi, iPhi);
+    forwardReal(nonlinear, rNonlinear, iNonlinear);
+    forwardReal(advPhi, rAdv, iAdv);
+    const epsilon2 = params.epsilon * params.epsilon;
+
+    for (let id = 0; id &lt; SIZE; id++) {
+      if (!dealiased[id]) {
+        rNonlinear[id] = 0; iNonlinear[id] = 0;
+        rAdv[id] = 0; iAdv[id] = 0;
+      }
+      if (laplacianSymbol[id] === 0) {
+        iPhi[id] = 0;
+        continue;
+      }
+      const relaxation = params.mobility * laplacianSymbol[id] + params.reaction;
+      const denominator = 1 + dt * relaxation * epsilon2 * laplacianSymbol[id];
+      rPhi[id] = (rPhi[id] - dt * rAdv[id] - dt * relaxation * rNonlinear[id]) / denominator;
+      iPhi[id] = (iPhi[id] - dt * iAdv[id] - dt * relaxation * iNonlinear[id]) / denominator;
+    }
+
+    inverseReal(rPhi, iPhi, phi);
+    let mean = 0;
+    for (let i = 0; i &lt; SIZE; i++) mean += phi[i];
+    const correction = targetMeanPhi - mean / SIZE;
+    for (let i = 0; i &lt; SIZE; i++) phi[i] += correction;
+  }
+
+  function takeStep() {
+    const cflDt = 0.22 * DX / Math.max(lastMaxSpeed, 0.15);
+    const dt = Math.min(BASE_DT, cflDt);
+    buildSpatialTerms(dt);
+    projectVelocity(dt);
+    advancePhase(dt);
+
+    lastMaxSpeed = 0;
+    let finite = true;
+    for (let i = 0; i &lt; SIZE; i++) {
+      const speed = Math.hypot(u[i], v[i]);
+      lastMaxSpeed = Math.max(lastMaxSpeed, speed);
+      if (!Number.isFinite(phi[i]) || !Number.isFinite(speed) || Math.abs(phi[i]) &gt; 8 || speed &gt; 40) {
+        finite = false;
+        break;
+      }
+    }
+
+    if (!finite) {
+      running = false;
+      initialize();
+      running = false;
+      updateRunButton();
+      refs.error.textContent = &#x27;That parameter combination became numerically stiff; the field was reinitialized and paused.&#x27;;
+      refs.error.hidden = false;
+      return false;
+    }
+
+    simTime += dt;
+    stepCount++;
+    return true;
+  }
+
+  function oilFraction() {
+    let total = 0;
+    for (let i = 0; i &lt; SIZE; i++) total += 0.5 * (phi[i] + 1);
+    return total / SIZE;
+  }
+
+  function rmsSpeed() {
+    let total = 0;
+    for (let i = 0; i &lt; SIZE; i++) total += u[i] * u[i] + v[i] * v[i];
+    return Math.sqrt(total / SIZE);
+  }
+
+  function countRegions() {
+    visited.fill(0);
+    let regions = 0;
+    for (let start = 0; start &lt; SIZE; start++) {
+      if (visited[start] || phi[start] &lt;= 0) continue;
+      let head = 0;
+      let tail = 0;
+      let cells = 0;
+      queue[tail++] = start;
+      visited[start] = 1;
+      while (head &lt; tail) {
+        const id = queue[head++];
+        cells++;
+        const a = left[id];
+        const b = right[id];
+        const c = up[id];
+        const d = down[id];
+        if (!visited[a] &amp;&amp; phi[a] &gt; 0) { visited[a] = 1; queue[tail++] = a; }
+        if (!visited[b] &amp;&amp; phi[b] &gt; 0) { visited[b] = 1; queue[tail++] = b; }
+        if (!visited[c] &amp;&amp; phi[c] &gt; 0) { visited[c] = 1; queue[tail++] = c; }
+        if (!visited[d] &amp;&amp; phi[d] &gt; 0) { visited[d] = 1; queue[tail++] = d; }
+      }
+      if (cells &gt;= 3) regions++;
+    }
+    return regions;
+  }
+
+  const colorProbe = document.createElement(&#x27;span&#x27;);
+  colorProbe.setAttribute(&#x27;aria-hidden&#x27;, &#x27;true&#x27;);
+  colorProbe.style.position = &#x27;absolute&#x27;;
+  colorProbe.style.visibility = &#x27;hidden&#x27;;
+  colorProbe.style.pointerEvents = &#x27;none&#x27;;
+  root.appendChild(colorProbe);
+  const colorCanvas = document.createElement(&#x27;canvas&#x27;);
+  colorCanvas.width = 1;
+  colorCanvas.height = 1;
+  const colorCtx = colorCanvas.getContext(&#x27;2d&#x27;);
+  let palette = null;
+
+  function resolveThemeColor(token, fallback) {
+    colorProbe.style.color = `var(${token}, var(${fallback}))`;
+    const computed = getComputedStyle(colorProbe).color;
+    colorCtx.clearRect(0, 0, 1, 1);
+    colorCtx.fillStyle = computed;
+    colorCtx.fillRect(0, 0, 1, 1);
+    const pixel = colorCtx.getImageData(0, 0, 1, 1).data;
+    return [pixel[0], pixel[1], pixel[2]];
+  }
+
+  function refreshPalette() {
+    palette = {
+      oil: resolveThemeColor(&#x27;--viz-series-1&#x27;, &#x27;--foreground&#x27;),
+      water: resolveThemeColor(&#x27;--viz-series-2&#x27;, &#x27;--muted&#x27;),
+      interface: resolveThemeColor(&#x27;--viz-series-3&#x27;, &#x27;--accent&#x27;),
+      vector: resolveThemeColor(&#x27;--foreground&#x27;, &#x27;--foreground&#x27;)
+    };
+  }
+
+  function drawVectors() {
+    if (!refs.vectors.checked) return;
+    const width = canvas.width;
+    const stride = 8;
+    const spacing = width * stride / N;
+    const arrowMax = spacing * 0.38;
+    ctx.save();
+    ctx.strokeStyle = `rgba(${palette.vector[0]}, ${palette.vector[1]}, ${palette.vector[2]}, 0.72)`;
+    ctx.lineWidth = Math.max(1, width / 640);
+    ctx.lineCap = &#x27;round&#x27;;
+    ctx.lineJoin = &#x27;round&#x27;;
+    for (let y = stride / 2; y &lt; N; y += stride) {
+      for (let x = stride / 2; x &lt; N; x += stride) {
+        const id = Math.floor(y) * N + Math.floor(x);
+        const speed = Math.hypot(u[id], v[id]);
+        if (speed &lt; 1e-5) continue;
+        const length = arrowMax * Math.min(1, speed / Math.max(lastMaxSpeed * 0.65, 1e-6));
+        const dx = u[id] / speed * length;
+        const dy = v[id] / speed * length;
+        const cx = x / N * width;
+        const cy = y / N * width;
+        const x0 = cx - dx * 0.5;
+        const y0 = cy - dy * 0.5;
+        const x1 = cx + dx * 0.5;
+        const y1 = cy + dy * 0.5;
+        const head = Math.min(length * 0.34, spacing * 0.14);
+        const angle = Math.atan2(dy, dx);
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.lineTo(x1 - head * Math.cos(angle - 0.55), y1 - head * Math.sin(angle - 0.55));
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 - head * Math.cos(angle + 0.55), y1 - head * Math.sin(angle + 0.55));
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function render() {
+    if (!palette) refreshPalette();
+    const pixels = fieldImage.data;
+    for (let i = 0; i &lt; SIZE; i++) {
+      const phase = Math.max(-1, Math.min(1, phi[i]));
+      const oilWeight = 0.5 * (phase + 1);
+      const interfaceWeight = 0.58 * Math.exp(-7 * phase * phase);
+      const baseR = palette.water[0] * (1 - oilWeight) + palette.oil[0] * oilWeight;
+      const baseG = palette.water[1] * (1 - oilWeight) + palette.oil[1] * oilWeight;
+      const baseB = palette.water[2] * (1 - oilWeight) + palette.oil[2] * oilWeight;
+      const p = i * 4;
+      pixels[p] = baseR * (1 - interfaceWeight) + palette.interface[0] * interfaceWeight;
+      pixels[p + 1] = baseG * (1 - interfaceWeight) + palette.interface[1] * interfaceWeight;
+      pixels[p + 2] = baseB * (1 - interfaceWeight) + palette.interface[2] * interfaceWeight;
+      pixels[p + 3] = 255;
+    }
+    fieldCtx.putImageData(fieldImage, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(fieldCanvas, 0, 0, canvas.width, canvas.height);
+    drawVectors();
+  }
+
+  function updateStatus() {
+    const oil = oilFraction();
+    lastRegions = countRegions();
+    const drift = (oil - initialOil) * 100;
+    const driftText = `${drift &gt;= 0 ? &#x27;+&#x27; : &#x27;&#x27;}${drift.toFixed(3)}%`;
+    refs.time.textContent = simTime.toFixed(2);
+    refs.area.textContent = `${(oil * 100).toFixed(1)}% (${driftText})`;
+    refs.regions.textContent = String(lastRegions);
+    refs.speed.textContent = rmsSpeed().toFixed(3);
+    canvas.setAttribute(&#x27;aria-label&#x27;, `Periodic oil-water phase field at nondimensional time ${simTime.toFixed(2)}. ${lastRegions} oil regions remain from 20 initial droplets. Oil area is ${(oil * 100).toFixed(1)} percent.`);
+  }
+
+  function updateRunButton() {
+    refs.run.textContent = running ? &#x27;Pause&#x27; : &#x27;Run&#x27;;
+  }
+
+  function resizeCanvas() {
+    const cssWidth = canvas.clientWidth;
+    if (!cssWidth) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const size = Math.max(1, Math.round(cssWidth * dpr));
+    if (canvas.width !== size || canvas.height !== size) {
+      canvas.width = size;
+      canvas.height = size;
+      render();
+    }
+  }
+
+  function bindRange(id, key, digits, restartOnChange, integer) {
+    const input = root.querySelector(`#${id}`);
+    const output = root.querySelector(`#${id}-out`);
+    const apply = () =&gt; {
+      params[key] = integer ? Math.round(Number(input.value)) : Number(input.value);
+      output.textContent = integer ? String(params[key]) : params[key].toFixed(digits);
+    };
+    input.addEventListener(&#x27;input&#x27;, () =&gt; {
+      apply();
+      if (!restartOnChange) updateStatus();
+    });
+    if (restartOnChange) input.addEventListener(&#x27;change&#x27;, initialize);
+    apply();
+  }
+
+  bindRange(&#x27;chns-mean-radius&#x27;, &#x27;meanRadius&#x27;, 3, true, false);
+  bindRange(&#x27;chns-radius-sd&#x27;, &#x27;radiusSD&#x27;, 3, true, false);
+  bindRange(&#x27;chns-epsilon&#x27;, &#x27;epsilon&#x27;, 3, true, false);
+  bindRange(&#x27;chns-kick&#x27;, &#x27;kick&#x27;, 2, true, false);
+  bindRange(&#x27;chns-tension&#x27;, &#x27;tension&#x27;, 2, false, false);
+  bindRange(&#x27;chns-viscosity&#x27;, &#x27;viscosity&#x27;, 3, false, false);
+  bindRange(&#x27;chns-mobility&#x27;, &#x27;mobility&#x27;, 4, false, false);
+  bindRange(&#x27;chns-reaction&#x27;, &#x27;reaction&#x27;, 2, false, false);
+  bindRange(&#x27;chns-rate&#x27;, &#x27;rate&#x27;, 0, false, true);
+
+  refs.run.addEventListener(&#x27;click&#x27;, () =&gt; {
+    running = !running;
+    updateRunButton();
+  });
+
+  refs.step.addEventListener(&#x27;click&#x27;, () =&gt; {
+    running = false;
+    updateRunButton();
+    if (takeStep()) {
+      updateStatus();
+      render();
+    }
+  });
+
+  refs.vectors.addEventListener(&#x27;change&#x27;, render);
+
+  const resizeObserver = new ResizeObserver(resizeCanvas);
+  resizeObserver.observe(canvas);
+  const themeObserver = new MutationObserver(() =&gt; {
+    refreshPalette();
+    render();
+  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: [&#x27;class&#x27;, &#x27;style&#x27;, &#x27;data-theme&#x27;] });
+
+  function loop(timestamp) {
+    if (!root.isConnected) {
+      resizeObserver.disconnect();
+      themeObserver.disconnect();
+      return;
+    }
+    if (running) {
+      const started = performance.now();
+      for (let i = 0; i &lt; params.rate; i++) {
+        if (!takeStep()) break;
+        if (performance.now() - started &gt; 28) break;
+      }
+      if (timestamp - lastStatusAt &gt;= 500) {
+        updateStatus();
+        lastStatusAt = timestamp;
+      }
+      render();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  refreshPalette();
+  initialize();
+  requestAnimationFrame(resizeCanvas);
+  requestAnimationFrame(loop);
+})();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

@@ -1,0 +1,800 @@
+<title>Códice del Quinto Sol</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital@1&family=Alegreya+SC:wght@600;700&display=swap">
+<style>
+/* Layout: el códice como diorama de papel recortado, centrado sobre obsidiana; debajo, controles de íconos y el camino de huellas */
+:root{
+  --bg:#120d09; --wood:#3b2a1a; --woodHi:#5a4129; --fg:#ecdcbc; --muted:#8a7658;
+  --ochre:#d6982f; --red:#b0302a; --rx:0deg; --ry:0deg;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;background:var(--bg);color:var(--fg)}
+body{background:radial-gradient(ellipse at 50% 30%,#2c1d11 0%,var(--bg) 70%) fixed,var(--bg);overflow-x:hidden}
+.wrap{min-height:100%;display:grid;place-content:center;gap:14px;padding-inline:16px;padding-block:18px}
+.scene3d{perspective:1800px}
+.codex{position:relative;width:min(calc(100vw - 32px),calc((100dvh - 120px) * 1.5),1200px);
+  padding:10px;border-radius:3px;
+  background:linear-gradient(160deg,#4a3420,#33241597 40%,#2a1d11),var(--wood);
+  box-shadow:0 50px 90px -30px #000,0 18px 30px -18px #000,inset 0 0 0 1px var(--woodHi),inset 0 2px 0 #6b4e33;
+  transform:rotateX(var(--rx)) rotateY(var(--ry));transition:transform .6s cubic-bezier(.2,.7,.2,1);transform-style:preserve-3d}
+.stage{position:relative;overflow:hidden;aspect-ratio:3/2;max-width:100%;background:#efe2c3;perspective:1800px;cursor:pointer;
+  box-shadow:inset 0 0 0 1px #00000040}
+.strip{display:flex;height:100%;transition:transform 1.3s cubic-bezier(.66,0,.3,1);transform-style:preserve-3d}
+.leaf{flex:0 0 100%;width:100%;height:100%;display:block;transition:transform 1.3s cubic-bezier(.66,0,.3,1),filter 1.3s}
+.leaf.before{transform-origin:100% 50%;transform:rotateY(34deg);filter:brightness(.5)}
+.leaf.after{transform-origin:0 50%;transform:rotateY(-34deg);filter:brightness(.5)}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(50,26,6,.38) 100%),
+  linear-gradient(90deg,rgba(60,35,10,.3),transparent 4%,transparent 96%,rgba(60,35,10,.3))}
+.bar{height:3px;background:#2a1d12;margin-top:8px;border-radius:2px;overflow:hidden}
+.prog{height:100%;width:0;background:linear-gradient(90deg,#a8701c,var(--ochre))}
+.controls{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;justify-content:center}
+.btns{display:flex;gap:8px}
+button{color:var(--fg);background:#21180f;border:1px solid #4a3725;border-radius:50%;width:42px;height:42px;
+  display:grid;place-items:center;cursor:pointer;padding:0;box-shadow:0 4px 10px -4px #000}
+button:hover{border-color:var(--ochre);color:var(--ochre)}
+button:focus-visible{outline:2px solid var(--ochre);outline-offset:2px}
+button svg{width:18px;height:18px}
+.play{background:var(--red);border-color:var(--red);color:#fff4e0;width:48px;height:48px}
+.play:hover{color:#fff4e0;filter:brightness(1.1)}
+.snd[aria-pressed="true"]{color:var(--ochre);border-color:var(--ochre)}
+.steps{display:flex;gap:2px;align-items:center}
+.steps button{width:auto;height:auto;border:0;border-radius:0;background:none;padding:2px 3px;color:#4f3d29;box-shadow:none}
+.steps button.seen{color:var(--muted)}
+.steps button.cur{color:var(--ochre)}
+.steps svg{width:18px;height:24px;display:block}
+.steps button:nth-child(odd) svg{transform:translateY(5px)}
+/* producción cinematográfica */
+.lbox{position:absolute;left:0;right:0;height:9%;background:#050302;z-index:4;pointer-events:none;transition:transform 1.6s cubic-bezier(.6,0,.2,1)}
+.lbox.top{top:0;transform:translateY(-100%)}.lbox.bot{bottom:0;transform:translateY(100%)}
+.cine .lbox{transform:none}
+#grain{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;opacity:.14;mix-blend-mode:overlay;image-rendering:pixelated}
+.leak{position:absolute;inset:-20%;z-index:2;pointer-events:none;mix-blend-mode:screen;opacity:.0;
+  background:radial-gradient(circle at 20% 30%,rgba(255,150,60,.55),transparent 35%),radial-gradient(circle at 85% 70%,rgba(255,90,40,.35),transparent 30%)}
+.card{position:absolute;inset:0;z-index:5;display:grid;place-content:center;text-align:center;gap:10px;background:#070403;color:#ecdcbc;
+  opacity:0;pointer-events:none;transition:opacity 1.4s ease}
+.card.on{opacity:1}
+.card .k{font:600 clamp(10px,1.4vw,13px)/1 "Alegreya SC",Georgia,serif;letter-spacing:.42em;color:#d6982f;text-transform:uppercase}
+.card .t{font:700 clamp(26px,5.6vw,64px)/1.05 "Alegreya SC",Georgia,serif;letter-spacing:.06em;text-wrap:balance}
+.card .s{font:italic 400 clamp(13px,1.8vw,19px)/1.3 Alegreya,Georgia,serif;color:#b39f7c}
+.card .t,.card .s,.card .k{opacity:0;transform:translateY(8px);transition:opacity 1.6s ease,transform 2.4s ease}
+.card.on .t{opacity:1;transform:none;transition-delay:.6s}.card.on .s{opacity:1;transform:none;transition-delay:1.6s}.card.on .k{opacity:1;transform:none;transition-delay:.2s}
+.card .rule{width:64px;height:2px;background:#b0302a;margin:4px auto}
+.codex:fullscreen{width:100vw;height:100vh;padding:0;display:grid;place-items:center;background:#000;transform:none}
+.codex:fullscreen .stage{width:min(100vw,150vh);cursor:none}
+.codex:fullscreen .bar{display:none}
+@media (max-width:560px){.codex{padding:5px}.steps svg{width:14px;height:20px}}
+@media (prefers-reduced-motion:reduce){.strip,.leaf,.codex{transition:none}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="fiber" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8 0.035" numOctaves="3" seed="7"/>
+      <feColorMatrix values="0 0 0 0 .42  0 0 0 0 .3  0 0 0 0 .16  0 0 0 .3 0"/>
+    </filter>
+    <filter id="stain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="3"/>
+      <feColorMatrix values="0 0 0 0 .5  0 0 0 0 .32  0 0 0 0 .12  0 0 0 -1.6 .9"/>
+    </filter>
+    <!-- profundidad: cada capa de papel proyecta sombra sobre la de atrás -->
+    <filter id="dFar" x="-5%" y="-5%" width="110%" height="115%">
+      <feColorMatrix type="matrix" values=".72 0 0 0 .25  0 .72 0 0 .22  0 0 .72 0 .17  0 0 0 1 0" result="c"/>
+      <feDropShadow in="c" dx="1.5" dy="2" stdDeviation="1.4" flood-color="#3a2410" flood-opacity=".22"/>
+    </filter>
+    <filter id="dMid" x="-5%" y="-5%" width="110%" height="115%">
+      <feColorMatrix type="matrix" values=".9 0 0 0 .08  0 .9 0 0 .07  0 0 .9 0 .05  0 0 0 1 0" result="c"/>
+      <feDropShadow in="c" dx="2.5" dy="3.5" stdDeviation="2.2" flood-color="#2e1a08" flood-opacity=".32"/>
+    </filter>
+    <filter id="dNear" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="4" dy="6" stdDeviation="3.2" flood-color="#251405" flood-opacity=".42"/>
+    </filter>
+    <filter id="dFore" x="-5%" y="-5%" width="110%" height="115%">
+      <feGaussianBlur stdDeviation=".7" result="b"/>
+      <feDropShadow in="b" dx="7" dy="10" stdDeviation="6" flood-color="#1c0f04" flood-opacity=".48"/>
+    </filter>
+    <filter id="blur3" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="3"/></filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+    <clipPath id="inner"><rect x="15" y="15" width="570" height="370"/></clipPath>
+    <linearGradient id="shd" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".12"/></linearGradient>
+    <linearGradient id="vshd" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient>
+    <radialGradient id="orb" cx=".36" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".42" stop-color="#fff" stop-opacity="0"/><stop offset=".85" stop-color="#2a1206" stop-opacity=".1"/><stop offset="1" stop-color="#2a1206" stop-opacity=".38"/></radialGradient>
+    <linearGradient id="ao" x1="0" x2="0" y1="0" y2="1"><stop offset=".55" stop-color="#3a1d06" stop-opacity="0"/><stop offset="1" stop-color="#3a1d06" stop-opacity=".3"/></linearGradient>
+    <linearGradient id="stairG" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".0"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>
+    <pattern id="water" width="40" height="24" patternUnits="userSpaceOnUse">
+      <rect width="40" height="24" fill="#2b8a9c"/>
+      <path d="M0 16 q10 -10 20 0 t20 0" stroke="#c7e6e3" stroke-width="2" fill="none"/>
+      <circle cx="10" cy="6" r="2.2" fill="#c7e6e3"/><circle cx="30" cy="20" r="1.6" fill="#c7e6e3"/>
+    </pattern>
+    <linearGradient id="waterDepth" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".3" stop-color="#0b3d48" stop-opacity="0"/><stop offset="1" stop-color="#0b3d48" stop-opacity=".45"/></linearGradient>
+    <pattern id="fret" width="32" height="20" patternUnits="userSpaceOnUse">
+      <rect width="32" height="20" fill="#b0302a"/>
+      <path d="M0 16 H5 V12 H9 V8 H13 V4 H28 V14 H19 V9 H24" stroke="#f6ead0" stroke-width="2" fill="none"/>
+    </pattern>
+    <pattern id="jade" width="22" height="20" patternUnits="userSpaceOnUse">
+      <rect width="22" height="20" fill="#d6982f"/><circle cx="11" cy="10" r="5.5" fill="#4e8c55" stroke="#1c140f" stroke-width="1.4"/><circle cx="9.5" cy="8.5" r="2" fill="#efe2c3"/>
+    </pattern>
+  </defs>
+</svg>
+
+<main class="wrap">
+  <div class="scene3d">
+    <section class="codex" id="codex" aria-label="Códice animado del Quinto Sol">
+      <div class="stage cine" id="stage"><div class="strip" id="strip"></div>
+        <div class="leak" id="leak"></div><canvas id="grain" width="180" height="120"></canvas>
+        <div class="lbox top"></div><div class="lbox bot"></div>
+        <div class="card" id="cardIn"><span class="k">Tenochtitlan · 1325 – 1521</span><span class="t">Códice del Quinto Sol</span><div class="rule"></div><span class="s">Nextlahualli · el pago de la deuda</span></div>
+        <div class="card" id="cardOut"><span class="k">Ollin</span><span class="t">El Sol sigue andando</span><div class="rule"></div><span class="s">Animación inspirada en los códices Borbónico, Magliabechiano y Florentino</span></div>
+      </div>
+      <div class="bar"><div class="prog" id="prog"></div></div>
+    </section>
+  </div>
+  <nav class="controls" aria-label="Lectura del códice">
+    <div class="btns">
+      <button id="prev" type="button" aria-label="Escena anterior"><svg viewBox="0 0 20 20"><path d="M13 3 L6 10 L13 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button id="play" class="play" type="button" aria-label="Pausa"></button>
+      <button id="next" type="button" aria-label="Escena siguiente"><svg viewBox="0 0 20 20"><path d="M7 3 L14 10 L7 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button id="fs" type="button" aria-label="Pantalla completa"><svg viewBox="0 0 20 20"><path d="M3 8 V3 H8 M12 3 H17 V8 M17 12 V17 H12 M8 17 H3 V12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button id="snd" class="snd" type="button" aria-label="Tambores" aria-pressed="false"><svg viewBox="0 0 20 20"><path d="M3 8 h3 l5 -4 v12 l-5 -4 h-3 z" fill="currentColor"/><path id="sndWave" d="M14 7 q2 3 0 6 M16 5 q4 5 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path id="sndOff" d="M14 7 l5 6 M19 7 l-5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="steps" id="steps"></div>
+  </nav>
+</main>
+
+<script>
+const C={ink:'#1c140f',paper:'#efe2c3',red:'#b0302a',blue:'#2b8a9c',ochre:'#d6982f',jade:'#4e8c55',
+  skin:'#c88a58',soot:'#2b2420',white:'#fbf5e6',stone:'#c9b088',sand:'#e3cc9a',brown:'#8d5a2b',night:'#141833'};
+const o=`stroke="${C.ink}" stroke-width="2" stroke-linejoin="round"`;
+const tone=(hex,f)=>'#'+[1,3,5].map(i=>Math.max(0,Math.min(255,Math.round(parseInt(hex.slice(i,i+2),16)*f))).toString(16).padStart(2,'0')).join('');
+
+/* =============== piezas del códice =============== */
+const limb=(d,w,c)=>`<path d="${d}" fill="none" stroke="${C.ink}" stroke-width="${w+4}" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#000" stroke-opacity=".14" stroke-width="${w*.35}" stroke-linecap="round" stroke-linejoin="round" transform="translate(-1.6 0)"/>`;
+// cuerpo en volumen: rectángulo frontal + cara lateral + tapa
+const slab=(x,y,w,h,fill,dx=7,dy=5,sw=1.4)=>`<path d="M${x} ${y} l${dx} ${-dy} h${w} l${-dx} ${dy}Z" fill="${tone(fill,1.1)}" ${o} stroke-width="${sw*.8}"/><path d="M${x+w} ${y} l${dx} ${-dy} v${h} l${-dx} ${dy}Z" fill="${tone(fill,.7)}" ${o} stroke-width="${sw*.8}"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" ${o} stroke-width="${sw}"/>`;
+
+function person(p){
+  const sk=p.skin||C.skin, bd=p.body||sk, s=p.s||1, fl=p.flip?-1:1;
+  const LEGS={stand:[[-6,-46,-8,-23,-8,0],[6,-46,8,-23,10,0]],
+              walk:[[-6,-46,-12,-23,-20,0],[6,-46,12,-24,16,0]],
+              climb:[[-6,-46,-10,-22,-14,0],[6,-46,22,-36,20,-12]]};
+  const lg=LEGS[p.legs||'stand'];
+  const leg=a=>limb(`M${a[0]} ${a[1]} L${a[2]} ${a[3]} L${a[4]} ${a[5]}`,9,sk)+`<path d="M${a[4]-6} ${a[5]+1} h17 q2 -6 -4 -7 h-13 z" fill="${C.ochre}" ${o}/>`;
+  const arm=pts=>pts?limb('M2 -78 '+pts.map(q=>'L'+q.join(' ')).join(' '),8,sk)+`<circle cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="4.5" fill="${sk}" ${o}/>`:'';
+  let g='';
+  if(p.shadow!==false) g+=`<ellipse cx="${fl*4}" cy="1" rx="26" ry="5" fill="#2a1406" opacity=".32" filter="url(#blur3)"/>`;
+  if(p.helm==='priest') g+=`<path d="M-17 -118 Q-34 -90 -26 -64 L-12 -70 L-12 -86 Z" fill="${C.soot}" ${o}/>`;
+  if(p.plume) g+=`<path d="M-14 -122 C-40 -150 -54 -120 -60 -96 M-10 -126 C-30 -168 -50 -150 -58 -130 M-4 -128 C-10 -170 -30 -176 -40 -160" fill="none" stroke="${C.ink}" stroke-width="9" stroke-linecap="round"/><path d="M-14 -122 C-40 -150 -54 -120 -60 -96 M-10 -126 C-30 -168 -50 -150 -58 -130 M-4 -128 C-10 -170 -30 -176 -40 -160" fill="none" stroke="${p.plume}" stroke-width="5" stroke-linecap="round"/><path d="M-14 -122 C-40 -150 -54 -120 -60 -96" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.5"/>`;
+  if(p.cape) g+=`<path id="${p.id?p.id+'-cape':''}" d="M-12 -84 L-30 -36 L-4 -40 Z" fill="${tone(p.cape,.85)}" ${o}/>`;
+  g+=arm(p.armB);
+  if(p.shield&&p.armB){const h=p.armB.at(-1);g+=`<circle cx="${h[0]}" cy="${h[1]}" r="17" fill="${C.white}" ${o}/><path d="M${h[0]-17} ${h[1]} h34" stroke="${C.red}" stroke-width="5"/><circle cx="${h[0]}" cy="${h[1]-7}" r="3" fill="${C.jade}"/><circle cx="${h[0]}" cy="${h[1]+7}" r="3" fill="${C.jade}"/><circle cx="${h[0]}" cy="${h[1]}" r="17" fill="url(#orb)"/>${[-10,0,10].map(x=>`<path d="M${h[0]+x} ${h[1]+16} l-2 12 l4 0 z" fill="${C.ochre}" ${o} stroke-width="1"/>`).join('')}`;}
+  g+=leg(lg[0])+leg(lg[1]);
+  const torso='M-13 -84 L13 -84 L15 -46 L-15 -46 Z';
+  g+=`<path d="${torso}" fill="${bd}" ${o}/>`;
+  if(p.stripes) g+=`<path d="M-13 -74 H13 M-14 -64 H14 M-14 -55 H14" stroke="${C.red}" stroke-width="3.5"/>`;
+  if(p.sores) g+=[[-6,-76],[5,-66],[-4,-58],[8,-78],[2,-54]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.3" fill="${C.red}"/>`).join('');
+  if(p.feathers) g+=`<path d="M-13 -84 L13 -84 L14 -70 L-14 -70Z" fill="${p.feathers===true?C.jade:p.feathers}" ${o}/>`;
+  g+=`<path d="${torso}" fill="url(#shd)"/>`;
+  if(p.necklace) g+=`<path d="M-10 -84 Q0 -70 10 -84" fill="none" stroke="${C.jade}" stroke-width="4"/><circle cx="0" cy="-74" r="3" fill="${C.jade}" ${o} stroke-width="1"/>`;
+  g+=`<rect x="-16" y="-52" width="32" height="8" fill="${C.white}" ${o}/><path d="M8 -44 L18 -44 L15 -28 L9 -28 Z" fill="${C.white}" ${o}/><path d="M9.6 -33 L15.6 -33 L15 -28 L9 -28Z" fill="${C.red}"/><rect x="-16" y="-52" width="32" height="8" fill="url(#vshd)"/>`;
+  const face=p.face||sk, faceD='M-16 -84 L-16 -112 Q-16 -124 0 -124 L14 -124 Q20 -124 20 -116 L20 -108 L26 -101 L20 -98 L20 -92 Q20 -84 12 -84 Z';
+  g+=`<path d="${faceD}" fill="${face}" ${o}/><path d="${faceD}" fill="url(#shd)" opacity=".8"/>`;
+  g+=`<path d="M-17 -86 L-17 -114 Q-17 -127 2 -127 L17 -127 L17 -119 L3 -119 Q-5 -119 -5 -111 L-5 -86 Z" fill="${C.ink}"/><path d="M-12 -120 Q-4 -125 10 -124" stroke="#fff" stroke-opacity=".25" stroke-width="1.5" fill="none"/>`;
+  if(p.paint) g+=`<rect x="-4" y="-112" width="24" height="8" fill="${p.paint}"/>`;
+  g+=`<ellipse cx="10" cy="-108" rx="4.5" ry="2.8" fill="${C.white}" ${o} stroke-width="1.4"/><circle cx="11" cy="-108" r="1.5" fill="${C.ink}"/>`;
+  g+=`<path d="M13 -92 H20" stroke="${C.ink}" stroke-width="1.6"/><circle cx="-1" cy="-99" r="4.6" fill="${C.jade}" ${o} stroke-width="1.5"/><circle cx="-2.4" cy="-100.5" r="1.4" fill="#fff" opacity=".6"/>`;
+  if(p.down) g+=`<g id="${p.id?p.id+'-down':''}">`+[[-12,-126],[-2,-130],[8,-129],[-15,-116],[15,-131]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="3.6" fill="${C.white}" ${o} stroke-width="1.2"/>`).join('')+`</g>`;
+  if(p.helm==='priest') g+=`<circle cx="-11" cy="-108" r="4" fill="${C.red}"/>`;
+  if(p.helm==='eagle') g+=`<path d="M-20 -110 Q-14 -142 16 -136 L36 -124 L22 -120 L20 -114 L-6 -114 L-12 -84 L-20 -84 Z" fill="${C.ochre}" ${o}/><path d="M-20 -110 Q-14 -142 16 -136 L36 -124 L22 -120 L20 -114 L-6 -114 L-12 -84 L-20 -84 Z" fill="url(#vshd)"/><path d="M20 -88 L34 -86 L20 -81 Z" fill="${C.ochre}" ${o}/><circle cx="6" cy="-128" r="3" fill="${C.ink}"/><path d="M-18 -128 l-14 -14 M-16 -120 l-18 -6 M-18 -112 l-16 2" stroke="${C.brown}" stroke-width="4" stroke-linecap="round"/>`;
+  if(p.helm==='jaguar') g+=`<path d="M-20 -110 Q-16 -140 14 -134 L28 -122 L20 -116 L-6 -114 L-12 -84 L-20 -84 Z" fill="${C.ochre}" ${o}/><path d="M-20 -110 Q-16 -140 14 -134 L28 -122 L20 -116 L-6 -114 L-12 -84 L-20 -84 Z" fill="url(#vshd)"/><circle cx="-8" cy="-128" r="2.4" fill="${C.ink}"/><circle cx="4" cy="-130" r="2.4" fill="${C.ink}"/><circle cx="-14" cy="-100" r="2.4" fill="${C.ink}"/><path d="M14 -122 l4 6 l3 -6" fill="${C.white}" ${o} stroke-width="1"/><path d="M-6 -134 l2 -10 l6 8" fill="${C.ochre}" ${o} stroke-width="1.3"/>`;
+  if(p.helm==='huitzi') g+=`<path d="M-20 -112 Q-14 -144 14 -134 L20 -126 L-6 -116 L-12 -84 L-20 -84 Z" fill="${C.blue}" ${o}/><path d="M-20 -112 Q-14 -144 14 -134 L20 -126 L-6 -116 L-12 -84 L-20 -84 Z" fill="url(#vshd)"/><path d="M16 -131 L46 -128 L18 -124 Z" fill="${C.ink}"/><path d="M-18 -134 q-6 -16 6 -22 M-12 -136 q0 -18 12 -20" stroke="${C.jade}" stroke-width="5" fill="none" stroke-linecap="round"/><rect x="0" y="-104" width="20" height="4" fill="${C.ochre}"/>`;
+  if(p.helm==='ehecatl') g+=`<path d="M-15 -124 L2 -172 L18 -124 Z" fill="${C.ochre}" ${o}/><path d="M-15 -124 L2 -172 L18 -124 Z" fill="url(#shd)"/>${[[-2,-150],[6,-140],[-6,-134],[4,-160],[10,-130]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.4" fill="${C.ink}"/>`).join('')}<path d="M16 -102 L38 -97 Q38 -86 31 -86 L16 -86 Z" fill="${C.red}" ${o}/>`;
+  g+=`<g id="${p.id?p.id+'-arm':''}">${arm(p.armF)}</g>`;
+  if(p.extra) g+=p.extra;
+  return `<g id="${p.id||''}" transform="translate(${p.x||0} ${p.y||0})${p.rot?` rotate(${p.rot})`:''}"><g transform="scale(${fl*s} ${s})">${g}</g></g>`;
+}
+
+function tecpatl(l){
+  return `<path d="M${-l/2} 0 Q0 ${-l*.34} ${l/2} 0 Q0 ${l*.34} ${-l/2} 0Z" fill="${C.white}" ${o}/>
+  <path d="M${-l/2} 0 Q0 ${-l*.34} ${l/2} 0 Z" fill="${C.red}" ${o}/>
+  <path d="M${-l*.3} ${-l*.08} Q0 ${-l*.22} ${l*.3} ${-l*.08}" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.5"/>
+  <circle cx="${l*.14}" cy="${-l*.07}" r="${l*.05}" fill="${C.white}" ${o} stroke-width="1"/>
+  <path d="M${l*.05} 0 l${l*.05} ${l*.07} l${l*.05} ${-l*.07} l${l*.05} ${l*.07} l${l*.05} ${-l*.07}" fill="${C.white}" ${o} stroke-width="1.2"/>`;
+}
+const HEART='M0 -16 C13 -18 20 -4 14 8 C9 17 3 20 0 25 C-3 20 -9 17 -14 8 C-20 -4 -12 -18 0 -16Z';
+function heart(){
+  return `<path d="${HEART}" fill="${C.red}" ${o}/>
+  <rect x="-10" y="-25" width="6" height="11" fill="${C.red}" ${o} stroke-width="1.5"/><rect x="-2" y="-29" width="6" height="14" fill="${C.red}" ${o} stroke-width="1.5"/><rect x="6" y="-24" width="5" height="10" fill="${C.red}" ${o} stroke-width="1.5"/>
+  <path d="${HEART}" fill="url(#orb)"/>
+  <path d="M-8 -6 Q-6 -12 0 -12" stroke="${C.white}" stroke-width="2.5" fill="none" opacity=".75" stroke-linecap="round"/>`;
+}
+function sun(id,r,claws=false){
+  let rays='';
+  for(let i=0;i<16;i++){
+    const a=i*Math.PI/8, big=i%2===0, R=big?r:r*.84, b=r*.64, w=big?.2:.12;
+    const p=(ang,rad)=>`${(Math.cos(ang)*rad).toFixed(1)} ${(Math.sin(ang)*rad).toFixed(1)}`;
+    const c=big?C.red:C.ochre;
+    rays+=`<path d="M${p(a-w,b)} L${p(a,R)} L${p(a+w,b)} Z" fill="${c}" ${o}/><path d="M${p(a,b)} L${p(a,R)} L${p(a+w,b)} Z" fill="${tone(c,.75)}"/>`;
+    if(big) rays+=`<circle cx="${(Math.cos(a)*r*.74).toFixed(1)}" cy="${(Math.sin(a)*r*.74).toFixed(1)}" r="${r*.035}" fill="${C.white}"/>`;
+  }
+  let dots='';for(let i=0;i<20;i++){const a=i*Math.PI/10;dots+=`<circle cx="${(Math.cos(a)*r*.565).toFixed(1)}" cy="${(Math.sin(a)*r*.565).toFixed(1)}" r="${r*.03}" fill="${C.jade}"/>`}
+  const claw=k=>`<g id="${id}-claw${k}" transform="translate(${k*r*.33} ${r*.02}) scale(${k} 1)"><path d="M0 0 C${r*.08} ${-r*.12} ${r*.18} ${-r*.1} ${r*.16} ${r*.04} L${r*.1} ${r*.1} Z" fill="${C.ochre}" ${o} stroke-width="1.4"/><g transform="translate(${r*.1} ${r*.12}) scale(${r*.0045})">${heart()}</g><path d="M${r*.04} ${-r*.04} l${-r*.05} ${r*.03} M${r*.1} ${-r*.08} l${-r*.02} ${-r*.05} M${r*.16} ${-r*.02} l${r*.05} ${-r*.02}" stroke="${C.ink}" stroke-width="2.4" stroke-linecap="round"/></g>`;
+  return `<g id="${id}"><circle r="${r*.9}" fill="${C.ochre}" opacity=".35" filter="url(#glow)"/><g id="${id}-rays">${rays}</g>
+   <circle r="${r*.65}" fill="${C.ochre}" ${o}/><circle r="${r*.52}" fill="${C.white}" ${o}/>${dots}<circle r="${r*.47}" fill="${C.red}" ${o}/>
+   <circle r="${r*.38}" fill="${C.ochre}" ${o}/>
+   ${claws?claw(-1)+claw(1):''}
+   <path d="M${-r*.2} ${-r*.1} q${r*.08} ${-r*.07} ${r*.15} 0 M${r*.05} ${-r*.1} q${r*.08} ${-r*.07} ${r*.15} 0" stroke="${C.ink}" stroke-width="2.4" fill="none"/>
+   <path d="M0 ${-r*.06} v${r*.11}" stroke="${C.ink}" stroke-width="2"/>
+   <rect x="${-r*.11}" y="${r*.09}" width="${r*.22}" height="${r*.07}" rx="${r*.03}" fill="${C.ink}"/>
+   <g id="${id}-tongue" transform="translate(0 ${r*.27}) rotate(90)">${tecpatl(r*.26)}</g>
+   <circle r="${r*.65}" fill="url(#orb)"/>
+  </g>`;
+}
+const flower=()=>`<circle cx="0" cy="-6" r="5" fill="${C.red}" ${o} stroke-width="1.4"/><circle cx="6" cy="0" r="5" fill="${C.white}" ${o} stroke-width="1.4"/><circle cx="0" cy="6" r="5" fill="${C.red}" ${o} stroke-width="1.4"/><circle cx="-6" cy="0" r="5" fill="${C.white}" ${o} stroke-width="1.4"/><circle r="3.5" fill="${C.ochre}" ${o} stroke-width="1.2"/><circle r="11" fill="url(#orb)"/>`;
+const VD='M0 0 C4 -14 22 -16 24 -4 C25 5 14 8 12 1 C11 -3 16 -4 17 -1';
+const voluta=(c=C.blue,fl=false)=>`<path d="${VD}" fill="none" stroke="${C.ink}" stroke-width="6" stroke-linecap="round"/><path d="${VD}" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round"/>${fl?`<g transform="translate(24 -14) scale(.55)">${flower()}</g>`:''}`;
+const starEye=(x,y,r=6,id='')=>`<g id="${id}" transform="translate(${x} ${y})"><circle r="${r*1.8}" fill="#fff6d0" opacity=".25" filter="url(#blur3)"/><circle r="${r}" fill="${C.white}" ${o} stroke-width="1.4"/><circle r="${r*.5}" fill="${C.red}"/><circle r="${r*.2}" fill="${C.ink}"/></g>`;
+function skyBand(h=30,n=9,pre=''){let s=`<rect x="-40" y="0" width="680" height="${15+h}" fill="${C.soot}"/><path d="M-40 ${15+h} H640" stroke="${C.ink}" stroke-width="2"/>`;for(let i=0;i<n;i++)s+=starEye(42+i*(516/(n-1)),15+h/2+(i%2?4:-4),h*.2,pre?pre+i:'');return s}
+const cloud=(id,s=1)=>`<g id="${id}"><g transform="scale(${s})"><path d="M-34 4 Q-40 -14 -22 -16 Q-18 -32 0 -28 Q12 -40 26 -26 Q44 -24 38 4 Z" fill="${C.white}" stroke="${C.blue}" stroke-width="2.5"/><path d="M-34 4 Q-40 -14 -22 -16 Q-18 -32 0 -28 Q12 -40 26 -26 Q44 -24 38 4 Z" fill="url(#vshd)"/><path d="M-12 -6 q6 -10 14 -2 q-4 6 -8 1 M12 -10 q6 -8 12 0" fill="none" stroke="${C.blue}" stroke-width="2"/></g></g>`;
+const smokes=(p,n)=>Array.from({length:n},(_,i)=>`<g id="${p}${i}" opacity="0"><path d="M0 0 c-9 -4 -7 -17 4 -17 c11 0 13 11 4 14 c-5 2 -9 -3 -4 -5" fill="${C.white}" stroke="#7d8790" stroke-width="2"/></g>`).join('');
+function smokeU(p,n,x,y,t,rise=70,speed=.28,drift=12,mul=1){for(let i=0;i<n;i++){const ph=((t*speed+i/n)%1+1)%1,el=$(p+i);if(!el)continue;
+  el.setAttribute('transform',`translate(${(x+Math.sin(ph*5+i*2)*6+ph*drift).toFixed(1)} ${(y-ph*rise).toFixed(1)}) scale(${(.4+ph*.8).toFixed(2)})`);el.setAttribute('opacity',(Math.sin(ph*Math.PI)*.95*mul).toFixed(2));}}
+const brazier=id=>`<ellipse cx="0" cy="40" rx="30" ry="40" fill="#ffb347" opacity=".0"/><path d="M-14 0 L-8 -22 L8 -22 L14 0 Z" fill="${C.stone}" ${o}/><path d="M-14 0 L-8 -22 L8 -22 L14 0 Z" fill="url(#shd)"/><path d="M-12 -8 h24" stroke="${C.red}" stroke-width="3"/><path d="M-20 -22 Q0 -8 20 -22 Z" fill="${C.ochre}" ${o}/><g id="${id}" transform="translate(0 -24)"><circle cx="0" cy="-14" r="26" fill="#ffb347" opacity=".45" filter="url(#glow)"/><path d="M-14 0 C-18 -14 -6 -16 -6 -28 C2 -20 4 -26 4 -36 C10 -22 18 -18 14 0Z" fill="${C.red}" ${o}/><path d="M-7 0 C-8 -8 -2 -10 -1 -18 C4 -12 8 -12 7 0Z" fill="${C.ochre}"/></g>`;
+const flick=(id,t,k=0,y=-24)=>tr(id,0,y,Math.sin(t*11+k)*3,1+Math.sin(t*13+k*2)*.09);
+const hbird=id=>`<g id="${id}" opacity="0"><path d="M-12 2 L-24 9 L-22 -1 Z" fill="${C.jade}" ${o} stroke-width="1.2"/><ellipse rx="13" ry="7" fill="${C.jade}" ${o} stroke-width="1.4"/><ellipse rx="13" ry="7" fill="url(#orb)"/><circle cx="10" cy="-4" r="6" fill="${C.blue}" ${o} stroke-width="1.4"/><path d="M15 -5 L32 -3" stroke="${C.ink}" stroke-width="2"/><circle cx="11" cy="-5" r="1.4" fill="${C.ink}"/><path d="M6 2 l-2 5 l7 0z" fill="${C.red}"/><g id="${id}w"><path d="M-2 -4 L-16 -28 L5 -7Z" fill="${C.blue}" ${o} stroke-width="1.2" opacity=".85"/></g></g>`;
+const fish=()=>`<path d="M-16 0 Q0 -10 14 0 Q0 10 -16 0Z" fill="${C.white}" stroke="${C.blue}" stroke-width="2"/><path d="M-16 0 L-26 -7 L-24 0 L-26 7Z" fill="${C.white}" stroke="${C.blue}" stroke-width="2"/><circle cx="8" cy="-1" r="1.6" fill="${C.ink}"/><path d="M-6 -4 v8 M-1 -5 v10" stroke="${C.blue}" stroke-width="1"/>`;
+const reeds=(id,n=6,sc=1)=>`<g id="${id}"><g transform="scale(${sc})">${Array.from({length:n},(_,i)=>{const x=(i-n/2)*7,h=38+((i*37)%22);const d=`M${x} 0 Q${x+3} ${-h/2} ${x+(i%2?6:-4)} ${-h}`;return `<path d="${d}" fill="none" stroke="${C.ink}" stroke-width="5" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${i%3?C.jade:tone(C.jade,.8)}" stroke-width="2.6" stroke-linecap="round"/>${i%2?`<ellipse cx="${x+6}" cy="${-h+4}" rx="2.6" ry="7" fill="${C.brown}" ${o} stroke-width="1"/>`:''}`}).join('')}</g></g>`;
+const maguey=(id,s=1)=>`<g id="${id}"><g transform="scale(${s})">${[-74,-52,-32,-14,4,22,42,64,82].map((a,i)=>{const len=86+((i*29)%44),c=i%2?'#6f8f6a':'#5b7c59';return `<g transform="rotate(${a})"><path d="M-10 0 Q-7 ${-len*.6} 0 ${-len} Q7 ${-len*.6} 10 0Z" fill="${c}" ${o}/><path d="M0 0 Q7 ${-len*.6} 0 ${-len} L10 0Z" fill="${tone(c,.78)}"/><path d="M0 -6 V${-len+10}" stroke="#b5c9a4" stroke-width="1.3"/><path d="M-7 ${-len*.35} l-4 -2 M-6 ${-len*.55} l-4 -2 M7 ${-len*.45} l4 -2" stroke="${C.ink}" stroke-width="1.2"/></g>`}).join('')}</g></g>`;
+const tepetl=(w,h,fill,cap)=>`<path d="M${-w/2} 0 Q${-w/2} ${-h*.95} 0 ${-h} Q${w/2} ${-h*.95} ${w/2} 0 Z" fill="${fill}" ${o}/><path d="M0 ${-h} Q${w/2} ${-h*.95} ${w/2} 0 L${w*.1} 0 Q${w*.2} ${-h*.6} 0 ${-h}Z" fill="#000" opacity=".16"/>${cap?`<path d="M${-w*.22} ${-h*.78} Q0 ${-h*1.04} ${w*.22} ${-h*.78} Q${w*.1} ${-h*.7} 0 ${-h*.8} Q${-w*.1} ${-h*.7} ${-w*.22} ${-h*.78}Z" fill="${C.white}" ${o} stroke-width="1.4"/>`:''}<path d="M${-w*.12} ${-h*.42} q${w*.12} ${-h*.18} ${w*.22} 0 q${-w*.06} ${h*.1} ${-w*.12} 0" fill="none" stroke="${C.ink}" stroke-width="1.6"/><rect x="${-w/2}" y="-8" width="${w}" height="8" fill="${C.red}" ${o} stroke-width="1.4"/>`;
+const banner=id=>`<path d="M0 0 V-58" stroke="${C.ink}" stroke-width="3"/><g id="${id}"><path d="M0 -58 h22 l-3 13 l3 13 h-22 Z" fill="${C.white}" ${o} stroke-width="1.5"/><path d="M0 -58 h22 l-3 13 l3 13 h-22 Z" fill="url(#shd)"/><circle cx="8" cy="-50" r="2" fill="${C.ink}"/><circle cx="14" cy="-40" r="2" fill="${C.ink}"/><circle cx="7" cy="-36" r="2" fill="${C.ink}"/></g>`;
+const macuahuitl=()=>`<rect x="-3.5" y="-46" width="7" height="52" rx="2" fill="${C.brown}" ${o} stroke-width="1.5"/>${[-40,-31,-22,-13].map(y=>`<path d="M-3.5 ${y} l-5 3 l5 3 M3.5 ${y} l5 3 l-5 3" fill="${C.ink}" stroke="${C.ink}" stroke-width="1"/>`).join('')}`;
+function stepPyr(cx,b,w,h,n,fill){let s='';const th=h/n;for(let i=0;i<n;i++){const ww=w*(1-i*.16);s+=slab(cx-ww/2,b-th*(i+1),ww,th,fill,9,5)}
+  s+=`<rect x="${cx-w*.06}" y="${b-h}" width="${w*.12}" height="${h}" fill="${C.sand}" ${o} stroke-width="1.2"/>`;for(let y=b-h+4;y<b;y+=4)s+=`<path d="M${cx-w*.06} ${y} h${w*.12}" stroke="${C.ink}" stroke-width=".6" opacity=".5"/>`;return s}
+function temple(cx,b,w,h,pre=''){
+  let s=`<ellipse cx="${cx+10}" cy="${b+2}" rx="${w*.6}" ry="8" fill="#2a1406" opacity=".25" filter="url(#blur3)"/>`;const n=4,th=h/n;
+  for(let i=0;i<n;i++){const ww=w*(1-i*.12);s+=slab(cx-ww/2,b-th*(i+1),ww,th,C.stone,w*.045,w*.03)+`<path d="M${cx-ww/2+4} ${b-th*(i+1)+th*.5} h${ww-8}" stroke="${C.ink}" stroke-width=".8" stroke-dasharray="3 5" opacity=".5"/>`}
+  const top=b-h, sw=w*.13;
+  [-1,1].forEach(k=>{const x=cx+k*w*.16-sw/2;
+    s+=`<rect x="${x}" y="${top}" width="${sw}" height="${h}" fill="${C.sand}" ${o}/>`;
+    for(let y=top+5;y<b;y+=5)s+=`<path d="M${x} ${y} h${sw}" stroke="${C.ink}" stroke-width=".8"/><path d="M${x} ${y+1} h${sw}" stroke="#fff" stroke-width=".8" opacity=".35"/>`;
+    s+=`<rect x="${x}" y="${top}" width="${sw}" height="${h}" fill="url(#stairG)"/>`;
+    s+=`<rect x="${x-4}" y="${top}" width="4" height="${h}" fill="${C.stone}" ${o} stroke-width="1"/><rect x="${x+sw}" y="${top}" width="4" height="${h}" fill="${tone(C.stone,.75)}" ${o} stroke-width="1"/>`;
+    const shw=w*.22, shh=h*.42, sx=cx+k*w*.16-shw/2, sy=top-shh;
+    s+=slab(sx,sy+shh*.45,shw,shh*.55,C.white,w*.03,w*.02)+`<rect x="${sx+shw*.32}" y="${sy+shh*.62}" width="${shw*.36}" height="${shh*.38}" fill="${C.ink}"/><rect x="${sx+shw*.32}" y="${sy+shh*.62}" width="${shw*.36}" height="${shh*.38}" fill="#ff9a3c" opacity=".18"/>`;
+    const rc=k<0?C.blue:C.red;
+    s+=slab(sx-2,sy,shw+4,shh*.45,rc,w*.03,w*.02);
+    if(k<0){for(let i=1;i<5;i++)s+=`<path d="M${sx-2+i*(shw+4)/5} ${sy} v${shh*.45}" stroke="${C.white}" stroke-width="2.5"/>`;}
+    else{for(let i=0;i<4;i++)s+=`<circle cx="${sx+shw*.14+i*shw*.24}" cy="${sy+shh*.22}" r="${shw*.07}" fill="${C.white}"/>`;}
+    for(let i=0;i<5;i++)s+=`<rect x="${sx-2+i*(shw+4)/5+1}" y="${sy-5-w*.02}" width="${(shw+4)/5-2}" height="5" fill="${k<0?C.white:C.ochre}" ${o} stroke-width="1"/>`;
+    if(pre)s+=`<g transform="translate(${cx+k*w*.16} ${sy-6})">${smokes(pre+(k<0?'L':'R'),4)}</g>`;
+  });
+  return s;
+}
+function eagle(pre){
+  const wing=(d,id)=>`<g id="${id}"><path d="${d}" fill="${C.brown}" ${o}/><path d="${d}" fill="url(#vshd)"/><path d="${d.replace(/Z$/,'')}" fill="none" stroke="${C.ochre}" stroke-width="1" opacity=".6"/></g>`;
+  return `<ellipse cx="0" cy="2" rx="20" ry="4" fill="#2a1406" opacity=".3" filter="url(#blur3)"/>${wing('M-6 -40 L-62 -88 L-44 -64 L-72 -64 L-38 -46 L-60 -34 L-12 -26 Z',pre+'1')}
+  <path d="M-10 -14 L-34 6 L-14 6 Z" fill="${C.brown}" ${o}/><path d="M-14 -6 L-28 4" stroke="${C.white}" stroke-width="2"/>
+  <ellipse cx="0" cy="-30" rx="16" ry="22" fill="#a66a33" ${o}/><ellipse cx="0" cy="-30" rx="16" ry="22" fill="url(#orb)"/>
+  <path d="M-6 -42 l6 6 l6 -6 M-8 -30 l8 6 l8 -6 M-6 -18 l6 6 l6 -6" stroke="${C.ink}" stroke-width="1.2" fill="none"/>
+  <g id="${pre}h"><circle cx="12" cy="-56" r="12" fill="#c8913f" ${o}/><circle cx="12" cy="-56" r="12" fill="url(#orb)"/><path d="M21 -61 L34 -56 Q33 -47 24 -50 Z" fill="${C.ochre}" ${o}/><circle cx="15" cy="-59" r="2.4" fill="${C.ink}"/></g>
+  <path d="M-4 -10 v10 M6 -10 v10" stroke="${C.ochre}" stroke-width="4"/><path d="M-10 0 h22" stroke="${C.ink}" stroke-width="3" stroke-linecap="round"/>
+  ${wing('M4 -42 L48 -90 L34 -62 L62 -66 L30 -42 L52 -32 L8 -26 Z',pre+'2')}`;
+}
+function dateGlyph(x,y,n,kind){
+  let d='';for(let i=0;i<n;i++)d+=`<circle cx="${(i-(n-1)/2)*11}" cy="-30" r="4.2" fill="${C.red}" ${o} stroke-width="1.3"/>`;
+  const G={
+    calli:slab(-12,-16,24,18,C.white,4,3,1.6)+`<path d="M-14 -16 L14 -16 L10 -22 L-10 -22Z" fill="${C.red}" ${o}/><rect x="-5" y="-9" width="10" height="11" fill="${C.ink}"/>`,
+    tecpatl:`<g transform="translate(0 -8)">${tecpatl(30)}</g>`,
+    ollin:`<path d="M-14 -20 L14 4 M14 -20 L-14 4" stroke="${C.ink}" stroke-width="10" stroke-linecap="round"/><path d="M-14 -20 L14 4" stroke="${C.red}" stroke-width="6" stroke-linecap="round"/><path d="M14 -20 L-14 4" stroke="${C.blue}" stroke-width="6" stroke-linecap="round"/><circle cy="-8" r="6" fill="${C.white}" ${o}/><circle cy="-8" r="2.2" fill="${C.ink}"/>`
+  };
+  return `<g transform="translate(${x} ${y})">${d}${G[kind]}</g>`;
+}
+const motes=k=>Array.from({length:14},(_,i)=>`<circle id="mo${k}_${i}" r="${1.2+(i%3)*.8}" fill="#fff3cf"/>`).join('');
+/* capas: z = profundidad (0 fondo, 1 actores, >1 primer plano) */
+const LY=(z,c)=>`<g class="ly" data-z="${z}" filter="url(#${z<.35?'dFar':z<.8?'dMid':z<=1.05?'dNear':'dFore'})">${c}</g>`;
+const PAPER=`<rect width="600" height="400" fill="${C.paper}"/><rect width="600" height="400" filter="url(#fiber)"/><rect width="600" height="400" filter="url(#stain)" opacity=".5"/>`;
+const BORDER=`<rect x="8" y="8" width="584" height="384" fill="none" stroke="${C.red}" stroke-width="5"/><rect x="15" y="15" width="570" height="370" fill="none" stroke="${C.ink}" stroke-width="1.2"/><rect x="15" y="15" width="570" height="370" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="6" filter="url(#blur3)" clip-path="url(#inner)"/>`;
+const panel=(k,layers,overlay='')=>`${PAPER}<defs><radialGradient id="lg${k}" gradientUnits="userSpaceOnUse" cx="300" cy="120" r="460"><stop offset="0" stop-color="#fff2c8" stop-opacity=".55"/><stop offset=".45" stop-color="#ffe0a0" stop-opacity=".1"/><stop offset="1" stop-color="#2a1405" stop-opacity=".45"/></radialGradient></defs>
+  <g clip-path="url(#inner)">${layers}${overlay}<rect x="15" y="15" width="570" height="370" fill="url(#lg${k})" style="mix-blend-mode:soft-light"/><rect x="15" y="15" width="570" height="370" fill="url(#ao)"/></g>${BORDER}`;
+
+/* =============== tiempo y cámara =============== */
+const E=(a,b,t)=>Math.min(1,Math.max(0,(t-a)/(b-a)));
+const ez=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+const S=(a,b,t)=>ez(E(a,b,t));
+const L=(a,b,p)=>a+(b-a)*p;
+const bell=(a,b,t)=>Math.sin(Math.PI*E(a,b,t));
+const $=id=>document.getElementById(id);
+const tr=(id,x,y,r=0,s=1,sy)=>{const el=typeof id==='string'?$(id):id;if(el)el.setAttribute('transform',`translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${r.toFixed(2)}) scale(${s.toFixed(3)} ${(sy??s).toFixed(3)})`)};
+const op=(id,v)=>{const el=$(id);if(el)el.setAttribute('opacity',Math.max(0,Math.min(1,v)).toFixed(3))};
+const flap=(id,t,f=50)=>{const w=$(id+'w');if(w)w.setAttribute('transform',`scale(1 ${Math.sin(t*f).toFixed(2)})`)};
+let mx=0,my=0,tmx=0,tmy=0,wt=0,shake=0;
+const LAYERS=[];
+function cam(k,t,d,cx=300,cy=200,zm=.05,extra=0){
+  const e=E(0,d,t), sh=shake*shake, px=Math.sin(wt*.23)*7+mx*18+(Math.random()-.5)*sh*14, py=Math.cos(wt*.19)*4+my*10+(Math.random()-.5)*sh*10;
+  for(const {el,z} of LAYERS[k]){
+    const s=1+(zm*e+extra)*z+.035*z;
+    el.setAttribute('transform',`translate(${cx} ${cy}) scale(${s.toFixed(4)}) translate(${(-cx-px*z).toFixed(2)} ${(-cy-py*z).toFixed(2)})`);
+  }
+  for(let i=0;i<14;i++){const m=$(`mo${k}_${i}`);if(!m)break;
+    const x=((i*137+wt*(6+(i%3)*4))%660)-30, y=40+((i*71)%300)+Math.sin(wt*.7+i)*12;
+    m.setAttribute('cx',x.toFixed(1));m.setAttribute('cy',y.toFixed(1));m.setAttribute('opacity',(.25+.35*Math.sin(wt*1.3+i*1.7)**2).toFixed(2))}
+}
+const light=(k,x,y,r=460)=>{const g=$('lg'+k);if(g){g.setAttribute('cx',x.toFixed(1));g.setAttribute('cy',y.toFixed(1));g.setAttribute('r',r.toFixed(0))}};
+
+/* =============== escenas =============== */
+const scenes=[
+/* 0 · Los cinco soles */
+{ d:15, name:'Los cinco soles',
+  svg:k=>panel(k,
+    LY(.15,`${skyBand(30,11,'s0st')}
+      <g id="s0ring" transform="translate(300 192)">${Array.from({length:20},(_,i)=>{const a=i*18;return `<g transform="rotate(${a}) translate(0 -150)">${slab(-9,-8,18,16,i%2?C.white:C.sand,3,2,1.3)}<circle r="3" fill="${[C.red,C.blue,C.jade,C.ochre][i%4]}"/></g>`}).join('')}</g>`)+
+    LY(.55,[['jaguar',110,112],['wind',490,112],['rain',110,286],['water',490,286]].map(([k2,x,y],i)=>`<g id="s0old${i}" transform="translate(${x} ${y})" opacity="0">
+      ${slab(-32,-30,64,58,C.white,7,5)}${[0,1,2,3].map(j=>`<circle cx="${-16.5+j*11}" cy="-42" r="4" fill="${C.red}" ${o} stroke-width="1.2"/>`).join('')}
+      ${k2==='jaguar'?`<circle r="18" fill="${C.ochre}" ${o}/><circle r="18" fill="url(#orb)"/><circle cx="-7" cy="-5" r="3" fill="${C.ink}"/><circle cx="6" cy="-7" r="2.6" fill="${C.ink}"/><circle cx="-2" cy="8" r="2.6" fill="${C.ink}"/><circle cx="9" cy="5" r="2.2" fill="${C.ink}"/><path d="M-14 -14 l-4 -8 l8 4 M14 -14 l4 -8 l-8 4" fill="${C.ochre}" ${o} stroke-width="1.3"/>`:''}
+      ${k2==='wind'?`<g transform="translate(-14 8) scale(1.3)">${voluta(C.blue)}</g><path d="M-20 -12 h30" stroke="${C.ink}" stroke-width="2" stroke-dasharray="4 4"/>`:''}
+      ${k2==='rain'?`<circle cx="-8" cy="-6" r="8" fill="none" stroke="${C.blue}" stroke-width="4"/><circle cx="8" cy="-6" r="8" fill="none" stroke="${C.blue}" stroke-width="4"/>${[-12,0,12].map(x=>`<path d="M${x} 8 q-4 6 0 10 q4 -4 0 -10" fill="${C.blue}"/>`).join('')}`:''}
+      ${k2==='water'?`<rect x="-24" y="-18" width="48" height="36" fill="url(#water)" ${o} stroke-width="1.3"/>`:''}
+      <g id="s0crack${i}" opacity="0"><path d="M-32 -30 L-6 -2 L-14 8 L8 28 M-6 -2 L20 -10 L32 -24" fill="none" stroke="${C.ink}" stroke-width="2.4"/></g>
+    </g>`).join(''))+
+    LY(1,`<g id="s0w" transform="translate(300 192)">${sun('s0sun',122,true)}</g>`)+
+    LY(1.35,`<rect x="-40" y="352" width="680" height="60" fill="url(#fret)"/><path d="M-40 352 H640" stroke="${C.ink}" stroke-width="2"/><rect x="-40" y="352" width="680" height="60" fill="url(#vshd)"/>
+      ${[[38,360],[562,360]].map(([x,y],i)=>`<g id="s0fl${i}" transform="translate(${x} ${y})"><g transform="scale(2.6)">${flower()}</g></g>`).join('')}
+      ${motes(k)}`)),
+  update(t,k){
+    cam(k,t,this.d,300,192,.06);
+    light(k,300,192,L(300,520,S(5,8,t)));
+    for(let i=0;i<4;i++){
+      const a=S(.3+i*.7,1+i*.7,t), fall=S(4+i*.3,5.3+i*.3,t);
+      const x=[110,490,110,490][i], y=[112,112,286,286][i];
+      tr('s0old'+i,x+(i%2?1:-1)*fall*30,y+fall*130,(i%2?1:-1)*fall*40,a*(1-fall*.3));
+      op('s0old'+i,a*(1-fall)); op('s0crack'+i,E(3.5+i*.3,3.9+i*.3,t));
+    }
+    const p=S(5,7.6,t);
+    tr('s0w',300,192,0,L(.05,1,p)*(1+Math.sin(t*4)*.012*p)); op('s0w',E(5,5.6,t));
+    tr('s0sun-rays',0,0,t*8);
+    tr('s0ring',300,192,-t*3,L(.6,1,S(6,8,t))); op('s0ring',E(6,7.5,t));
+    tr('s0sun-tongue',0,122*.27+Math.sin(t*3)*1.5,90+Math.sin(t*2.2)*7);
+    for(const s of [-1,1]){const g=$('s0sun-claw'+s);if(g)g.setAttribute('transform',`translate(${s*122*.33} ${122*.02+Math.sin(t*3.2)*2}) scale(${s} 1) rotate(${(Math.sin(t*3.2)*6).toFixed(1)})`)}
+    for(let i=0;i<11;i++)tr('s0st'+i,42+i*(516/10),30+(i%2?4:-4),0,1+Math.sin(t*3+i*1.7)*.18);
+    tr('s0fl0',38,360,t*12,1); tr('s0fl1',562,360,-t*12,1);
+  }
+},
+/* 1 · Teotihuacan */
+{ d:18, name:'Teotihuacan',
+  svg:k=>panel(k,
+    LY(.12,`${skyBand(30,9,'s1st')}<defs><clipPath id="s1clip"><rect x="-40" y="0" width="680" height="300"/></clipPath></defs>
+      <g clip-path="url(#s1clip)"><g id="s1sun">${sun('s1s',44)}</g><g id="s1moon"><circle r="40" fill="#e8f0ea" opacity=".4" filter="url(#glow)"/><circle r="30" fill="#dfe6e0" ${o}/><circle r="22" fill="none" stroke="${C.blue}" stroke-width="2" stroke-dasharray="3 4"/><circle r="30" fill="url(#orb)"/><g id="s1rab" opacity="0"><ellipse cx="0" cy="4" rx="11" ry="7" fill="${C.white}" ${o} stroke-width="1.4"/><circle cx="9" cy="-3" r="5.5" fill="${C.white}" ${o} stroke-width="1.4"/><path d="M7 -7 L3 -21 L10 -9 M11 -8 L13 -22 L14 -8" fill="${C.white}" ${o} stroke-width="1.2"/><circle cx="11" cy="-4" r="1.2" fill="${C.ink}"/></g></g></g>`)+
+    LY(.45,`${stepPyr(165,300,170,80,4,'#d9bf91')}${stepPyr(430,300,230,115,5,'#d9bf91')}`)+
+    LY(.8,`<rect x="-40" y="300" width="680" height="110" fill="${C.sand}"/><path d="M-40 300 H640" stroke="${C.ink}" stroke-width="2"/>
+      ${[[40,330],[120,360],[480,350],[560,330],[250,372],[360,368]].map(([x,y])=>`<path d="M${x} ${y} l3 -9 l3 9 M${x+4} ${y} l5 -7" stroke="${C.jade}" stroke-width="2" fill="none"/>`).join('')}
+      <ellipse id="s1pool" cx="300" cy="312" rx="110" ry="16" fill="#ffb347" opacity=".35" filter="url(#glow)"/>
+      <g transform="translate(300 312)"><path d="M-40 0 L40 -10 M-40 -10 L40 0" stroke="${C.ink}" stroke-width="11" stroke-linecap="round"/><path d="M-40 0 L40 -10 M-40 -10 L40 0" stroke="${C.brown}" stroke-width="7" stroke-linecap="round"/></g>`)+
+    LY(1,`<g id="s1fire" transform="translate(300 305)"><circle cx="0" cy="-40" r="60" fill="#ff9d3a" opacity=".5" filter="url(#glow)"/><path d="M-34 0 C-44 -30 -20 -40 -22 -70 C-6 -54 -2 -66 0 -96 C10 -66 22 -60 22 -78 C40 -50 44 -24 34 0 Z" fill="${C.red}" ${o}/><path d="M-20 0 C-24 -20 -8 -28 -6 -50 C4 -36 12 -40 12 -52 C24 -32 26 -14 20 0 Z" fill="${C.ochre}" ${o}/><path d="M-8 0 C-10 -10 -2 -14 0 -26 C6 -16 10 -10 8 0Z" fill="#fff1c4"/></g>
+      ${Array.from({length:9},(_,i)=>`<circle id="s1sp${i}" r="2.6" fill="${C.ochre}" ${o} stroke-width="1"/>`).join('')}
+      ${person({x:50,y:338,s:.55,body:C.red,plume:C.jade,necklace:true,armF:[[18,-96],[26,-118]],armB:[[-10,-62],[-12,-46]]})}
+      ${person({x:555,y:338,s:.55,flip:true,body:C.blue,plume:C.red,necklace:true,armF:[[18,-70],[30,-62]]})}
+      ${person({id:'s1n',x:110,y:300,sores:true,armF:[[22,-92],[36,-112]],armB:[[-12,-60],[-16,-44]]})}
+      ${person({id:'s1t',x:470,y:300,flip:true,body:C.jade,feathers:C.ochre,plume:C.jade,necklace:true,cape:C.blue,armF:[[18,-70],[30,-60]],armB:[[-12,-62],[-14,-46]]})}
+      <g id="s1rabFly" opacity="0"><ellipse cx="0" cy="4" rx="11" ry="7" fill="${C.white}" ${o} stroke-width="1.4"/><circle cx="9" cy="-3" r="5.5" fill="${C.white}" ${o} stroke-width="1.4"/><path d="M7 -7 L3 -21 L10 -9 M11 -8 L13 -22 L14 -8" fill="${C.white}" ${o} stroke-width="1.2"/></g>
+      ${person({id:'s1e',x:-60,y:300,s:.9,helm:'ehecatl',body:C.soot,necklace:true,armF:[[22,-88],[30,-104]],armB:[[-10,-60],[-10,-44]]})}
+      ${[0,1,2,3,4].map(i=>`<g id="s1wv${i}" opacity="0">${voluta(C.white)}</g>`).join('')}`)+
+    LY(1.4,`<g transform="translate(20 400)">${maguey('s1mg1',1.05)}</g><g transform="translate(590 410)">${maguey('s1mg2',.9)}</g>${motes(k)}`),
+    `<rect id="s1night" x="15" y="15" width="570" height="370" fill="${C.night}" opacity=".5" style="mix-blend-mode:multiply"/>`),
+  cues:[[4.5,'boom'],[6.6,'boom'],[12,'conch']],
+  update(t,k){
+    cam(k,t,this.d,300,250,.05);
+    const j=E(2.6,4.6,t);
+    tr('s1n',L(110,300,ez(j)),300-Math.sin(Math.PI*j)*130,j*160); op('s1n',1-E(4.4,4.8,t));
+    const hes=t<2.6?Math.sin(E(.8,2.6,t)*Math.PI*2)*25:0;
+    const j2=E(5,6.8,t);
+    tr('s1t',L(470-Math.max(0,hes),300,ez(j2)),300-Math.sin(Math.PI*j2)*110,-j2*160); op('s1t',1-E(6.6,7,t));
+    const burst=Math.max(bell(4.5,5.6,t),bell(6.7,7.8,t)*.8);
+    tr('s1fire',300,305,Math.sin(t*9)*1.5,1+burst*.75+Math.sin(t*7)*.04);
+    op('s1pool',.3+burst*.4+Math.sin(t*13)*.05);
+    for(let i=0;i<9;i++){const ph=((t*.5+i/9)%1);tr('s1sp'+i,300+Math.sin(i*2.3+ph*4)*30*ph,290-ph*(110+burst*90),0,1-ph*.6);op('s1sp'+i,Math.sin(ph*Math.PI))}
+    const rs=S(6.5,9.5,t), rm=S(7.6,10.4,t), go=S(13,17.5,t);
+    const still=(t>9.5&&t<13)?Math.sin(t*28)*1.2:0;
+    const sx=L(470,380,go)+still, sy=L(360,150,rs)-go*70;
+    tr('s1sun',sx,sy,0,1+go*.25);
+    tr('s1s-rays',0,0,go*(t-13)*60+Math.sin(t*3)*2);
+    tr('s1moon',L(135,200,go),L(360,165,rm)+go*150);
+    const rb=E(10.4,11.6,t);
+    tr('s1rabFly',L(70,135,rb),L(250,165,rb)-Math.sin(Math.PI*rb)*70,rb*360); op('s1rabFly',rb>0&&rb<1?1:0); op('s1rab',E(11.5,11.7,t));
+    const e=S(10.5,12.2,t);
+    tr('s1e',L(-60,215,e),300);
+    for(let i=0;i<5;i++){const ph=((t-12.2)*.45+i/5)%1, on=t>12.2?1:0;
+      tr('s1wv'+i,L(255,sx,ph),L(215,sy,ph)+Math.sin(ph*9+i)*10,-20,.6+ph*.9); op('s1wv'+i,on*Math.sin(ph*Math.PI))}
+    const day=S(13,16.5,t);
+    op('s1night',.55*(1-day));
+    light(k,L(300,sx,S(6.5,9,t)),L(250,sy,S(6.5,9,t)),L(320,560,day));
+    for(let i=0;i<9;i++)tr('s1st'+i,42+i*(516/8),30+(i%2?4:-4),0,1+Math.sin(t*3+i*1.3)*.2);
+    tr('s1mg1',0,0,Math.sin(t*.8)*1.5); tr('s1mg2',0,0,Math.sin(t*.9+1)*1.5);
+  }
+},
+/* 2 · La señal en el lago */
+{ d:17, name:'La fundación de Tenochtitlan',
+  svg:k=>panel(k,
+    LY(.1,`${cloud('s2c1',1)}${cloud('s2c2',.8)}${dateGlyph(552,72,2,'calli')}`)+
+    LY(.3,`<g transform="translate(95 282)">${tepetl(110,118,'#8f9c78',true)}</g><g transform="translate(176 282)">${tepetl(84,82,'#9aa784',true)}</g>${smokes('s2pop',5)}`)+
+    LY(.55,`<g id="s2temple">${temple(462,284,190,92,'s2ts')}</g>`)+
+    LY(.8,`<rect x="-40" y="282" width="680" height="130" fill="url(#water)"/><rect x="-40" y="282" width="680" height="130" fill="url(#waterDepth)"/><path d="M-40 282 ${'q15 -6 30 0 '.repeat(23)}" fill="none" stroke="${C.ink}" stroke-width="2"/>
+      <ellipse id="s2rip" cx="220" cy="300" rx="50" ry="8" fill="none" stroke="${C.white}" stroke-width="2"/>
+      <ellipse cx="226" cy="306" rx="54" ry="8" fill="#0b3d48" opacity=".35" filter="url(#blur3)"/>
+      <g transform="translate(220 300)"><path d="M-46 4 Q-52 -30 -22 -36 Q0 -52 24 -36 Q52 -30 46 4 Z" fill="#b48555" ${o}/><path d="M0 -44 Q24 -36 24 -36 Q52 -30 46 4 L10 4 Q20 -20 0 -44Z" fill="#000" opacity=".18"/><path d="M-26 -14 q8 -10 16 0 q-8 6 -12 0 M8 -22 q8 -10 16 0 q-8 6 -12 0" fill="none" stroke="${C.ink}" stroke-width="1.6"/><circle cx="-30" cy="-26" r="2" fill="${C.ink}"/><circle cx="32" cy="-12" r="2" fill="${C.ink}"/><circle cx="0" cy="-6" r="2" fill="${C.ink}"/></g>`)+
+    LY(1,`<g id="s2nopal" transform="translate(220 268)">
+        ${[[0,-24,13,24,0],[-20,-58,11,19,-28],[20,-60,11,19,28],[0,-88,10,16,0]].map(([x,y,rx,ry,r])=>`<g transform="rotate(${r} ${x} ${y})"><ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${C.jade}" ${o}/><ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#shd)"/><ellipse cx="${x-rx*.3}" cy="${y-ry*.35}" rx="${rx*.3}" ry="${ry*.4}" fill="#fff" opacity=".18"/></g>`).join('')}
+        ${[[-30,-74],[30,-76],[-9,-102],[9,-102],[-32,-50]].map(([x,y],i)=>`<g id="s2tuna${i}"><ellipse cx="${x}" cy="${y}" rx="5" ry="7" fill="${C.red}" ${o} stroke-width="1.4"/><circle cx="${x-1.5}" cy="${y-2.5}" r="1.6" fill="#fff" opacity=".5"/></g>`).join('')}
+        ${[[-4,-30],[5,-18],[-20,-60],[22,-56],[2,-90],[-6,-80],[24,-66]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.4" fill="${C.ink}"/>`).join('')}
+      </g>
+      <g transform="translate(55 300)">${reeds('s2r1',7)}</g><g transform="translate(560 302)">${reeds('s2r2',6)}</g>
+      <g id="s2heron" transform="translate(528 330)"><path d="M0 0 v-22 M6 0 v-22" stroke="${C.ink}" stroke-width="1.6"/><ellipse cx="2" cy="-30" rx="15" ry="9" fill="${C.white}" ${o}/><ellipse cx="2" cy="-30" rx="15" ry="9" fill="url(#vshd)"/><g id="s2hn"><path d="M10 -34 Q14 -54 6 -60" fill="none" stroke="${C.ink}" stroke-width="7" stroke-linecap="round"/><path d="M10 -34 Q14 -54 6 -60" fill="none" stroke="${C.white}" stroke-width="4" stroke-linecap="round"/><circle cx="6" cy="-62" r="5" fill="${C.white}" ${o} stroke-width="1.4"/><path d="M2 -63 L-14 -60 L2 -59Z" fill="${C.ochre}" ${o} stroke-width="1"/><circle cx="7" cy="-63" r="1.2" fill="${C.ink}"/></g></g>
+      <g id="s2fish">${fish()}</g>
+      <g id="s2canoe"><ellipse cx="0" cy="16" rx="56" ry="5" fill="#0b3d48" opacity=".35" filter="url(#blur3)"/><g transform="scale(-1 1)"><path d="M-54 -2 Q-48 14 -30 14 L34 14 Q52 14 56 -4 Q0 4 -54 -2 Z" fill="${C.brown}" ${o}/><path d="M-54 -2 Q-48 14 -30 14 L34 14 Q52 14 56 -4 Q0 4 -54 -2 Z" fill="url(#vshd)"/><path d="M-40 6 h70" stroke="${C.ochre}" stroke-width="2"/></g>${person({x:4,y:6,s:.45,flip:true,body:C.white,shadow:false,armB:[[-14,-70],[-24,-60]]})}<g id="s2pad"><path d="M-6 -36 L-8 22" stroke="${C.ink}" stroke-width="3"/><ellipse cx="-8" cy="22" rx="4" ry="8" fill="${C.ochre}" ${o} stroke-width="1.2"/></g></g>
+      <g id="s2eagle">${eagle('s2w')}</g>`)+
+    LY(1.4,`<g transform="translate(30 400)">${reeds('s2fr1',8,2.3)}</g><g transform="translate(580 405)">${reeds('s2fr2',7,2)}</g>
+      ${[[120,372],[470,380]].map(([x,y],i)=>`<g id="s2lily${i}" transform="translate(${x} ${y})"><ellipse rx="26" ry="8" fill="${C.jade}" ${o}/><path d="M0 0 L22 -4" stroke="${C.ink}" stroke-width="1.5"/><g transform="translate(-6 -8) scale(.9)">${flower()}</g></g>`).join('')}
+      ${motes(k)}`)),
+  cues:[[11,'conch']],
+  update(t,k){
+    cam(k,t,this.d,240,220,.06);
+    light(k,L(560,240,S(2.5,6.5,t)),L(60,140,S(2.5,6.5,t)),520);
+    tr('s2c1',L(120,200,t/this.d),70); tr('s2c2',L(420,340,t/this.d),110);
+    smokeU('s2pop',5,95,166,t,70,.18,24);
+    tr('s2nopal',220,268,0,S(0,3,t),S(0,3,t));
+    for(let i=0;i<5;i++)op('s2tuna'+i,E(2+i*.25,2.4+i*.25,t));
+    const f=S(2.5,6.5,t);
+    tr('s2eagle',L(560,222,f),L(40,166,f)-Math.sin(Math.PI*f)*30,L(-14,0,f));
+    let w=f<1?Math.abs(Math.sin(t*10)):.32;
+    if(t>9){const b=bell(9,11.5,t)*1.6;w=L(.32,1,Math.min(1,b))}
+    ['s2w1','s2w2'].forEach(id=>$(id).setAttribute('transform',`translate(0 -40) scale(1 ${(.3+.7*w).toFixed(3)}) translate(0 40)`));
+    tr('s2wh',0,t>6.5&&t<9?Math.sin(t*4)*1.5:0);
+    const r=S(11,14,t); tr('s2temple',0,L(110,0,r));
+    const sm=E(14,15,t); smokeU('s2tsL',4,0,0,t,50,.3,6,sm); smokeU('s2tsR',4,0,0,t+1.7,50,.3,6,sm);
+    const rp=(t*.5)%1; $('s2rip').setAttribute('rx',(50+rp*40).toFixed(1)); $('s2rip').setAttribute('ry',(8+rp*5).toFixed(1)); op('s2rip',(1-rp)*.8);
+    tr('s2r1',55,300,Math.sin(t*1.3)*3); tr('s2r2',560,302,Math.sin(t*1.1+1)*3);
+    tr('s2fr1',0,0,Math.sin(t*1.1)*2.5); tr('s2fr2',0,0,Math.sin(t*1.2+2)*2.5);
+    tr('s2lily0',120,372+Math.sin(t*1.5)*1.5,Math.sin(t)*2); tr('s2lily1',470,380+Math.sin(t*1.4+1)*1.5,Math.sin(t+1)*2);
+    tr('s2hn',0,Math.max(0,Math.sin(t*.9))*8,Math.max(0,Math.sin(t*.9))*14);
+    const c=E(0,this.d,t); tr('s2canoe',L(630,-70,c),346+Math.sin(t*2)*2,Math.sin(t*2)*1.5);
+    tr('s2pad',0,0,Math.sin(t*3)*22);
+    const fj=t<8?E(4,5.2,t):E(12.5,13.7,t), fx=t<8?130:400;
+    tr('s2fish',fx+fj*50,300-Math.sin(Math.PI*fj)*48,-60+fj*120); op('s2fish',fj>0&&fj<1?1:0);
+  }
+},
+/* 3 · La guerra florida */
+{ d:16, name:'La guerra florida',
+  svg:k=>panel(k,
+    LY(.15,`<path id="s3fire" d="M180 74 C220 114 250 34 300 74 S380 114 420 74" fill="none" stroke="${C.ink}" stroke-width="13" stroke-linecap="round"/>
+      <path id="s3fire2" d="M180 74 C220 114 250 34 300 74 S380 114 420 74" fill="none" stroke="${C.red}" stroke-width="8" stroke-linecap="round"/>
+      <path id="s3atl" d="M180 74 C220 34 250 114 300 74 S380 34 420 74" fill="none" stroke="${C.ink}" stroke-width="13" stroke-linecap="round"/>
+      <path id="s3atl2" d="M180 74 C220 34 250 114 300 74 S380 34 420 74" fill="none" stroke="${C.blue}" stroke-width="8" stroke-linecap="round"/>
+      <g id="s3ends" opacity="0"><path d="M420 74 c10 -10 4 -22 14 -30 c-2 10 8 12 6 22 c6 -4 6 -10 10 -12 c4 14 -8 26 -30 20Z" fill="${C.ochre}" ${o}/><path d="M180 74 c-6 6 -18 4 -20 -4 M176 80 q-6 10 -14 8" fill="none" stroke="${C.blue}" stroke-width="4" stroke-linecap="round"/><circle cx="160" cy="62" r="4" fill="${C.white}" stroke="${C.blue}" stroke-width="2"/><circle cx="154" cy="84" r="3" fill="${C.white}" stroke="${C.blue}" stroke-width="2"/></g>`)+
+    LY(.5,`<path d="M30 168 H200 M400 168 H570" stroke="${C.ink}" stroke-width="2"/>
+      ${person({id:'s3a',x:80,y:168,s:.42,helm:'jaguar',body:C.ochre,legs:'walk',shield:true,armB:[[-14,-62],[-20,-52]],armF:[[24,-100],[30,-130]],extra:`<g transform="translate(30 -130) rotate(20)">${macuahuitl()}</g>`})}
+      ${person({id:'s3b',x:150,y:168,s:.42,flip:true,body:C.white,shield:true,armB:[[-14,-62],[-20,-52]],armF:[[24,-96],[34,-110]]})}
+      ${person({id:'s3c2',x:450,y:168,s:.42,helm:'eagle',body:C.ochre,feathers:true,legs:'walk',shield:true,armB:[[-14,-62],[-20,-52]],armF:[[26,-90],[44,-96]]})}
+      ${person({id:'s3d',x:525,y:168,s:.42,flip:true,body:C.white,legs:'walk',armF:[[22,-100],[28,-124]],armB:[[-12,-64],[-14,-46]]})}
+      ${[0,1,2].map(i=>`<g id="s3dart${i}"><path d="M-22 0 H18" stroke="${C.ink}" stroke-width="2.4"/><path d="M18 0 l-7 -4 v8z" fill="${C.ink}"/><path d="M-22 0 l-6 -5 M-22 0 l-6 5 M-17 0 l-6 -5 M-17 0 l-6 5" stroke="${C.red}" stroke-width="2"/></g>`).join('')}`)+
+    LY(.8,`<rect x="-40" y="322" width="680" height="90" fill="${C.sand}"/><rect x="-40" y="322" width="680" height="90" fill="url(#vshd)" opacity=".6"/><path d="M-40 322 H640" stroke="${C.ink}" stroke-width="2"/>
+      ${[[40,350],[150,372],[260,345],[430,368],[540,348]].map(([x,y])=>`<path d="M${x} ${y} l3 -9 l3 9 M${x+4} ${y} l5 -7" stroke="${C.jade}" stroke-width="2" fill="none"/>`).join('')}`)+
+    LY(1,`${[0,1,2,3,4,5,6].map(i=>`<g id="s3f${i}" opacity="0">${flower()}</g>`).join('')}
+      <g id="s3dust" opacity="0"><ellipse rx="30" ry="7" fill="${C.sand}" ${o} stroke-width="1.4"/><circle cx="-24" cy="-8" r="6" fill="${C.sand}" ${o} stroke-width="1.2"/><circle cx="22" cy="-9" r="7" fill="${C.sand}" ${o} stroke-width="1.2"/></g>
+      ${person({id:'s3v',x:372,y:322,flip:true,body:C.white,helm:'jaguar',armF:[[16,-58],[24,-36]],armB:[[-14,-56],[-10,-34]]})}
+      ${person({id:'s3c',x:90,y:322,legs:'walk',helm:'eagle',body:C.ochre,feathers:true,necklace:true,shield:true,armB:[[-16,-62],[-22,-52]],armF:[[30,-92],[62,-116]]})}
+      <g id="s3vol" opacity="0">${voluta(C.blue,true)}</g>
+      <g id="s3m">${macuahuitl()}</g>`)+
+    LY(1.4,`<g transform="translate(600 420)">${maguey('s3mg',1.15)}</g>${[0,1,2,3].map(i=>`<g id="s3ff${i}"><g transform="scale(2.2)">${flower()}</g></g>`).join('')}${motes(k)}`)),
+  cues:[[4.5,'boom'],[5,'rattle']],
+  update(t,k){
+    cam(k,t,this.d,320,260,.05);
+    light(k,300,90,480);
+    for(const id of ['s3fire','s3fire2','s3atl','s3atl2']){const el=$(id);el.setAttribute('stroke-dasharray',300);el.setAttribute('stroke-dashoffset',(300*(1-S(.3,2.6,t))).toFixed(1))}
+    op('s3ends',E(2.4,3,t));
+    tr('s3a',80+Math.sin(t*3)*8,168,Math.sin(t*3)*4); tr('s3b',150+Math.sin(t*3+1)*6,168,-Math.sin(t*3)*3);
+    tr('s3c2',450+Math.sin(t*2.4)*10,168); tr('s3d',525+Math.sin(t*2.4+.8)*8,168);
+    for(let i=0;i<3;i++){const ph=((t*.4+i/3)%1);const dir=i%2?-1:1;tr('s3dart'+i,dir>0?L(40,560,ph):L(560,40,ph),120+i*14-Math.sin(ph*Math.PI)*24,dir>0?-8+ph*16:188-ph*16)}
+    const w=S(.4,4.4,t), lead=S(10,14.5,t);
+    tr('s3c',L(90,292,w)+lead*120,322-Math.abs(Math.sin(w*Math.PI*6))*4*(w<1?1:0)-Math.abs(Math.sin(lead*Math.PI*5))*3);
+    const g=S(4.4,5.6,t);
+    tr('s3v',372+lead*120,322,g*12-lead*4);
+    const m=E(4.6,5.6,t);
+    tr('s3m',L(348,330,m),L(286,312,m*m),L(0,95,m));
+    tr('s3dust',345,320,0,.4+E(4.5,5.6,t)*.9); op('s3dust',bell(4.5,5.8,t));
+    for(let i=0;i<7;i++){const q=E(5.2+i*.6,10+i*.6,t);
+      tr('s3f'+i,120+i*60+Math.sin(t+i)*10,300-q*190,t*30+i*40,.6+q*.6);op('s3f'+i,q>0&&q<1?Math.sin(q*Math.PI):0)}
+    for(let i=0;i<4;i++){const ph=((t*.07+i/4)%1);tr('s3ff'+i,L(-30,640,ph),330-i*70+Math.sin(t*.8+i)*20,t*20+i*90)}
+    const v=E(6,7,t); tr('s3vol',322+lead*120,214-v*6,0,v); op('s3vol',v*(1-E(9.5,10,t)));
+    tr('s3mg',0,0,Math.sin(t*.9)*1.5);
+  }
+},
+/* 4 · La subida */
+{ d:17, name:'La subida al Templo Mayor',
+  svg:k=>{
+    let st=`M40 385`;for(let i=0;i<16;i++)st+=` v-15.625 h25`;
+    return panel(k,
+    LY(.12,`${cloud('s4c1',.9)}<g id="s4sunw" transform="translate(255 70)">${sun('s4s',26)}</g>`)+
+    LY(.55,`<path d="M10 236 H230" stroke="${C.ink}" stroke-width="2"/><rect x="10" y="236" width="220" height="10" fill="${C.sand}" ${o} stroke-width="1.2"/>
+      <g id="s4drum" transform="translate(70 236)">${slab(12,-46,30,46,C.brown,5,4)}<path d="M12 0 l6 -10 l6 10 l6 -10 l6 10 l6 -10" fill="${C.ochre}" ${o} stroke-width="1.2"/><ellipse cx="30" cy="-48" rx="16" ry="5" fill="${C.sand}" ${o}/><path d="M12 -26 h30" stroke="${C.ochre}" stroke-width="3"/></g>
+      ${person({id:'s4dr',x:62,y:236,s:.62,armF:[[16,-92],[30,-84]],armB:[[-4,-60],[18,-74]]})}
+      ${person({x:150,y:236,s:.62,armF:[[22,-96],[34,-100]],armB:[[-10,-60],[0,-84]],extra:`<path d="M30 -106 l26 -8 l4 10 l-26 4 z" fill="${C.white}" ${o}/><path d="M56 -114 q10 2 6 10" fill="none" stroke="${C.ink}" stroke-width="2"/>`})}
+      ${person({x:190,y:236,s:.62,flip:true,armF:[[16,-96],[22,-112]],extra:`<g id="s4rattle" transform="translate(22 -112)"><path d="M0 0 v-14" stroke="${C.ink}" stroke-width="2"/><ellipse cx="0" cy="-20" rx="6" ry="8" fill="${C.ochre}" ${o} stroke-width="1.2"/></g>`})}
+      <g id="s4vA">${voluta(C.jade,true)}</g><g id="s4vB">${voluta(C.blue)}</g>`)+
+    LY(.9,`<path d="${st} L640 135 L640 420 L40 420 Z" fill="${C.stone}" ${o}/>
+      ${Array.from({length:16},(_,i)=>`<rect x="${40+i*25}" y="${385-(i+1)*15.625}" width="25" height="3.5" fill="#fff" opacity=".28"/><rect x="${40+i*25}" y="${385-(i)*15.625-4}" width="25" height="4" fill="#000" opacity=".12"/>`).join('')}
+      <path d="M40 385 L440 135 L640 135 L640 420 L40 420Z" fill="url(#stairG)"/>
+      <path d="M40 385 L440 135" stroke="${C.ink}" stroke-width="2"/>
+      ${[3,7,11].map(i=>`<g transform="translate(${52+i*25} ${385-(i+1)*15.625})">${banner('s4bn'+i)}</g>`).join('')}
+      ${slab(470,88,104,47,C.white,10,7)}<rect x="500" y="100" width="44" height="35" fill="${C.ink}"/><rect x="500" y="100" width="44" height="35" fill="#ff9a3c" opacity=".2"/>${slab(464,40,116,48,C.red,10,7)}${[0,1,2,3].map(i=>`<circle cx="${482+i*27}" cy="64" r="8" fill="${C.white}" ${o} stroke-width="1.2"/><circle cx="${479+i*27}" cy="62" r="1.6" fill="${C.ink}"/><circle cx="${485+i*27}" cy="62" r="1.6" fill="${C.ink}"/>`).join('')}<path d="M464 33 l10 -12 h96 l10 12" fill="${C.red}" ${o}/>`)+
+    LY(1,`<g transform="translate(522 132)">${smokes('s4door',5)}</g>
+      ${person({id:'s4p1',x:452,y:135,s:.82,flip:true,skin:C.soot,helm:'priest',cape:C.red,armF:[[20,-66],[34,-60]]})}
+      ${person({x:500,y:135,s:.82,flip:true,skin:C.soot,helm:'priest',armF:[[22,-68],[30,-52]],extra:`<g transform="translate(30 -52) rotate(30)"><path d="M0 0 v-12" stroke="${C.ink}" stroke-width="2"/><ellipse cx="0" cy="-18" rx="8" ry="6" fill="${C.ochre}" ${o} stroke-width="1.2"/></g>`})}
+      ${[0,1,2,3,4].map(i=>`<circle id="s4fd${i}" r="3.4" fill="${C.white}" ${o} stroke-width="1.1"/>`).join('')}
+      ${person({id:'s4c',x:70,y:366,legs:'climb',body:C.white,skin:C.white,face:C.skin,stripes:true,down:true,paint:C.red,armF:[[22,-78],[30,-86]],armB:[[-14,-66],[-20,-52]],extra:`<g transform="translate(30 -86)"><path d="M0 0 V-46" stroke="${C.ink}" stroke-width="3"/><g id="s4cb"><path d="M0 -46 h20 l-3 11 l3 11 h-20 Z" fill="${C.white}" ${o} stroke-width="1.4"/><circle cx="8" cy="-40" r="2" fill="${C.red}"/><circle cx="12" cy="-30" r="2" fill="${C.red}"/></g></g>`})}`)+
+    LY(1.35,`${slab(280,352,330,60,C.sand,0,0)}
+      ${Array.from({length:10},(_,i)=>person({id:'s4cr'+i,x:300+i*29,y:400,s:.5,flip:true,shadow:false,body:[C.white,C.ochre,C.white,C.jade][i%4],armF:i%3===0?[[16,-100],[20,-124]]:[[16,-60],[22,-44]]})).join('')}
+      <rect x="280" y="372" width="330" height="40" fill="url(#jade)" ${o}/><rect x="280" y="372" width="330" height="40" fill="url(#vshd)"/>${motes(k)}`))},
+  cues:[[0.2,'conch']],
+  update(t,k){
+    const p=E(.5,12.5,t), x=L(70,425,p);
+    const y=385-(x-40)*.625-Math.abs(Math.sin(p*Math.PI*16))*5;
+    cam(k,t,this.d,L(150,420,p),L(320,160,p),.07);
+    light(k,255,70,520);
+    tr('s4c',x,y,0,L(1,.86,p));
+    $('s4cb').setAttribute('transform',`skewY(${(Math.sin(t*6)*8).toFixed(1)})`);
+    for(let i=0;i<5;i++){const ph=((t*.35+i/5)%1);tr('s4fd'+i,x-10-ph*50+Math.sin(ph*8+i)*6,y-118+ph*30-ph*ph*20,0,1-ph*.5);op('s4fd'+i,Math.sin(ph*Math.PI)*.9)}
+    const bp=1-((t*2.5)%1);
+    tr('s4vA',100,170-bp*4,-10,1+bp*.25); tr('s4vB',190,166,-20,1+Math.sin(t*5.6)*.12);
+    tr('s4dr',62,236-bp*2); tr('s4drum',70,236,0,1+bp*.03);
+    tr('s4rattle',22,-112,Math.sin(t*18)*20);
+    [3,7,11].forEach(i=>$('s4bn'+i).setAttribute('transform',`skewY(${(Math.sin(t*5+i)*9).toFixed(1)})`));
+    smokeU('s4door',5,0,0,t,90,.22,-30);
+    tr('s4p1',452,135+Math.sin(t*1.5));
+    tr('s4s-rays',0,0,t*10);
+    tr('s4c1',L(110,190,t/this.d),58);
+    for(let i=0;i<10;i++)tr('s4cr'+i,300+i*29,400-Math.max(0,Math.sin(t*5+i*1.3))*5);
+  }
+},
+/* 5 · El corazón para el Sol */
+{ d:17, name:'El corazón para el Sol',
+  svg:k=>panel(k,
+    LY(.12,`<g id="s5beams" opacity="0" transform="translate(300 78)">${Array.from({length:24},(_,i)=>`<path d="M0 0 L${(Math.cos(i*Math.PI/12-.05)*460).toFixed(0)} ${(Math.sin(i*Math.PI/12-.05)*460).toFixed(0)} L${(Math.cos(i*Math.PI/12+.05)*460).toFixed(0)} ${(Math.sin(i*Math.PI/12+.05)*460).toFixed(0)}Z" fill="${C.ochre}" opacity="${i%2?.12:.22}"/>`).join('')}</g>`)+
+    LY(.38,`<g id="s5sun" transform="translate(300 78)">${sun('s5s',56)}</g>`)+
+    LY(.4,`<g transform="translate(110 330)">${slab(-70,-150,120,150,C.stone,12,8)}<rect x="-40" y="-110" width="40" height="110" fill="${C.ink}" opacity=".85"/>${slab(-76,-176,132,26,C.red,12,8)}${[0,1,2,3].map(i=>`<circle cx="${-58+i*30}" cy="-163" r="7" fill="${C.white}"/>`).join('')}</g>
+      <g transform="translate(490 330)">${slab(-50,-150,120,150,C.stone,12,8)}<rect x="0" y="-110" width="40" height="110" fill="${C.ink}" opacity=".85"/>${slab(-56,-176,132,26,C.blue,12,8)}${[1,2,3,4].map(i=>`<path d="M${-56+i*26} -176 v26" stroke="${C.white}" stroke-width="3"/>`).join('')}</g>`)+
+    LY(.85,`<rect x="-40" y="330" width="680" height="90" fill="${C.stone}"/><rect x="-40" y="330" width="680" height="10" fill="#fff" opacity=".2"/><path d="M-40 330 H640" stroke="${C.ink}" stroke-width="2"/>
+      <rect x="-40" y="356" width="680" height="22" fill="url(#jade)" ${o} stroke-width="1.4"/><rect x="-40" y="356" width="680" height="22" fill="url(#vshd)"/>
+      <path id="s5pool" d="M285 330 q15 6 30 0" fill="none" stroke="${C.red}" stroke-width="0"/>`)+
+    LY(1,`${person({x:334,y:330,s:1.15,flip:true,skin:C.soot,helm:'priest',cape:C.red,necklace:true})}
+      <path id="s5arm0" fill="none" stroke="${C.ink}" stroke-width="13.5" stroke-linecap="round"/><path id="s5arm1" fill="none" stroke="${C.soot}" stroke-width="9.5" stroke-linecap="round"/>
+      <g id="s5knife">${tecpatl(34)}</g>
+      <g id="s5glint" opacity="0"><circle r="16" fill="#fff" opacity=".6" filter="url(#blur3)"/><path d="M0 -14 L3 -3 L14 0 L3 3 L0 14 L-3 3 L-14 0 L-3 -3Z" fill="${C.white}" ${o} stroke-width="1.2"/></g>
+      <ellipse cx="304" cy="332" rx="40" ry="5" fill="#2a1406" opacity=".35" filter="url(#blur3)"/>
+      <path d="M270 330 L278 304 L300 296 L322 304 L330 330 Z" fill="#9c9a8c" ${o}/><path d="M300 296 L322 304 L330 330 L300 330Z" fill="#000" opacity=".2"/><path d="M282 318 h36" stroke="${C.ink}" stroke-width="1" stroke-dasharray="3 3"/>
+      ${person({x:372,y:297,rot:-90,s:1,shadow:false,stripes:true,body:C.white,skin:C.white,face:C.skin,down:true,armF:[[-2,-112],[-4,-140]],armB:[[2,-112],[2,-138]]})}
+      ${person({id:'s5h1',x:186,y:330,skin:C.soot,helm:'priest',armF:[[24,-60],[42,-31]],armB:[[14,-58],[38,-36]]})}
+      ${person({id:'s5h2',x:432,y:330,flip:true,skin:C.soot,helm:'priest',armF:[[30,-58],[58,-32]],armB:[[22,-56],[52,-38]]})}
+      <path id="s5stream" d="M300 286 C330 230 270 190 300 140" fill="none" stroke="${C.red}" stroke-width="7" stroke-linecap="round"/>
+      ${[0,1,2,3].map(i=>`<g id="s5b${i}"><circle r="5" fill="${C.jade}" ${o} stroke-width="1.4"/><circle cx="-1.5" cy="-1.5" r="1.6" fill="#fff" opacity=".6"/></g>`).join('')}
+      <g id="s5heart" opacity="0"><circle r="34" fill="${C.red}" opacity=".35" filter="url(#glow)"/>${heart()}</g>
+      ${hbird('s5hb')}`)+
+    LY(1.4,`<g transform="translate(70 345)"><path d="M-36 -40 L36 -40 L26 0 L-26 0 Z" fill="${C.stone}" ${o}/><path d="M0 -40 L36 -40 L26 0 L0 0Z" fill="#000" opacity=".18"/><path d="M-36 -40 h72" stroke="${C.red}" stroke-width="6"/><circle cx="-6" cy="-22" r="10" fill="${C.ochre}" ${o}/><path d="M3 -24 l14 4 l-12 5z" fill="${C.ochre}" ${o}/><circle cx="-8" cy="-24" r="2" fill="${C.ink}"/><path d="M-24 -12 l7 -5 l7 5" fill="none" stroke="${C.ink}" stroke-width="1.4"/></g>
+      <g transform="translate(70 300)">${smokes('s5sm2',4)}</g>
+      <g transform="translate(548 362)">${brazier('s5fl1')}${smokes('s5sm1',4)}</g>${motes(k)}`),
+    `<rect id="s5flash" x="15" y="15" width="570" height="370" fill="${C.white}" opacity="0"/>`),
+  cues:[[3.45,'boom'],[4.2,'conch']],
+  update(t,k){
+    const zoom=S(1,3.4,t)*(1-S(4.5,7,t));
+    cam(k,t,this.d,300,L(250,200,S(4.5,7,t)),.03,zoom*.12);
+    const awake=S(7.4,9,t);
+    light(k,L(300,300,awake),L(260,78,S(3.4,7.6,t)),L(380,600,awake));
+    const S0=[328,232]; let a;
+    if(t<3) a=L(70,-115,S(.4,3,t)); else a=L(-115,128,S(3.15,3.45,t));
+    const rad=a*Math.PI/180, hx=S0[0]+Math.cos(rad)*56, hy=S0[1]+Math.sin(rad)*56;
+    const d=`M${S0[0]} ${S0[1]} L${hx.toFixed(1)} ${hy.toFixed(1)}`;
+    $('s5arm0').setAttribute('d',d);$('s5arm1').setAttribute('d',d);
+    tr('s5knife',hx+Math.cos(rad)*14,hy+Math.sin(rad)*14,a);
+    tr('s5glint',hx+Math.cos(rad)*30,hy+Math.sin(rad)*30,t*200,bell(2.5,3.1,t)); op('s5glint',bell(2.5,3.1,t));
+    op('s5flash',Math.max(0,E(3.4,3.5,t)-E(3.5,4.3,t))*.9);
+    tr('s5h1',186+Math.sin(t*20)*bell(3.3,4,t)*2,330); tr('s5h2',432-Math.sin(t*20)*bell(3.3,4,t)*2,330);
+    const h=S(4.2,7.6,t);
+    tr('s5heart',300+Math.sin(h*Math.PI*1.4)*18,L(282,140,h),Math.sin(t*3)*6,(L(.4,1.25,S(3.6,4.4,t))-h*.35)*(1+Math.sin(t*9)*.06*(1-h)));
+    op('s5heart',E(3.5,3.9,t)*(1-E(7.4,8,t)));
+    const sp=$('s5stream'), len=sp.getTotalLength();
+    sp.setAttribute('stroke-dasharray',len); sp.setAttribute('stroke-dashoffset',(len*(1-S(3.6,7.6,t))).toFixed(1));
+    for(let i=0;i<4;i++){const q=E(4.4+i*.6,7.6,t), pt=sp.getPointAtLength(len*q);tr('s5b'+i,pt.x,pt.y);op('s5b'+i,q>0&&q<1?1:0)}
+    tr('s5s-rays',0,0,t*4+awake*Math.max(0,t-7.4)*45);
+    tr('s5sun',300,78,0,1+awake*.18+Math.sin(t*4)*.015*awake);
+    tr('s5beams',300,78,t*6); op('s5beams',awake);
+    const hb=E(9.5,14,t);
+    tr('s5hb',300+Math.sin(hb*Math.PI*3)*50,L(290,90,hb),-20+Math.sin(t*4)*8,.9); op('s5hb',hb>0?(1-E(13.5,14,t)):0); flap('s5hb',t);
+    flick('s5fl1',t,0); smokeU('s5sm1',4,0,-60,t,80,.25,-10); smokeU('s5sm2',4,0,0,t+2,60,.2,6);
+  }
+},
+/* 6 · Coatepec */
+{ d:16, name:'Coatepec',
+  svg:k=>{
+    let st=`M150 370`;for(let i=0;i<16;i++)st+=` v-15.625 h25`;
+    return panel(k,
+    LY(.12,`<g id="s6moon" transform="translate(70 70)"><circle r="38" fill="#e8f0ea" opacity=".4" filter="url(#glow)"/><circle r="26" fill="#dfe6e0" ${o}/><path d="M-10 -8 a14 14 0 1 0 18 18" fill="none" stroke="${C.blue}" stroke-width="2"/><circle r="26" fill="url(#orb)"/></g>
+      ${[0,1,2,3,4,5,6].map(i=>starEye(0,0,6,'s6st'+i)).join('')}${dateGlyph(250,92,1,'tecpatl')}`)+
+    LY(.85,`<path d="${st} L640 120 L640 420 L150 420 Z" fill="${C.stone}" ${o}/>
+      ${Array.from({length:16},(_,i)=>`<rect x="${150+i*25}" y="${370-(i+1)*15.625}" width="25" height="3.5" fill="#fff" opacity=".28"/><rect x="${150+i*25}" y="${370-i*15.625-4}" width="25" height="4" fill="#000" opacity=".12"/>`).join('')}
+      <path d="M150 370 L550 120 L640 120 L640 420 L150 420Z" fill="url(#stairG)"/>
+      <path d="M150 370 L550 120" stroke="${C.ink}" stroke-width="2"/>
+      <g transform="translate(470 220)">${[0,1].map(i=>`<g transform="translate(${i*60} ${i*-20})"><circle r="14" fill="${C.white}" ${o}/><circle r="14" fill="url(#orb)"/><circle cx="-5" cy="-3" r="3.6" fill="${C.ink}"/><circle cx="5" cy="-3" r="3.6" fill="${C.ink}"/><path d="M-6 7 h12" stroke="${C.ink}" stroke-width="2" stroke-dasharray="2 2"/></g>`).join('')}</g>
+      ${person({x:560,y:120,s:.85,flip:true,helm:'huitzi',body:C.blue,feathers:true,paint:C.ochre,necklace:true,shield:true,armF:[[24,-90],[46,-104]],armB:[[-10,-60],[-16,-56]],
+        extra:`<circle cx="80" cy="-150" r="30" fill="#ff9d3a" opacity=".35" filter="url(#glow)"/><path id="s6xa" fill="none" stroke="${C.ink}" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/><path id="s6xb" fill="none" stroke="${C.ochre}" stroke-width="8" stroke-dasharray="8 5" stroke-linecap="round" stroke-linejoin="round"/><g id="s6xh"><path d="M0 -8 L18 -4 L22 4 L0 8 Z" fill="${C.red}" ${o}/><circle cx="8" cy="-2" r="2" fill="${C.white}"/><path d="M22 0 l10 -8 l-2 10 l8 4 l-12 2z" fill="${C.ochre}" ${o} stroke-width="1"/></g>`})}`)+
+    LY(1,`${[0,1,2,3,4,5].map(i=>`<g id="s6d${i}" opacity="0"><circle cx="-10" r="7" fill="${C.sand}" ${o} stroke-width="1.2"/><circle cx="8" cy="-3" r="9" fill="${C.sand}" ${o} stroke-width="1.2"/><circle cx="20" cy="2" r="5" fill="${C.sand}" ${o} stroke-width="1.2"/></g>`).join('')}
+      <g id="s6b">${person({y:62,shadow:false,body:C.white,skin:C.white,face:C.skin,stripes:true,down:true,armF:[[14,-100],[20,-120]],armB:[[-10,-100],[-14,-122]]})}</g>`)+
+    LY(1.2,`<g id="s6disc" transform="translate(90 318)">
+        <circle r="66" fill="#2a1406" opacity=".3" filter="url(#blur3)" transform="translate(6 8)"/>
+        <circle r="62" fill="${tone(C.stone,.7)}" ${o} transform="translate(0 7)"/><circle r="62" fill="${C.stone}" ${o}/><circle r="54" fill="none" stroke="${C.ink}" stroke-width="1" stroke-dasharray="3 4"/>
+        <path d="M-22 -18 q-14 -18 -4 -32 q8 -6 14 4 M-14 -20 q-2 -18 12 -24 q6 2 4 10" stroke="${C.ink}" stroke-width="2" fill="${C.white}"/>
+        <circle cx="-6" cy="-6" r="16" fill="${C.ochre}" ${o}/><circle cx="-1" cy="-9" r="2.2" fill="${C.ink}"/><circle cx="10" cy="2" r="5" fill="${C.ochre}" ${o} stroke-width="1.3"/><path d="M8 2 h4" stroke="${C.ink}"/>
+        <path d="M10 -22 l28 -14 M18 18 l22 18 M-24 16 l-18 22 M-34 -2 l-20 -4" stroke="${C.ink}" stroke-width="11" stroke-linecap="round"/>
+        <path d="M10 -22 l28 -14 M18 18 l22 18 M-24 16 l-18 22 M-34 -2 l-20 -4" stroke="${C.skin}" stroke-width="7" stroke-linecap="round"/>
+        ${[[40,-38],[42,38],[-44,40],[-56,-6]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5" fill="${C.ochre}" ${o} stroke-width="1.3"/>`).join('')}
+        <path d="M-14 18 a10 10 0 0 0 20 0" fill="${C.white}" ${o} stroke-width="1.3"/>
+        <circle r="62" fill="url(#orb)"/>
+      </g>`)+
+    LY(1.45,`${[0,1,2,3,4].map(i=>`<g id="s6pt${i}"><path d="M0 -8 C6 -8 8 0 0 8 C-8 0 -6 -8 0 -8Z" fill="${i%2?C.red:C.white}" ${o} stroke-width="1.4" transform="scale(1.8)"/></g>`).join('')}${motes(k)}`))},
+  cues:[[1.2,'boom'],[8,'boom']],
+  update(t,k){
+    const p=S(1,8,t);
+    const x=L(515,175,p), y=L(110,330,p)-Math.abs(Math.sin(p*Math.PI*6))*14*(1-p);
+    cam(k,t,this.d,300,220,.04);
+    light(k,L(520,120,S(8,9.5,t)),L(120,300,S(8,9.5,t)),L(460,380,S(8,9.5,t)));
+    tr('s6b',x,y,p*900,.62); op('s6b',1-E(8.2,9.2,t));
+    for(let i=0;i<6;i++){const pi=(i+1)/6, age=(p-pi)/.07;
+      tr('s6d'+i,L(515,175,pi),L(110,330,pi)+6,0,.5+Math.max(0,age)*.6); op('s6d'+i,age>0&&age<1?1-age:0)}
+    const g=S(8,9.4,t);
+    tr('s6disc',90,318,0,1+g*.06+Math.sin(t*3)*.01*g);
+    tr('s6moon',70,70+p*20); op('s6moon',1-E(2,9,t)*.75);
+    for(let i=0;i<7;i++){const q=S(1.5+i*.3,9+i*.3,t);tr('s6st'+i,L(260+i*48,-40,q),L(48+(i%3)*18,30+(i%2)*40,q),q*200,1-q*.3);op('s6st'+i,1-E(7+i*.3,9.5+i*.3,t))}
+    for(let i=0;i<5;i++){const ph=((t*.06+i/5)%1);tr('s6pt'+i,L(640,-40,ph),60+i*70+Math.sin(t+i)*20,t*40+i*70)}
+    const A=[46,-104],B=[104,-196];let dd='';const nx=-(B[1]-A[1]),ny=B[0]-A[0],nl=Math.hypot(nx,ny);
+    for(let i=0;i<=12;i++){const u=i/12,w=Math.sin(u*Math.PI*3-t*6)*9*u;dd+=(i?'L':'M')+(L(A[0],B[0],u)+nx/nl*w).toFixed(1)+' '+(L(A[1],B[1],u)+ny/nl*w).toFixed(1)}
+    $('s6xa').setAttribute('d',dd);$('s6xb').setAttribute('d',dd);
+    const wEnd=Math.sin(Math.PI*3-t*6)*9;$('s6xh').setAttribute('transform',`translate(${(B[0]+nx/nl*wEnd).toFixed(1)} ${(B[1]+ny/nl*wEnd).toFixed(1)}) rotate(-58)`);
+  }
+},
+/* 7 · El Sol sigue andando */
+{ d:19, name:'El Sol sigue andando',
+  svg:k=>panel(k,
+    LY(.1,`<g opacity=".12" transform="translate(300 175) scale(5)">${dateGlyph(0,8,0,'ollin')}</g>
+      <defs><clipPath id="s7clip"><rect x="-40" y="0" width="680" height="330"/></clipPath></defs>
+      <path id="s7arc" d="M40 345 Q300 -150 545 345" fill="none" stroke="${C.ochre}" stroke-width="1.5" stroke-dasharray="2 7"/>
+      <g id="s7stars" opacity="0">${Array.from({length:12},(_,i)=>starEye(40+((i*97)%520),40+((i*53)%160),5,'s7st'+i)).join('')}</g>
+      <g clip-path="url(#s7clip)"><g id="s7sun">${sun('s7s',34)}</g></g>${dateGlyph(64,96,3,'calli')}`)+
+    LY(.6,`<g id="s7ruin" opacity="0">
+        <path d="M140 330 v-30 h40 v-26 h30 v-22 h44 v40 h-20 v38 M330 330 v-50 h36 v20 h40 v30" fill="${C.stone}" stroke="${C.ink}" stroke-width="2"/>
+        <path d="M150 330 v-24 M300 330 v-16 M396 330 v-12" stroke="${C.ink}" stroke-width="1.2" stroke-dasharray="3 3"/>
+        ${[[200,300],[230,316],[380,318],[350,300]].map(([x,y])=>slab(x,y,10,7,C.sand,3,2,1)).join('')}
+      </g>
+      <g id="s7temple">${temple(300,330,280,130,'s7ts')}</g>
+      <g id="s7jaw" transform="translate(545 330)">
+        <g id="s7up"><path d="M-46 0 Q-40 -58 40 -62 L44 -44 Q-8 -42 -22 0 Z" fill="${C.red}" ${o}/><path d="M-46 0 Q-40 -58 40 -62 L44 -44 Q-8 -42 -22 0 Z" fill="url(#vshd)"/>${[-16,-4,8,20,32].map((x,i)=>`<path d="M${x} ${-42-i*1.5} l5 12 l5 -12" fill="${C.white}" ${o} stroke-width="1"/>`).join('')}${starEye(18,-54,6)}</g>
+        <path d="M-46 0 Q-30 28 44 26 L44 12 Q-8 14 -22 0 Z" fill="${C.red}" ${o}/>
+      </g>`)+
+    LY(.85,`<rect x="-40" y="330" width="680" height="90" fill="${C.sand}"/><rect x="-40" y="330" width="680" height="90" fill="url(#vshd)" opacity=".6"/><path d="M-40 330 H640" stroke="${C.ink}" stroke-width="2"/>
+      <g id="s7disc" opacity="0"><ellipse cx="304" cy="374" rx="24" ry="5" fill="#2a1406" opacity=".35" filter="url(#blur3)"/><circle cx="300" cy="360" r="20" fill="${tone(C.stone,.7)}" ${o}/><circle cx="300" cy="356" r="20" fill="${C.stone}" ${o}/><circle cx="296" cy="352" r="6" fill="${C.ochre}" ${o} stroke-width="1"/><path d="M304 344 l10 -6 M306 362 l8 6 M288 362 l-8 6" stroke="${C.skin}" stroke-width="3" stroke-linecap="round"/><circle cx="300" cy="356" r="20" fill="url(#orb)"/></g>
+      ${[0,1,2,3,4,5,6,7,8,9].map(i=>`<path id="s7p${i}" transform="translate(${60+i*50} ${380+(i%2)*10}) rotate(90)" d="M0 10 C-3 7 -3 1 -1 -2 C1 -5 5 -5 6 -1 C7 3 5 7 3 10 Z M-1 -6 a1.6 1.6 0 1 0 .1 0 M2 -7 a1.6 1.6 0 1 0 .1 0 M5 -6 a1.4 1.4 0 1 0 .1 0" fill="${C.ink}" opacity="0"/>`).join('')}`)+
+    LY(1,`${hbird('s7hb1')}${hbird('s7hb2')}`)+
+    LY(1.4,`<g transform="translate(10 420)">${maguey('s7mg',1.2)}</g>${motes(k)}`),
+    `<rect id="s7night" x="15" y="15" width="570" height="370" fill="${C.night}" opacity="0" style="mix-blend-mode:multiply"/>`),
+  cues:[[9,'conch'],[13,'boom']],
+  update(t,k){
+    cam(k,t,this.d,300,250,.05);
+    const a=$('s7arc'), len=a.getTotalLength();
+    let pt, sc=1;
+    if(t<9.2){pt=a.getPointAtLength(len*S(0,9.2,t)); sc=1-E(8.2,9.2,t)*.4}
+    else if(t<13) pt={x:40,y:420};
+    else pt=a.getPointAtLength(len*S(13,18.5,t)*.42);
+    tr('s7sun',pt.x,pt.y,0,sc); tr('s7s-rays',0,0,t*30);
+    const cl=bell(8.4,10.4,t); tr('s7up',0,0,cl*16);
+    const night=S(8.8,10.2,t)*(1-S(12.5,14.5,t));
+    op('s7night',night*.62); op('s7stars',night);
+    light(k,Math.min(pt.x,600),Math.min(pt.y,360),L(520,260,night));
+    for(let i=0;i<12;i++)tr('s7st'+i,40+((i*97)%520),40+((i*53)%160),0,1+Math.sin(t*4+i)*.2);
+    const r=S(10,12.5,t); op('s7temple',1-r); op('s7ruin',r); op('s7disc',S(14,15.5,t));
+    smokeU('s7tsL',4,0,0,t,50,.3,6); smokeU('s7tsR',4,0,0,t+1.5,50,.3,6);
+    for(let i=0;i<10;i++) op('s7p'+i,E(13+i*.4,13.3+i*.4,t)*.85);
+    for(const [id,cx,ph] of [['s7hb1',230,0],['s7hb2',380,2]]){const on=E(14.5,15.5,t);
+      tr(id,cx+Math.sin(t*1.3+ph)*30,280+Math.sin(t*2.1+ph)*18-(1-on)*60,Math.sin(t*3+ph)*8,.7*(ph?-1:1),.7);op(id,on);flap(id,t)}
+    tr('s7mg',0,0,Math.sin(t*.8)*1.5);
+  }
+}
+];
+
+/* =============== sonido: huehuetl, teponaztli, ayoyotes, caracol =============== */
+let AC=null, master=null, noise=null, soundOn=false, nextNote=0, step=0;
+function initAudio(){
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain(); master.gain.value=.55;
+  const comp=AC.createDynamicsCompressor(); master.connect(comp).connect(AC.destination);
+  noise=AC.createBuffer(1,AC.sampleRate*.5,AC.sampleRate); const d=noise.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+}
+function env(g,t0,a,peak,dec){g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+a);g.gain.exponentialRampToValueAtTime(0.0001,t0+a+dec)}
+function huehuetl(t0,v=.9,f=72){const os=AC.createOscillator(),g=AC.createGain();os.frequency.setValueAtTime(f*2,t0);os.frequency.exponentialRampToValueAtTime(f*.6,t0+.3);env(g,t0,.005,v,.55);os.connect(g).connect(master);os.start(t0);os.stop(t0+.7)}
+function tepo(t0,f){const os=AC.createOscillator(),g=AC.createGain();os.type='triangle';os.frequency.value=f;env(g,t0,.003,.32,.16);os.connect(g).connect(master);os.start(t0);os.stop(t0+.25)}
+function rattle(t0,v=.12){const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=noise;f.type='bandpass';f.frequency.value=5200;f.Q.value=1.2;env(g,t0,.004,v,.08);s.connect(f).connect(g).connect(master);s.start(t0);s.stop(t0+.12)}
+function conch(t0,dur=2.6){const g=AC.createGain(),f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=900;
+  [110,110.8,220.4].forEach((fr,i)=>{const os=AC.createOscillator();os.type='sawtooth';os.frequency.setValueAtTime(fr*.94,t0);os.frequency.linearRampToValueAtTime(fr,t0+.5);
+    const v=AC.createOscillator(),vg=AC.createGain();v.frequency.value=5;vg.gain.value=1.5;v.connect(vg).connect(os.frequency);v.start(t0);v.stop(t0+dur);
+    const og=AC.createGain();og.gain.value=i===2?.25:.5;os.connect(og).connect(f);os.start(t0);os.stop(t0+dur)});
+  g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(.32,t0+.45);g.gain.setValueAtTime(.32,t0+dur-.8);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);f.connect(g).connect(master)}
+const CUE={boom:t0=>{huehuetl(t0,1.2,52);huehuetl(t0+.02,.6,90)},conch:t0=>conch(t0),rattle:t0=>{for(let i=0;i<6;i++)rattle(t0+i*.05,.16)}};
+const PAT={h:[0,6,8,11,14],tl:[2,10],th:[4,12,13],r:[1,3,5,7,9,11,13,15]};
+setInterval(()=>{
+  if(!AC||!soundOn)return;
+  if(nextNote<AC.currentTime)nextNote=AC.currentTime+.05;
+  while(nextNote<AC.currentTime+.2){
+    if(playing&&!(cur===5&&t>2.6&&t<3.45)){
+      if(PAT.h.includes(step))huehuetl(nextNote,step===0?.95:.6);
+      if(PAT.tl.includes(step))tepo(nextNote,330);if(PAT.th.includes(step))tepo(nextNote,440);
+      if(PAT.r.includes(step))rattle(nextNote)}
+    step=(step+1)%16; nextNote+=.19;
+  }
+},40);
+
+/* =============== motor =============== */
+const strip=$('strip'), steps=$('steps'), stage=$('stage'), codex=$('codex');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+strip.innerHTML=scenes.map((s,i)=>`<svg class="leaf" viewBox="0 0 600 400" role="img" aria-label="${s.name}" preserveAspectRatio="xMidYMid meet">${s.svg(i)}</svg>`).join('');
+const leaves=[...strip.children];
+leaves.forEach((svg,k)=>LAYERS[k]=[...svg.querySelectorAll('.ly')].map(el=>({el,z:+el.dataset.z})));
+const foot=`<svg viewBox="0 0 20 26" aria-hidden="true"><path d="M10 25 C4 22 4 14 6 10 C8 6 14 6 15 11 C16 16 14 22 12 25 Z" fill="currentColor"/><circle cx="6.5" cy="5" r="2" fill="currentColor"/><circle cx="10" cy="3" r="2.1" fill="currentColor"/><circle cx="13.5" cy="4" r="1.9" fill="currentColor"/><circle cx="16" cy="7" r="1.5" fill="currentColor"/></svg>`;
+steps.innerHTML=scenes.map((s,i)=>`<button type="button" aria-label="${s.name}" data-i="${i}">${foot}</button>`).join('');
+const ICON={play:'<svg viewBox="0 0 20 20"><path d="M6 3 L17 10 L6 17Z" fill="currentColor"/></svg>',pause:'<svg viewBox="0 0 20 20"><rect x="4" y="3" width="4.5" height="14" fill="currentColor"/><rect x="11.5" y="3" width="4.5" height="14" fill="currentColor"/></svg>'};
+
+let cur=0, t=0, playing=!reduce, last=performance.now(), seen=new Set([0]), phase=reduce?'film':'intro', pt=0;
+scenes.forEach((s,i)=>{try{s.update(0,i)}catch(e){console.error(e)}});
+
+function show(i){
+  const prev=cur; cur=(i+scenes.length)%scenes.length; t=reduce?scenes[cur].d-.01:0; seen.add(cur);
+  scenes[cur].update(t,cur);
+  strip.style.transform=`translateX(${-cur*100}%)`;
+  leaves.forEach((l,k)=>{l.classList.toggle('before',k<cur);l.classList.toggle('after',k>cur)});
+  [...steps.children].forEach((b,k)=>{b.classList.toggle('cur',k===cur);b.classList.toggle('seen',seen.has(k)&&k!==cur);b.setAttribute('aria-current',k===cur?'step':'false')});
+  if(soundOn&&AC&&prev!==cur)conch(AC.currentTime+.05,2);
+}
+const gc=$('grain').getContext('2d'), gimg=gc.createImageData(180,120); let gLast=0;
+function grainFrame(now){if(reduce||now-gLast<41)return;gLast=now;const d=gimg.data;for(let i=0;i<d.length;i+=4){const v=Math.random()*255|0;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255}gc.putImageData(gimg,0,0)}
+function setPlay(v){playing=v;$('play').innerHTML=v?ICON.pause:ICON.play;$('play').setAttribute('aria-label',v?'Pausa':'Reproducir')}
+function loop(now){
+  const dt=Math.min(.1,(now-last)/1000); last=now;
+  if(!reduce){wt+=dt; mx+=(tmx-mx)*Math.min(1,dt*3); my+=(tmy-my)*Math.min(1,dt*3);}
+  codex.style.setProperty('--ry',(mx*4).toFixed(2)+'deg'); codex.style.setProperty('--rx',(-my*3).toFixed(2)+'deg');
+  const sc=scenes[cur];
+  shake=Math.max(0,shake-dt*1.6);
+  if(playing&&phase==='intro'){pt+=dt;if(pt>6.5){phase='film';$('cardIn').classList.remove('on')}}
+  else if(playing&&phase==='outro'){pt+=dt;if(pt>7){phase='intro';pt=0;$('cardOut').classList.remove('on');show(0);setTimeout(()=>$('cardIn').classList.add('on'),900)}}
+  else if(playing){
+    const t0=t; t+=dt;
+    if(sc.cues)sc.cues.forEach(([ct,c])=>{if(t0<ct&&t>=ct){if(c==='boom')shake=1;if(soundOn&&AC)CUE[c](AC.currentTime+.01)}});
+    if(t>=sc.d){if(cur===scenes.length-1){phase='outro';pt=0;$('cardOut').classList.add('on')}else show(cur+1)}
+  }
+  grainFrame(now);
+  $('leak').style.opacity=(.1+.12*Math.sin(wt*.31)**2+.18*shake).toFixed(3);
+  $('leak').style.transform=`translate(${(Math.sin(wt*.13)*6).toFixed(2)}%,${(Math.cos(wt*.11)*4).toFixed(2)}%)`;
+  strip.style.translate=reduce?'':`${((Math.random()-.5)*.6).toFixed(2)}px ${((Math.random()-.5)*.6).toFixed(2)}px`;
+  try{scenes[cur].update(Math.min(t,scenes[cur].d),cur)}catch(e){console.error(e)}
+  const wp=document.querySelector('#water');if(wp)wp.setAttribute('patternTransform',`translate(${((wt*9)%40).toFixed(2)} 0)`);
+  $('prog').style.width=(phase==='film'?Math.min(t,scenes[cur].d)/scenes[cur].d*100:phase==='intro'?0:100).toFixed(2)+'%';
+  requestAnimationFrame(loop);
+}
+function setSound(v){soundOn=v;if(v&&!AC)initAudio();if(AC&&AC.state==='suspended')AC.resume();
+  $('snd').setAttribute('aria-pressed',v);$('sndWave').style.display=v?'':'none';$('sndOff').style.display=v?'none':'';
+  if(v)conch(AC.currentTime+.05,2.4)}
+const skipCards=()=>{if(phase!=='film'){phase='film';$('cardIn').classList.remove('on');$('cardOut').classList.remove('on')}};
+$('prev').onclick=()=>{skipCards();show(cur-1)};
+$('fs').onclick=()=>{const f=document.fullscreenElement?document.exitFullscreen():codex.requestFullscreen?.();f?.catch?.(()=>{})};
+$('next').onclick=()=>{skipCards();show(cur+1)};
+$('play').onclick=()=>setPlay(!playing);
+$('snd').onclick=()=>setSound(!soundOn);
+stage.onclick=()=>setPlay(!playing);
+stage.addEventListener('pointermove',e=>{const r=stage.getBoundingClientRect();tmx=((e.clientX-r.left)/r.width-.5)*2;tmy=((e.clientY-r.top)/r.height-.5)*2});
+stage.addEventListener('pointerleave',()=>{tmx=0;tmy=0});
+steps.onclick=e=>{const b=e.target.closest('button');if(b){skipCards();show(+b.dataset.i)}};
+addEventListener('keydown',e=>{if(e.key==='ArrowRight')show(cur+1);if(e.key==='ArrowLeft')show(cur-1);if(e.key===' '&&e.target===document.body){e.preventDefault();setPlay(!playing)}});
+setPlay(playing); setSound(false); show(0); if(phase==='intro')requestAnimationFrame(()=>$('cardIn').classList.add('on')); requestAnimationFrame(loop);
+</script>

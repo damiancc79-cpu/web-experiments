@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Terminal — A Static 3D Airport Interior</title>
+<style>
+  :root { color-scheme: dark; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #05070b; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  /* ---- HUD ---- */
+  .hud { position: fixed; pointer-events: none; user-select: none; z-index: 10; }
+  #title {
+    top: 18px; left: 20px;
+    color: #eaf2ff; text-shadow: 0 2px 10px rgba(0,0,0,.7);
+  }
+  #title h1 { font-size: 15px; font-weight: 700; letter-spacing: 3px; }
+  #title h1 span { color: #61b3ff; }
+  #title p { font-size: 11px; letter-spacing: 1px; color: #93a4bd; margin-top: 3px; }
+
+  #help {
+    bottom: 16px; left: 20px;
+    font-size: 11.5px; line-height: 1.75; color: #b9c6db;
+    text-shadow: 0 1px 6px rgba(0,0,0,.8);
+  }
+  #help b { color: #eaf2ff; }
+  #help .k {
+    display: inline-block; min-width: 16px; text-align: center;
+    padding: 1px 6px; margin: 0 1px;
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 4px; font-size: 10.5px; color: #dce6f5;
+  }
+
+  #stats {
+    bottom: 16px; right: 18px; text-align: right;
+    font-size: 10.5px; line-height: 1.6; color: #6f819c; letter-spacing: .4px;
+  }
+
+  /* ---- Crosshair ---- */
+  #cross {
+    position: fixed; left: 50%; top: 50%; width: 5px; height: 5px;
+    margin: -2.5px 0 0 -2.5px; border-radius: 50%;
+    background: rgba(255,255,255,.55); box-shadow: 0 0 0 1px rgba(0,0,0,.4);
+    z-index: 9; pointer-events: none; opacity: 0; transition: opacity .3s;
+  }
+  body.locked #cross { opacity: 1; }
+
+  /* ---- Start / pause overlay ---- */
+  #blocker {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(120% 120% at 50% 35%, rgba(10,16,28,.35), rgba(3,5,9,.85));
+    backdrop-filter: blur(2px); cursor: pointer; transition: opacity .35s;
+  }
+  body.locked #blocker { opacity: 0; pointer-events: none; }
+  #panel {
+    text-align: center; color: #dfe9f8; padding: 30px 40px;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 16px;
+    background: rgba(12,18,30,.55); box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    max-width: 460px;
+  }
+  #panel .badge { font-size: 11px; letter-spacing: 4px; color: #61b3ff; }
+  #panel h2 { font-size: 26px; font-weight: 700; letter-spacing: 1px; margin: 8px 0 6px; }
+  #panel p { font-size: 13px; color: #9fb0c7; line-height: 1.6; }
+  #panel .cta {
+    margin-top: 18px; display: inline-block; padding: 11px 26px; border-radius: 10px;
+    background: linear-gradient(180deg, #3a8dff, #1f6fe0); color: #fff; font-weight: 600;
+    font-size: 13px; letter-spacing: .5px; box-shadow: 0 8px 24px rgba(31,111,224,.45);
+  }
+  #panel .grid {
+    margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px;
+    font-size: 12px; color: #b9c6db; text-align: left;
+  }
+  #panel .grid span { color: #6f819c; }
+  #err {
+    position: fixed; inset: 0; z-index: 50; display: none;
+    align-items: center; justify-content: center; padding: 30px;
+    background: #0a0d14; color: #ffd7d7; font-size: 13px; line-height: 1.6; text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="title" class="hud">
+    <h1>HELIOS <span>INTERNATIONAL</span> — CONCOURSE A</h1>
+    <p>A static, explorable 3D terminal</p>
+  </div>
+
+  <div id="cross"></div>
+
+  <div id="help" class="hud">
+    <b>Move</b> <span class="k">W</span><span class="k">A</span><span class="k">S</span><span class="k">D</span> / Arrows &nbsp;·&nbsp;
+    <b>Turn</b> <span class="k">←</span><span class="k">→</span> or <span class="k">Q</span><span class="k">E</span> &nbsp;·&nbsp;
+    <b>Up/Down</b> <span class="k">Space</span><span class="k">C</span> &nbsp;·&nbsp;
+    <b>Run</b> <span class="k">Shift</span> &nbsp;·&nbsp;
+    <b>Look</b> mouse (click first)
+  </div>
+
+  <div id="stats" class="hud"></div>
+
+  <div id="blocker">
+    <div id="panel">
+      <div class="badge">DESTINATION · DEPARTURES</div>
+      <h2>Welcome to the Terminal</h2>
+      <p>An astonishingly detailed, completely static airport interior. Nothing moves but you. Wander the concourse, the gates, the shops and the apron beyond the glass.</p>
+      <div class="cta">Click to explore</div>
+      <div class="grid">
+        <div><span>Walk</span> &nbsp;W A S D / Arrows</div>
+        <div><span>Turn</span> &nbsp;← → · Q E</div>
+        <div><span>Rise / fall</span> &nbsp;Space / C</div>
+        <div><span>Run</span> &nbsp;Shift</div>
+        <div><span>Look</span> &nbsp;Mouse</div>
+        <div><span>Release</span> &nbsp;Esc</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="err"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+const fail = (msg) => {
+  const e = document.getElementById('err');
+  e.style.display = 'flex';
+  e.innerHTML = '⚠️ Could not start the 3D scene.<br><br>' + msg +
+    '<br><br>This page needs a modern browser with WebGL. If you opened it directly, try Chrome, or serve it locally.';
+};
+window.addEventListener('error', ev => fail(String(ev.message || ev.error || ev)));
+
+try { main(); } catch (e) { console.error(e); fail(String(e && e.stack || e)); }
+
+function main() {
+  // ============================================================
+  //  RENDERER / SCENE / CAMERA
+  // ============================================================
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.getElementById('app').appendChild(renderer.domElement);
+  const MAXA = renderer.capabilities.getMaxAnisotropy();
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0xcfe0f2, 90, 520);
+
+  const camera = new THREE.PerspectiveCamera(64, window.innerWidth / window.innerHeight, 0.1, 2000);
+
+  // ============================================================
+  //  CANVAS-TEXTURE HELPERS (everything procedural — single file, offline)
+  // ============================================================
+  function ctex(w, h, draw, { rx = 1, ry = 1, srgb = true } = {}) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    draw(c.getContext('2d'), w, h);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(rx, ry);
+    t.anisotropy = MAXA;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  const rr = (ctx, x, y, w, h, r) => { // rounded rect
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  };
+
+  // ---- Sky / environment (used for background + PBR reflections) ----
+  const skyTex = ctex(1024, 512, (x, w, h) => {
+    const g = x.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0.0, '#2b6fc4');
+    g.addColorStop(0.42, '#6ea9e0');
+    g.addColorStop(0.55, '#bcd8f2');
+    g.addColorStop(0.62, '#e8f1fa');
+    g.addColorStop(0.66, '#9fb1c0');
+    g.addColorStop(1.0, '#5d6b78');
+    x.fillStyle = g; x.fillRect(0, 0, w, h);
+    // soft static clouds
+    x.globalAlpha = 0.5;
+    for (let i = 0; i < 26; i++) {
+      const cx = Math.random() * w, cy = h * (0.12 + Math.random() * 0.32);
+      const rw = 40 + Math.random() * 130, rh = rw * 0.32;
+      const cg = x.createRadialGradient(cx, cy, 0, cx, cy, rw);
+      cg.addColorStop(0, 'rgba(255,255,255,.9)'); cg.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = cg; x.save(); x.translate(cx, cy); x.scale(1, rh / rw);
+      x.beginPath(); x.arc(0, 0, rw, 0, 7); x.fill(); x.restore();
+    }
+    x.globalAlpha = 1;
+  });
+  skyTex.mapping = THREE.EquirectangularReflectionMapping;
+  scene.background = skyTex;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromEquirectangular(skyTex).texture;
+
+  // ---- Floor: polished granite tiles ----
+  const floorTex = ctex(512, 512, (x, w) => {
+    x.fillStyle = '#c9ccd2'; x.fillRect(0, 0, w, w);
+    for (let i = 0; i < 6000; i++) {
+      const v = 150 + Math.random() * 105;
+      x.fillStyle = `rgba(${v},${v},${v + 4},${Math.random() * 0.5})`;
+      x.fillRect(Math.random() * w, Math.random() * w, 1.4, 1.4);
+    }
+    // big soft mottle for veined stone
+    for (let i = 0; i < 40; i++) {
+      const g = x.createRadialGradient(Math.random() * w, Math.random() * w, 0, Math.random() * w, Math.random() * w, 60 + Math.random() * 80);
+      g.addColorStop(0, 'rgba(180,184,190,.25)'); g.addColorStop(1, 'rgba(180,184,190,0)');
+      x.fillStyle = g; x.fillRect(0, 0, w, w);
+    }
+    x.strokeStyle = 'rgba(120,124,132,.85)'; x.lineWidth = 3;
+    for (const p of [0, 256, 512]) { x.beginPath(); x.moveTo(p, 0); x.lineTo(p, 512); x.moveTo(0, p); x.lineTo(512, p); x.stroke(); }
+  }, { rx: 60, ry: 20 });
+
+  // ---- Ceiling: perforated metal panel grid ----
+  const ceilTex = ctex(256, 256, (x, w) => {
+    x.fillStyle = '#e9ecef'; x.fillRect(0, 0, w, w);
+    x.strokeStyle = 'rgba(150,156,164,.7)'; x.lineWidth = 2;
+    for (const p of [0, 128, 256]) { x.beginPath(); x.moveTo(p, 0); x.lineTo(p, w); x.moveTo(0, p); x.lineTo(w, p); x.stroke(); }
+    x.fillStyle = 'rgba(120,126,134,.35)';
+    for (let i = 8; i < w; i += 16) for (let j = 8; j < w; j += 16) { x.beginPath(); x.arc(i, j, 1.4, 0, 7); x.fill(); }
+  }, { rx: 30, ry: 11 });
+
+  // ---- Carpet (gate seating zones) ----
+  const carpetTex = ctex(256, 256, (x, w) => {
+    x.fillStyle = '#26405e'; x.fillRect(0, 0, w, w);
+    for (let i = 0; i < 9000; i++) {
+      const b = Math.random();
+      x.fillStyle = b > .5 ? 'rgba(60,95,135,.5)' : 'rgba(20,32,48,.5)';
+      x.fillRect(Math.random() * w, Math.random() * w, 1.6, 1.6);
+    }
+    x.strokeStyle = 'rgba(150,180,210,.10)'; x.lineWidth = 6;
+    for (let p = 0; p <= w; p += 64) { x.beginPath(); x.moveTo(p, 0); x.lineTo(p, w); x.stroke(); }
+  }, { rx: 8, ry: 8 });
+
+  // ---- Tarmac / apron ----
+  const apronTex = ctex(512, 512, (x, w) => {
+    x.fillStyle = '#3c4147'; x.fillRect(0, 0, w, w);
+    for (let i = 0; i < 5000; i++) { const v = 40 + Math.random() * 40; x.fillStyle = `rgba(${v},${v},${v},.5)`; x.fillRect(Math.random() * w, Math.random() * w, 2, 2); }
+    x.strokeStyle = 'rgba(20,22,24,.6)'; x.lineWidth = 3;
+    for (let p = 0; p <= w; p += 128) { x.beginPath(); x.moveTo(p, 0); x.lineTo(p, w); x.stroke(); }
+  }, { rx: 24, ry: 24 });
+
+  // ---- Flight Information Display (DEPARTURES) ----
+  const boardTex = ctex(1100, 660, (x, w, h) => {
+    x.fillStyle = '#080b12'; x.fillRect(0, 0, w, h);
+    x.fillStyle = '#0d1422'; x.fillRect(0, 0, w, 70);
+    x.fillStyle = '#ffd23f'; x.font = '700 40px Arial';
+    x.fillText('DEPARTURES', 26, 50);
+    x.fillStyle = '#7da2c8'; x.font = '600 22px Arial';
+    x.textAlign = 'right'; x.fillText('HELIOS INTL  ·  CONCOURSE A', w - 26, 48); x.textAlign = 'left';
+    const cols = [26, 200, 360, 800, 940];
+    x.fillStyle = '#3b78b8'; x.font = '700 21px Arial';
+    ['TIME', 'FLIGHT', 'DESTINATION', 'GATE', 'STATUS'].forEach((t, i) => x.fillText(t, cols[i], 100));
+    const rows = [
+      ['08:15', 'SK 402', 'STOCKHOLM ARN', 'A12', 'BOARDING', '#36d399'],
+      ['08:30', 'LH 887', 'FRANKFURT FRA', 'A09', 'ON TIME', '#dbe7f5'],
+      ['08:45', 'BA 311', 'LONDON LHR', 'A15', 'FINAL CALL', '#ffd23f'],
+      ['09:05', 'AF 220', 'PARIS CDG', 'A04', 'ON TIME', '#dbe7f5'],
+      ['09:20', 'EK 048', 'DUBAI DXB', 'A21', 'DELAYED', '#ff8a3d'],
+      ['09:40', 'DL 117', 'NEW YORK JFK', 'A07', 'ON TIME', '#dbe7f5'],
+      ['10:00', 'QR 678', 'DOHA DOH', 'A02', 'GATE CLOSED', '#ff5d5d'],
+      ['10:15', 'SQ 333', 'SINGAPORE SIN', 'A18', 'ON TIME', '#dbe7f5'],
+      ['10:35', 'NH 211', 'TOKYO HND', 'A11', 'BOARDING', '#36d399'],
+      ['11:00', 'IB 540', 'MADRID MAD', 'A06', 'ON TIME', '#dbe7f5'],
+      ['11:20', 'TK 199', 'ISTANBUL IST', 'A14', 'ON TIME', '#dbe7f5'],
+    ];
+    let y = 142;
+    rows.forEach((r, i) => {
+      if (i % 2) { x.fillStyle = 'rgba(255,255,255,.03)'; x.fillRect(0, y - 26, w, 38); }
+      x.font = '600 26px "Courier New", monospace';
+      x.fillStyle = '#cfe0f2'; x.fillText(r[0], cols[0], y);
+      x.fillStyle = '#ffd23f'; x.fillText(r[1], cols[1], y);
+      x.fillStyle = '#eef4fb'; x.fillText(r[2], cols[2], y);
+      x.fillStyle = '#ffffff'; x.fillText(r[3], cols[3], y);
+      x.fillStyle = r[5]; x.fillText(r[4], cols[4], y);
+      y += 44;
+    });
+  });
+
+  // ---- Directional / overhead sign maker ----
+  function signTex(lines, { bg = '#0c2233', accent = '#ffd23f' } = {}) {
+    return ctex(512, 160, (x, w, h) => {
+      x.fillStyle = bg; rr(x, 0, 0, w, h, 14); x.fill();
+      x.strokeStyle = 'rgba(255,255,255,.12)'; x.lineWidth = 3; rr(x, 4, 4, w - 8, h - 8, 12); x.stroke();
+      let y = lines.length > 1 ? 64 : 96;
+      for (const ln of lines) {
+        x.font = '700 46px Arial'; x.textBaseline = 'middle';
+        const arrowL = ln.t.startsWith('<'), arrowR = ln.t.endsWith('>');
+        const txt = ln.t.replace(/^<\s?/, '').replace(/\s?>$/, '');
+        x.fillStyle = ln.c || '#ffffff';
+        let tx = 30;
+        if (arrowL) { drawArrow(x, 38, y, -1, accent); tx = 78; }
+        x.fillText(txt, tx, y);
+        if (arrowR) drawArrow(x, w - 40, y, 1, accent);
+        y += 64;
+      }
+    });
+  }
+  function drawArrow(x, cx, cy, dir, col) {
+    x.fillStyle = col; x.beginPath();
+    x.moveTo(cx + dir * 22, cy); x.lineTo(cx - dir * 14, cy - 22); x.lineTo(cx - dir * 14, cy - 8);
+    x.lineTo(cx - dir * 26, cy - 8); x.lineTo(cx - dir * 26, cy + 8); x.lineTo(cx - dir * 14, cy + 8);
+    x.lineTo(cx - dir * 14, cy + 22); x.closePath(); x.fill();
+  }
+
+  // ---- Shop / storefront sign ----
+  function shopSign(name, color) {
+    return ctex(512, 128, (x, w, h) => {
+      x.fillStyle = color; x.fillRect(0, 0, w, h);
+      x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(0, h - 16, w, 16);
+      x.fillStyle = '#fff'; x.font = '800 58px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText(name, w / 2, h / 2 - 4);
+    });
+  }
+
+  // ---- World clock face ----
+  function clockTex(city, hh, mm) {
+    return ctex(256, 320, (x, w) => {
+      x.fillStyle = '#11161f'; x.fillRect(0, 0, w, 320);
+      const cx = 128, cy = 130, R = 104;
+      x.fillStyle = '#f4f7fb'; x.beginPath(); x.arc(cx, cy, R, 0, 7); x.fill();
+      x.strokeStyle = '#2a3340'; x.lineWidth = 6; x.beginPath(); x.arc(cx, cy, R, 0, 7); x.stroke();
+      x.strokeStyle = '#1a2230';
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; const o = i % 3 === 0 ? 16 : 9; x.lineWidth = i % 3 === 0 ? 5 : 3;
+        x.beginPath(); x.moveTo(cx + Math.sin(a) * (R - 6), cy - Math.cos(a) * (R - 6)); x.lineTo(cx + Math.sin(a) * (R - 6 - o), cy - Math.cos(a) * (R - 6 - o)); x.stroke(); }
+      const ha = ((hh % 12) + mm / 60) / 12 * Math.PI * 2, ma = mm / 60 * Math.PI * 2;
+      x.strokeStyle = '#10151d'; x.lineCap = 'round';
+      x.lineWidth = 8; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.sin(ha) * 52, cy - Math.cos(ha) * 52); x.stroke();
+      x.lineWidth = 5; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.sin(ma) * 80, cy - Math.cos(ma) * 80); x.stroke();
+      x.fillStyle = '#c0392b'; x.beginPath(); x.arc(cx, cy, 7, 0, 7); x.fill();
+      x.fillStyle = '#cfe0f2'; x.font = '700 30px Arial'; x.textAlign = 'center'; x.fillText(city, cx, 276);
+    });
+  }
+
+  // ---- Aircraft cabin window strip ----
+  const windowStrip = ctex(1024, 64, (x, w, h) => {
+    x.fillStyle = '#e9edf2'; x.fillRect(0, 0, w, h);
+    for (let i = 18; i < w; i += 26) { x.fillStyle = '#1c2733'; rr(x, i, 18, 14, 22, 5); x.fill();
+      x.fillStyle = 'rgba(150,200,255,.5)'; rr(x, i + 2, 20, 10, 9, 3); x.fill(); }
+  });
+
+  // ============================================================
+  //  SHARED MATERIALS
+  // ============================================================
+  const M = {
+    floor:    new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.34, metalness: 0.0, envMapIntensity: 0.55 }),
+    ceiling:  new THREE.MeshStandardMaterial({ map: ceilTex, roughness: 0.85, metalness: 0.1, side: THREE.DoubleSide }),
+    carpet:   new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.95 }),
+    wall:     new THREE.MeshStandardMaterial({ color: 0xeef1f5, roughness: 0.9 }),
+    wallWarm: new THREE.MeshStandardMaterial({ color: 0xd8cdbf, roughness: 0.85 }),
+    metal:    new THREE.MeshStandardMaterial({ color: 0xb8bfc7, roughness: 0.32, metalness: 0.92, envMapIntensity: 1.1 }),
+    dark:     new THREE.MeshStandardMaterial({ color: 0x2b2f36, roughness: 0.5, metalness: 0.7 }),
+    chrome:   new THREE.MeshStandardMaterial({ color: 0xdfe5ec, roughness: 0.12, metalness: 1.0, envMapIntensity: 1.4 }),
+    glass:    new THREE.MeshStandardMaterial({ color: 0xa9d3f0, roughness: 0.04, metalness: 0.15, transparent: true, opacity: 0.22, side: THREE.DoubleSide, envMapIntensity: 1.6 }),
+    seat:     new THREE.MeshStandardMaterial({ color: 0x2f6db0, roughness: 0.65 }),
+    seat2:    new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.7 }),
+    wood:     new THREE.MeshStandardMaterial({ color: 0x9c6b3f, roughness: 0.6 }),
+    counter:  new THREE.MeshStandardMaterial({ color: 0xeae6df, roughness: 0.4, metalness: 0.1 }),
+    screenOff:new THREE.MeshStandardMaterial({ color: 0x0a0d13, roughness: 0.2, metalness: 0.3 }),
+    lightPanel:new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4e0, emissiveIntensity: 1.0, roughness: 1 }),
+    trunk:    new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.9 }),
+    foliage:  new THREE.MeshStandardMaterial({ color: 0x2f6b3a, roughness: 0.95 }),
+    planter:  new THREE.MeshStandardMaterial({ color: 0x3b3f45, roughness: 0.6 }),
+    planeBody:new THREE.MeshStandardMaterial({ color: 0xf4f6f9, roughness: 0.35, metalness: 0.55, envMapIntensity: 1.0 }),
+    planeBlue:new THREE.MeshStandardMaterial({ color: 0x1f5fb0, roughness: 0.4, metalness: 0.4 }),
+    engine:   new THREE.MeshStandardMaterial({ color: 0x9aa1a9, roughness: 0.45, metalness: 0.7 }),
+    tire:     new THREE.MeshStandardMaterial({ color: 0x14171b, roughness: 0.9 }),
+    apron:    new THREE.MeshStandardMaterial({ map: apronTex, roughness: 0.95 }),
+  };
+  const emap = (tex, i = 1) => new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: i, roughness: 0.6 });
+
+  // ============================================================
+  //  LIGHTS
+  // ============================================================
+  scene.add(new THREE.HemisphereLight(0xdcebff, 0x445064, 1.15));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.28));
+  const sun = new THREE.DirectionalLight(0xfff2dc, 2.6);
+  sun.position.set(70, 78, 120);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = 420;
+  sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
+  sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+  scene.add(sun);
+  scene.add(sun.target); sun.target.position.set(0, 0, -10);
+
+  // ============================================================
+  //  WORLD DIMENSIONS
+  // ============================================================
+  const LEN = 70;     // x: -70..70
+  const ZG = 22;      // glass wall (apron side, +z)
+  const ZB = -22;     // back wall (shops, -z)
+  const CY = 13;      // ceiling height
+  const root = new THREE.Group(); scene.add(root);
+  const add = (m, cast = true, recv = true) => { m.castShadow = cast; m.receiveShadow = recv; root.add(m); return m; };
+  const mesh = (g, mat) => new THREE.Mesh(g, mat);
+  const box = (w, h, d, mat) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+
+  // ---- Floor ----
+  const floor = mesh(new THREE.PlaneGeometry(LEN * 2, ZG - ZB), M.floor);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, 0.001, (ZG + ZB) / 2);
+  add(floor, false, true);
+
+  // ---- Ceiling slab ----
+  const ceil = mesh(new THREE.PlaneGeometry(LEN * 2, ZG - ZB), M.ceiling);
+  ceil.rotation.x = Math.PI / 2; ceil.position.set(0, CY, (ZG + ZB) / 2); root.add(ceil);
+
+  // ---- Back wall + end walls + upper glass-wall frame ----
+  const backWall = box(LEN * 2, CY, 1, M.wall); backWall.position.set(0, CY / 2, ZB - 0.5); add(backWall, false, true);
+  const ew1 = box(1, CY, ZG - ZB, M.wallWarm); ew1.position.set(-LEN - 0.5, CY / 2, (ZG + ZB) / 2); add(ew1, false, true);
+  const ew2 = box(1, CY, ZG - ZB, M.wallWarm); ew2.position.set(LEN + 0.5, CY / 2, (ZG + ZB) / 2); add(ew2, false, true);
+
+  // ============================================================
+  //  GLASS CURTAIN WALL (apron side) with mullion grid
+  // ============================================================
+  (function glassWall() {
+    const pane = mesh(new THREE.PlaneGeometry(LEN * 2 - 1, CY - 0.6), M.glass);
+    pane.position.set(0, (CY - 0.6) / 2 + 0.3, ZG); add(pane, false, false);
+    // mullions
+    const vGeo = new THREE.BoxGeometry(0.18, CY, 0.4);
+    const verts = [];
+    for (let x = -LEN; x <= LEN; x += 5) verts.push([x, CY / 2, ZG]);
+    const vIM = new THREE.InstancedMesh(vGeo, M.dark, verts.length);
+    const d = new THREE.Object3D();
+    verts.forEach((p, i) => { d.position.set(...p); d.updateMatrix(); vIM.setMatrixAt(i, d.matrix); });
+    vIM.castShadow = true; root.add(vIM);
+    // horizontal rails
+    for (const y of [0.3, 4.6, 9.0, CY - 0.3]) {
+      const r = box(LEN * 2, 0.2, 0.4, M.dark); r.position.set(0, y, ZG); add(r, true, false);
+    }
+    // floor kick plate
+    const kick = box(LEN * 2, 0.6, 0.5, M.metal); kick.position.set(0, 0.3, ZG - 0.1); add(kick);
+  })();
+
+  // ============================================================
+  //  CEILING STRUCTURE: trusses, skylight strips, light panels
+  // ============================================================
+  (function ceilingStruct() {
+    // longitudinal beams
+    for (const z of [-14, -4, 6, 16]) { const b = box(LEN * 2, 0.5, 0.5, M.metal); b.position.set(0, CY - 0.4, z); add(b, true, false); }
+    // transverse trusses
+    const tGeo = new THREE.BoxGeometry(0.4, 0.7, ZG - ZB);
+    const tIM = new THREE.InstancedMesh(tGeo, M.metal, 19);
+    const d = new THREE.Object3D(); let i = 0;
+    for (let x = -63; x <= 63; x += 7) { d.position.set(x, CY - 0.5, (ZG + ZB) / 2); d.updateMatrix(); tIM.setMatrixAt(i++, d.matrix); }
+    tIM.castShadow = true; root.add(tIM);
+    // skylight glow strips
+    for (const z of [-9, 1, 11]) { const s = box(LEN * 2 - 6, 0.1, 1.6, M.lightPanel); s.position.set(0, CY - 0.05, z); root.add(s); }
+    // recessed square light panels (instanced) + a few real point lights
+    const pGeo = new THREE.BoxGeometry(1.5, 0.08, 1.5);
+    const pts = [];
+    for (let x = -60; x <= 60; x += 8) for (const z of [-12, -2, 8, 16]) pts.push([x, CY - 0.12, z]);
+    const pIM = new THREE.InstancedMesh(pGeo, M.lightPanel, pts.length);
+    pts.forEach((p, k) => { d.position.set(...p); d.updateMatrix(); pIM.setMatrixAt(k, d.matrix); });
+    root.add(pIM);
+    for (let x = -54; x <= 54; x += 27) {
+      const pl = new THREE.PointLight(0xfff1da, 90, 38, 2); pl.position.set(x, CY - 1, 2); scene.add(pl);
+    }
+  })();
+
+  // ============================================================
+  //  COLUMNS (tapered, with base + capital)
+  // ============================================================
+  (function columns() {
+    for (let x = -63; x <= 63; x += 14) for (const z of [-12, 12]) {
+      const g = new THREE.Group();
+      const shaft = mesh(new THREE.CylinderGeometry(0.55, 0.7, CY - 1, 24), M.wall); shaft.position.y = (CY - 1) / 2 + 0.3; shaft.castShadow = true; g.add(shaft);
+      const base = mesh(new THREE.CylinderGeometry(0.9, 1.0, 0.4, 24), M.metal); base.position.y = 0.2; g.add(base);
+      const cap = mesh(new THREE.CylinderGeometry(1.4, 0.7, 0.5, 24), M.wall); cap.position.y = CY - 0.5; cap.castShadow = true; g.add(cap);
+      const ring = mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.12, 24), M.metal); ring.position.y = 2.0; g.add(ring);
+      g.position.set(x, 0, z); root.add(g);
+    }
+  })();
+
+  // ============================================================
+  //  GATE SEATING (instanced tandem chairs on carpet)
+  // ============================================================
+  (function seating() {
+    const seats = []; // {x,z,rot}
+    // clusters along the window side
+    for (let cx = -52; cx <= 52; cx += 26) {
+      // carpet pad
+      const pad = mesh(new THREE.PlaneGeometry(20, 13), M.carpet); pad.rotation.x = -Math.PI / 2; pad.position.set(cx, 0.02, 14); pad.receiveShadow = true; root.add(pad);
+      for (const [rz, rot] of [[11.2, 0], [13.4, Math.PI], [16.0, 0], [18.2, Math.PI]]) {
+        for (let s = -2; s <= 2; s++) seats.push({ x: cx + s * 1.35, z: rz, rot });
+      }
+    }
+    const n = seats.length, d = new THREE.Object3D();
+    const padIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2, 0.12, 1.1), M.seat, n);
+    const bakIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2, 1.0, 0.14), M.seat, n);
+    const legIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.05, 0.05, 0.45, 8), M.metal, n);
+    const armIM = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.5, 1.05), M.dark, n);
+    seats.forEach((s, i) => {
+      const cos = Math.cos(s.rot), sin = Math.sin(s.rot);
+      d.position.set(s.x, 0.55, s.z); d.rotation.set(0, s.rot, 0); d.updateMatrix(); padIM.setMatrixAt(i, d.matrix);
+      d.position.set(s.x - sin * 0.5, 1.05, s.z - cos * 0.5); d.updateMatrix(); bakIM.setMatrixAt(i, d.matrix);
+      d.position.set(s.x, 0.27, s.z); d.rotation.set(0, 0, 0); d.updateMatrix(); legIM.setMatrixAt(i, d.matrix);
+      d.position.set(s.x + cos * 0.62, 0.78, s.z - sin * 0.62); d.rotation.set(0, s.rot, 0); d.updateMatrix(); armIM.setMatrixAt(i, d.matrix);
+    });
+    [padIM, bakIM, legIM, armIM].forEach(m => { m.castShadow = true; m.receiveShadow = true; root.add(m); });
+  })();
+
+  // ============================================================
+  //  GATE PODIUMS (desk + screen near the windows)
+  // ============================================================
+  function gatePodium(x, gate, dest) {
+    const g = new THREE.Group();
+    const desk = box(2.6, 1.1, 0.9, M.counter); desk.position.y = 0.55; desk.castShadow = true; g.add(desk);
+    const top = box(2.8, 0.08, 1.1, M.dark); top.position.y = 1.12; g.add(top);
+    const post = box(0.12, 1.2, 0.12, M.metal); post.position.set(0.9, 1.7, 0); g.add(post);
+    const scr = box(1.4, 0.8, 0.06, M.screenOff); scr.position.set(0.9, 2.2, 0); g.add(scr);
+    const face = mesh(new THREE.PlaneGeometry(1.32, 0.72), emap(signTex([{ t: 'GATE ' + gate, c: '#ffd23f' }, { t: dest, c: '#eaf4ff' }], { bg: '#0a1a2c' }), 0.9));
+    face.position.set(0.9, 2.2, 0.04); g.add(face);
+    g.position.set(x, 0, 20.4); root.add(g); return g;
+  }
+  gatePodium(-52, 'A09', 'FRANKFURT');
+  gatePodium(-26, 'A12', 'STOCKHOLM');
+  gatePodium(0, 'A14', 'ISTANBUL');
+  gatePodium(26, 'A15', 'LONDON');
+  gatePodium(52, 'A18', 'SINGAPORE');
+
+  // ============================================================
+  //  CHECK-IN / INFO COUNTER ISLAND (one end of concourse)
+  // ============================================================
+  (function checkIn() {
+    const baseX = -60;
+    const island = box(4, 1.1, 14, M.counter); island.position.set(baseX, 0.55, 0); add(island);
+    const top = box(4.4, 0.1, 14.4, M.dark); top.position.set(baseX, 1.12, 0); add(top);
+    for (let i = -2; i <= 2; i++) {
+      const mon = box(0.7, 0.45, 0.05, M.screenOff); mon.position.set(baseX + 1.6, 1.7, i * 2.6); mon.rotation.y = -Math.PI / 2; mon.castShadow = true; root.add(mon);
+      const stand = box(0.06, 0.5, 0.06, M.metal); stand.position.set(baseX + 1.6, 1.4, i * 2.6); root.add(stand);
+      const divider = box(0.06, 1.6, 3, M.glass); divider.position.set(baseX, 1.9, i * 2.6 + 1.3); add(divider, false, false);
+    }
+    // overhead CHECK-IN sign
+    const sgn = box(7, 1.2, 0.2, M.dark); sgn.position.set(baseX + 4, 4.6, 0); sgn.rotation.y = -Math.PI / 2; add(sgn);
+    const lbl = mesh(new THREE.PlaneGeometry(6.6, 1.0), emap(signTex([{ t: 'CHECK-IN  ·  A', c: '#fff' }], { bg: '#103a6b' }), 1));
+    lbl.position.set(baseX + 3.89, 4.6, 0); lbl.rotation.y = -Math.PI / 2; root.add(lbl);
+    // queue stanchions with belts (instanced posts)
+    const posts = [];
+    for (let r = 0; r < 2; r++) for (let p = 0; p < 6; p++) posts.push([baseX + 4 + r * 2.2, 0, -7 + p * 2.6]);
+    const stGeo = new THREE.CylinderGeometry(0.05, 0.07, 0.95, 12);
+    const stIM = new THREE.InstancedMesh(stGeo, M.metal, posts.length);
+    const topGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.12, 12);
+    const tpIM = new THREE.InstancedMesh(topGeo, M.dark, posts.length);
+    const d = new THREE.Object3D();
+    posts.forEach((p, i) => { d.position.set(p[0], 0.48, p[2]); d.updateMatrix(); stIM.setMatrixAt(i, d.matrix);
+      d.position.set(p[0], 0.98, p[2]); d.updateMatrix(); tpIM.setMatrixAt(i, d.matrix); });
+    stIM.castShadow = tpIM.castShadow = true; root.add(stIM); root.add(tpIM);
+    for (let r = 0; r < 2; r++) { const belt = box(0.03, 0.06, 13, M.dark); belt.position.set(baseX + 4 + r * 2.2, 0.9, -0.7); add(belt, false, false); }
+  })();
+
+  // ============================================================
+  //  SELF-SERVICE KIOSKS (instanced row)
+  // ============================================================
+  (function kiosks() {
+    const pos = []; for (let i = 0; i < 8; i++) pos.push([-40 + i * 2.0, -6]);
+    const d = new THREE.Object3D();
+    const bodyIM = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, 1.4, 0.5), M.metal, pos.length);
+    const scrIM = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.5, 0.06), M.screenOff, pos.length);
+    pos.forEach((p, i) => {
+      d.position.set(p[0], 0.7, p[1]); d.rotation.set(0, 0, 0); d.updateMatrix(); bodyIM.setMatrixAt(i, d.matrix);
+      d.position.set(p[0], 1.25, p[1] + 0.28); d.rotation.set(-0.5, 0, 0); d.updateMatrix(); scrIM.setMatrixAt(i, d.matrix);
+    });
+    bodyIM.castShadow = scrIM.castShadow = true; root.add(bodyIM); root.add(scrIM);
+  })();
+
+  // ============================================================
+  //  SHOPS / STOREFRONTS along the back wall
+  // ============================================================
+  (function shops() {
+    const list = [
+      [-44, 'DUTY FREE', '#7a2e8f'], [-30, 'CAFÉ AERO', '#9c3b1b'], [-16, 'NEWS & BOOKS', '#1d6e57'],
+      [0, 'TAX FREE', '#b8860b'], [16, 'FASHION', '#11507e'], [30, 'PHARMACY', '#1f8a4c'], [44, 'EXCHANGE', '#4a4a8a'],
+    ];
+    for (const [x, name, color] of list) {
+      const w = 11.5;
+      // recessed lit interior
+      const inner = box(w, 4.6, 4, new THREE.MeshStandardMaterial({ color: 0xfbf6ec, emissive: 0xfff2d8, emissiveIntensity: 0.45, roughness: 0.9 }));
+      inner.position.set(x, 2.5, ZB + 2.0); root.add(inner);
+      // fascia + sign
+      const fascia = box(w, 1.4, 0.4, M.wallWarm); fascia.position.set(x, 5.6, ZB + 4.1); add(fascia);
+      const sgn = mesh(new THREE.PlaneGeometry(w - 1.2, 1.0), emap(shopSign(name, color), 0.85));
+      sgn.position.set(x, 5.6, ZB + 4.32); root.add(sgn);
+      // side mullions / glass front
+      for (const sx of [-w / 2, w / 2]) { const p = box(0.25, 4.8, 0.3, M.dark); p.position.set(x + sx, 2.4, ZB + 4.0); add(p); }
+      const gl = mesh(new THREE.PlaneGeometry(w - 0.6, 4.4), M.glass); gl.position.set(x, 2.6, ZB + 4.05); add(gl, false, false);
+      // simple shelves inside
+      for (const sy of [1.3, 2.6, 3.7]) { const sh = box(w - 2, 0.1, 1.0, M.wood); sh.position.set(x, sy, ZB + 1.2); root.add(sh);
+        const goodsGeo = new THREE.BoxGeometry(0.5, 0.6, 0.5);
+        const im = new THREE.InstancedMesh(goodsGeo, new THREE.MeshStandardMaterial({ color: color, roughness: 0.6 }), 9);
+        const d = new THREE.Object3D(); for (let i = 0; i < 9; i++) { d.position.set(x - 4 + i, sy + 0.4, ZB + 1.2); d.scale.set(1, 0.7 + Math.random() * 0.6, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix); } root.add(im);
+      }
+    }
+    // café tables + chairs in front of CAFÉ
+    for (let i = 0; i < 4; i++) {
+      const tx = -34 + i * 2.4, tz = -16;
+      const table = new THREE.Group();
+      const tt = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 20), M.wood); tt.position.y = 0.74; tt.castShadow = true; table.add(tt);
+      const tp = mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.74, 12), M.metal); tp.position.y = 0.37; table.add(tp);
+      const tb = mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.04, 16), M.metal); tb.position.y = 0.02; table.add(tb);
+      for (const ca of [0, Math.PI]) { const ch = new THREE.Group();
+        const cs = mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.05, 16), M.seat2); cs.position.y = 0.45; ch.add(cs);
+        const cl = mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.45, 8), M.metal); cl.position.y = 0.22; ch.add(cl);
+        ch.position.set(Math.sin(ca) * 0.9, 0, Math.cos(ca) * 0.9); ch.children.forEach(c => c.castShadow = true); table.add(ch); }
+      table.position.set(tx, 0, tz); root.add(table);
+    }
+  })();
+
+  // ============================================================
+  //  HANGING DIRECTIONAL SIGNS (suspended from ceiling)
+  // ============================================================
+  function hangSign(x, z, lines, opts) {
+    const g = new THREE.Group();
+    const panel = box(5.4, 1.7, 0.18, M.dark); panel.castShadow = true; g.add(panel);
+    const f1 = mesh(new THREE.PlaneGeometry(5.2, 1.55), emap(signTex(lines, opts), 0.85)); f1.position.z = 0.1; g.add(f1);
+    const f2 = f1.clone(); f2.position.z = -0.1; f2.rotation.y = Math.PI; g.add(f2);
+    for (const sx of [-2, 2]) { const rod = mesh(new THREE.CylinderGeometry(0.03, 0.03, 4.2, 8), M.metal); rod.position.set(sx, 2.95, 0); g.add(rod); }
+    g.position.set(x, 7.0, z); root.add(g); return g;
+  }
+  hangSign(-40, 5, [{ t: 'Gates A1 – A12 >', c: '#fff' }, { t: 'Lounge  ·  Restrooms', c: '#ffd23f' }]);
+  hangSign(8, 5, [{ t: '< Gates A13 – A22', c: '#fff' }, { t: 'Duty Free  ·  Café', c: '#ffd23f' }]);
+  hangSign(48, 5, [{ t: 'Baggage Claim >', c: '#fff' }, { t: '< Exit  ·  Transit', c: '#ffd23f' }]);
+  hangSign(-20, -2, [{ t: 'Information  ·  WC', c: '#36d399' }]);
+
+  // ============================================================
+  //  DEPARTURE BOARDS (large FIDS)
+  // ============================================================
+  function bigBoard(x, z, ry) {
+    const g = new THREE.Group();
+    const frame = box(8.8, 5.4, 0.3, M.dark); frame.castShadow = true; g.add(frame);
+    const scr = mesh(new THREE.PlaneGeometry(8.4, 5.0), emap(boardTex, 1.0)); scr.position.z = 0.16; g.add(scr);
+    for (const sx of [-3.4, 3.4]) { const rod = mesh(new THREE.CylinderGeometry(0.04, 0.04, 4, 8), M.metal); rod.position.set(sx, 4.7, 0); g.add(rod); }
+    g.position.set(x, 6.5, z); g.rotation.y = ry; root.add(g); return g;
+  }
+  bigBoard(-30, -10, 0);
+  bigBoard(36, -10, 0);
+
+  // ============================================================
+  //  WORLD-CLOCK WALL
+  // ============================================================
+  (function clocks() {
+    const cities = [['LONDON', 8, 15], ['NEW YORK', 3, 15], ['TOKYO', 17, 15], ['DUBAI', 11, 15], ['SYDNEY', 18, 15]];
+    const baseX = 4;
+    const board = box(13, 2.4, 0.2, M.dark); board.position.set(baseX, 5.7, ZB + 0.3); add(board);
+    cities.forEach(([c, h, m], i) => {
+      const cl = box(1.7, 2.1, 0.08, M.screenOff); cl.position.set(baseX - 5 + i * 2.5, 5.7, ZB + 0.42); root.add(cl);
+      const f = mesh(new THREE.PlaneGeometry(1.6, 2.0), emap(clockTex(c, h, m), 0.7)); f.position.set(baseX - 5 + i * 2.5, 5.7, ZB + 0.47); root.add(f);
+    });
+  })();
+
+  // ============================================================
+  //  PLANTERS + TREES
+  // ============================================================
+  (function planters() {
+    for (const [x, z] of [[-46, 0], [-12, 8], [20, 0], [54, 8], [-24, -4], [40, -4]]) {
+      const g = new THREE.Group();
+      const pot = mesh(new THREE.CylinderGeometry(0.85, 0.7, 0.9, 16), M.planter); pot.position.y = 0.45; pot.castShadow = true; g.add(pot);
+      const soil = mesh(new THREE.CylinderGeometry(0.78, 0.78, 0.06, 16), M.trunk); soil.position.y = 0.9; g.add(soil);
+      const trunk = mesh(new THREE.CylinderGeometry(0.12, 0.16, 2.4, 8), M.trunk); trunk.position.y = 2.1; trunk.castShadow = true; g.add(trunk);
+      for (let i = 0; i < 5; i++) { const f = mesh(new THREE.IcosahedronGeometry(0.85 + Math.random() * 0.4, 0), M.foliage);
+        f.position.set((Math.random() - .5) * 1.2, 3.0 + Math.random() * 1.1, (Math.random() - .5) * 1.2); f.castShadow = true; g.add(f); }
+      g.position.set(x, 0, z); root.add(g);
+    }
+  })();
+
+  // ============================================================
+  //  CLUTTER: trash bins, luggage trolleys, suitcases
+  // ============================================================
+  (function clutter() {
+    // bins
+    for (const [x, z] of [[-50, 6], [-8, -8], [30, 6], [58, -8]]) {
+      const b = mesh(new THREE.CylinderGeometry(0.35, 0.3, 1.0, 14), M.metal); b.position.set(x, 0.5, z); b.castShadow = true; root.add(b);
+      const top = mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.12, 14), M.dark); top.position.set(x, 1.05, z); root.add(top);
+    }
+    // suitcases
+    const caseColors = [0x9c3b1b, 0x1d6e57, 0x303644, 0xb8860b, 0x11507e];
+    for (let i = 0; i < 14; i++) {
+      const c = caseColors[i % caseColors.length];
+      const sc = new THREE.Group();
+      const body = box(0.4, 0.62, 0.24, new THREE.MeshStandardMaterial({ color: c, roughness: 0.55 })); body.position.y = 0.31; body.castShadow = true; sc.add(body);
+      const handle = mesh(new THREE.TorusGeometry(0.08, 0.015, 6, 12), M.dark); handle.position.set(0, 0.66, 0); handle.rotation.x = Math.PI / 2; sc.add(handle);
+      sc.position.set(-58 + Math.random() * 116, 0, -10 + Math.random() * 28); sc.rotation.y = Math.random() * 7; root.add(sc);
+    }
+    // baggage trolleys
+    for (let i = 0; i < 4; i++) {
+      const t = new THREE.Group();
+      const basket = box(0.9, 0.5, 1.3, M.metal); basket.position.y = 0.7; basket.castShadow = true; t.add(basket);
+      const handle = box(0.9, 0.9, 0.05, M.metal); handle.position.set(0, 1.1, -0.7); t.add(handle);
+      for (const wx of [-0.4, 0.4]) for (const wz of [-0.5, 0.5]) { const w = mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12), M.tire); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.16, wz); t.add(w); }
+      t.position.set(-55 + i * 30, 0, -3 + (i % 2) * 4); t.rotation.y = Math.random(); root.add(t);
+    }
+  })();
+
+  // ============================================================
+  //  STATIC PEOPLE (low-poly, just for scale — they do not move)
+  // ============================================================
+  (function people() {
+    const cols = [0x2f4858, 0x86405a, 0x355e3b, 0x4a4a6a, 0x7a5230, 0x2b2b2b, 0x546a7b, 0x8a6d3b];
+    const skin = [0xe8b48f, 0xc68642, 0x8d5524, 0xf1c9a5];
+    function person(x, z, ry) {
+      const g = new THREE.Group();
+      const cMat = new THREE.MeshStandardMaterial({ color: cols[(Math.random() * cols.length) | 0], roughness: 0.8 });
+      const pMat = new THREE.MeshStandardMaterial({ color: 0x2c3038, roughness: 0.85 });
+      const sMat = new THREE.MeshStandardMaterial({ color: skin[(Math.random() * skin.length) | 0], roughness: 0.7 });
+      const legs = mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.9, 10), pMat); legs.position.y = 0.45; g.add(legs);
+      const torso = mesh(new THREE.CylinderGeometry(0.21, 0.17, 0.75, 10), cMat); torso.position.y = 1.18; g.add(torso);
+      const head = mesh(new THREE.SphereGeometry(0.15, 14, 12), sMat); head.position.y = 1.72; g.add(head);
+      g.children.forEach(c => c.castShadow = true);
+      g.position.set(x, 0, z); g.rotation.y = ry; g.scale.y = 0.94 + Math.random() * 0.12; root.add(g);
+    }
+    // queue at check-in
+    for (let i = 0; i < 5; i++) person(-55 + i * 0.1, -6 + i * 1.6, Math.PI);
+    // wandering / waiting near gates
+    const spots = [[-50, 9], [-48, 12], [-26, 10], [-24, 17], [2, 9], [4, 16], [26, 11], [28, 18], [50, 10], [-12, 0], [18, -2], [40, 2], [-34, -14]];
+    for (const [x, z] of spots) person(x, z, Math.random() * 7);
+  })();
+
+  // ============================================================
+  //  MEZZANINE + ESCALATOR (visual upper level on shop side)
+  // ============================================================
+  (function mezzanine() {
+    const y = 6.2, x0 = -8, x1 = 40, zf = ZB + 1, zb2 = -8;
+    const slab = box(x1 - x0, 0.5, zb2 - ZB, M.wall); slab.position.set((x0 + x1) / 2, y, (ZB + zb2) / 2); add(slab);
+    const under = box(x1 - x0, 0.1, zb2 - ZB, M.metal); under.position.set((x0 + x1) / 2, y - 0.26, (ZB + zb2) / 2); root.add(under);
+    // railing
+    const rail = box(x1 - x0, 0.1, 0.1, M.metal); rail.position.set((x0 + x1) / 2, y + 1.3, zb2); add(rail);
+    const glassR = box(x1 - x0, 1.1, 0.06, M.glass); glassR.position.set((x0 + x1) / 2, y + 0.85, zb2); add(glassR, false, false);
+    const balGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.25, 8);
+    const balIM = new THREE.InstancedMesh(balGeo, M.metal, 25); const d = new THREE.Object3D();
+    for (let i = 0; i < 25; i++) { d.position.set(x0 + i * 2, y + 0.9, zb2); d.updateMatrix(); balIM.setMatrixAt(i, d.matrix); } root.add(balIM);
+    // support columns under mezzanine
+    for (let x = x0 + 4; x < x1; x += 12) { const c = mesh(new THREE.CylinderGeometry(0.3, 0.3, y, 16), M.metal); c.position.set(x, y / 2, zb2 + 0.5); c.castShadow = true; root.add(c); }
+    // LOUNGE sign
+    const ls = mesh(new THREE.PlaneGeometry(4, 0.9), emap(signTex([{ t: 'SKY LOUNGE >', c: '#ffd23f' }], { bg: '#10243a' }), 0.9));
+    ls.position.set(16, y + 2.4, zb2 + 0.1); root.add(ls);
+    // a few chairs upstairs
+    for (let i = 0; i < 5; i++) { const ch = box(0.6, 0.5, 0.6, M.seat); ch.position.set(x0 + 6 + i * 5, y + 0.55, zb2 - 3); ch.castShadow = true; root.add(ch);
+      const bk = box(0.6, 0.6, 0.1, M.seat); bk.position.set(x0 + 6 + i * 5, y + 0.85, zb2 - 3.25); root.add(bk); }
+    // escalator down to concourse (static)
+    const esc = new THREE.Group();
+    const incl = box(2.4, 0.4, 9, M.metal); incl.position.set(0, y / 2, 4); incl.rotation.x = Math.atan2(y, 8); esc.add(incl);
+    const steps = box(2.2, 0.3, 9.2, M.dark); steps.position.set(0, y / 2 + 0.2, 4); steps.rotation.x = Math.atan2(y, 8); esc.add(steps);
+    for (const sx of [-1.2, 1.2]) { const side = box(0.15, 1.1, 9, M.glass); side.position.set(sx, y / 2 + 0.7, 4); side.rotation.x = Math.atan2(y, 8); esc.add(side);
+      const hr = box(0.12, 0.12, 9.2, M.dark); hr.position.set(sx, y / 2 + 1.25, 4); hr.rotation.x = Math.atan2(y, 8); esc.add(hr); }
+    esc.position.set(x1 - 3, 0, 0); esc.children.forEach(c => { c.castShadow = true; }); root.add(esc);
+  })();
+
+  // ============================================================
+  //  OUTSIDE: apron, markings, aircraft, jet bridge, vehicles, scenery
+  // ============================================================
+  (function outside() {
+    // apron
+    const apron = mesh(new THREE.PlaneGeometry(600, 360), M.apron); apron.rotation.x = -Math.PI / 2; apron.position.set(0, -0.02, ZG + 180); apron.receiveShadow = true; scene.add(apron);
+    // ground markings (lead-in lines + gate number)
+    const markTex = ctex(512, 512, (x, w) => {
+      x.clearRect(0, 0, w, w);
+      x.strokeStyle = '#f2c211'; x.lineWidth = 7; x.beginPath(); x.moveTo(w / 2, 0); x.lineTo(w / 2, w); x.stroke();
+      x.setLineDash([26, 22]); x.strokeStyle = '#e7e7e7'; x.lineWidth = 6;
+      x.beginPath(); x.moveTo(w * 0.2, 0); x.lineTo(w * 0.2, w); x.moveTo(w * 0.8, 0); x.lineTo(w * 0.8, w); x.stroke();
+    }, { srgb: true });
+    markTex.transparent = true;
+    const marks = mesh(new THREE.PlaneGeometry(40, 120), new THREE.MeshBasicMaterial({ map: markTex, transparent: true }));
+    marks.rotation.x = -Math.PI / 2; marks.position.set(8, 0.01, ZG + 40); scene.add(marks);
+
+    // ---- AIRCRAFT (parked, static, left side facing terminal) ----
+    const plane = new THREE.Group();
+    const R = 2.0, L = 38;
+    const fus = mesh(new THREE.CylinderGeometry(R, R, L, 28), M.planeBody); fus.rotation.z = Math.PI / 2; fus.castShadow = true; plane.add(fus);
+    const nose = mesh(new THREE.SphereGeometry(R, 24, 18, 0, Math.PI), M.planeBody); nose.rotation.z = -Math.PI / 2; nose.position.x = L / 2; nose.scale.x = 1.6; nose.castShadow = true; plane.add(nose);
+    const tailCone = mesh(new THREE.ConeGeometry(R, 6, 24), M.planeBody); tailCone.rotation.z = Math.PI / 2; tailCone.position.x = -L / 2 - 1.5; tailCone.scale.set(1, 1, 0.7); plane.add(tailCone);
+    // cheatline + window strips (face the terminal, -z side)
+    const cheat = box(L, 0.5, 0.05, M.planeBlue); cheat.position.set(0, 0.2, -R - 0.02); plane.add(cheat);
+    const win = mesh(new THREE.PlaneGeometry(L - 6, 0.8), new THREE.MeshStandardMaterial({ map: windowStrip, roughness: 0.4 })); win.position.set(0, 0.7, -R - 0.03); win.rotation.y = Math.PI; plane.add(win);
+    const win2 = win.clone(); win2.position.z = R + 0.03; win2.rotation.y = 0; plane.add(win2);
+    // cockpit windows
+    const cw = box(2.4, 0.7, 0.05, M.screenOff); cw.position.set(L / 2 + 1.2, 0.9, -R + 0.5); cw.rotation.y = 0.3; plane.add(cw);
+    // vertical stabilizer (tail fin) via extruded shape
+    const finShape = new THREE.Shape(); finShape.moveTo(0, 0); finShape.lineTo(-5, 7); finShape.lineTo(-1.5, 7); finShape.lineTo(2.5, 0);
+    const fin = mesh(new THREE.ExtrudeGeometry(finShape, { depth: 0.4, bevelEnabled: false }), M.planeBlue);
+    fin.position.set(-L / 2 - 0.5, R - 0.5, -0.2); fin.castShadow = true; plane.add(fin);
+    // horizontal stabilizers
+    for (const s of [-1, 1]) { const hs = box(4, 0.2, 5, M.planeBody); hs.position.set(-L / 2 + 0.5, R - 0.5, s * 3.2); hs.castShadow = true; plane.add(hs); }
+    // wings (tapered boxes, slight sweep)
+    for (const s of [-1, 1]) {
+      const wing = mesh(new THREE.BoxGeometry(7, 0.4, 17), M.planeBody);
+      wing.position.set(2, -0.6, s * 9.5); wing.rotation.y = s * 0.18; wing.castShadow = true; plane.add(wing);
+      const eng = mesh(new THREE.CylinderGeometry(1.05, 1.05, 3.4, 20), M.engine); eng.rotation.z = Math.PI / 2; eng.position.set(3.5, -1.6, s * 7); eng.castShadow = true; plane.add(eng);
+      const intake = mesh(new THREE.TorusGeometry(1.05, 0.18, 10, 20), M.dark); intake.rotation.y = Math.PI / 2; intake.position.set(5.2, -1.6, s * 7); plane.add(intake);
+    }
+    // landing gear
+    function gear(x, z) { const g = new THREE.Group();
+      const strut = mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.2, 8), M.dark); strut.position.y = -1.1; g.add(strut);
+      for (const wz of (z === 0 ? [0] : [-0.45, 0.45])) { const t = mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.4, 16), M.tire); t.rotation.x = Math.PI / 2; t.position.set(0, -2.2, wz); g.add(t); }
+      g.position.set(x, -R, z); g.children.forEach(c => c.castShadow = true); plane.add(g); }
+    gear(L / 2 - 4, 0); gear(1, -2.0); gear(1, 2.0);
+    plane.position.set(6, 5.4, ZG + 26); root.add(plane); // note: parented to root for shadows
+
+    // jet bridge from terminal to forward door
+    const jb = new THREE.Group();
+    const tube = box(2.4, 2.6, 14, new THREE.MeshStandardMaterial({ color: 0xcfd4da, roughness: 0.5, metalness: 0.3 }));
+    tube.position.set(0, 0, 0); jb.add(tube);
+    const tubeWin = box(2.42, 0.7, 13, M.glass); tubeWin.position.y = 0.3; jb.add(tubeWin);
+    const cab = box(3, 3, 2.5, M.metal); cab.position.set(0, -0.2, -7.5); jb.add(cab);
+    const support = mesh(new THREE.CylinderGeometry(0.25, 0.25, 4, 12), M.dark); support.position.set(0, -3, 0); jb.add(support);
+    jb.position.set(14, 3.4, ZG + 13); jb.rotation.y = 0.32; jb.children.forEach(c => c.castShadow = true); root.add(jb);
+
+    // ground vehicles (static): pushback tug + baggage carts
+    const tug = new THREE.Group();
+    const tb = box(2.2, 1.0, 3.2, new THREE.MeshStandardMaterial({ color: 0xcf3b2f, roughness: 0.5 })); tb.position.y = 0.8; tug.add(tb);
+    const cabT = box(1.8, 0.9, 1.4, M.glass); cabT.position.set(0, 1.6, -0.4); tug.add(cabT);
+    for (const wx of [-1, 1]) for (const wz of [-1, 1]) { const w = mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.3, 14), M.tire); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.4, wz); tug.add(w); }
+    tug.position.set(-10, 0, ZG + 22); tug.rotation.y = 0.4; tug.children.forEach(c => c.castShadow = true); root.add(tug);
+    for (let i = 0; i < 4; i++) { const cart = new THREE.Group();
+      const base = box(1.6, 0.5, 2.4, M.dark); base.position.y = 0.6; cart.add(base);
+      const roof = box(1.7, 0.1, 2.5, new THREE.MeshStandardMaterial({ color: 0xe0c14a, roughness: 0.6 })); roof.position.y = 1.9; cart.add(roof);
+      for (const px of [-0.8, 0.8]) for (const pz of [-1, 0, 1]) { const post = box(0.08, 1.3, 0.08, M.metal); post.position.set(px, 1.25, pz); cart.add(post); }
+      cart.position.set(-22 - i * 3, 0, ZG + 30); cart.children.forEach(c => c.castShadow = true); scene.add(cart); }
+
+    // distant scenery: control tower + terminal buildings (static)
+    const tower = new THREE.Group();
+    const stem = mesh(new THREE.CylinderGeometry(2, 3, 40, 16), new THREE.MeshStandardMaterial({ color: 0xb9c0c8, roughness: 0.6 })); stem.position.y = 20; tower.add(stem);
+    const cabTw = mesh(new THREE.CylinderGeometry(5, 4, 5, 16), M.glass); cabTw.position.y = 42; tower.add(cabTw);
+    const roofTw = mesh(new THREE.CylinderGeometry(5.5, 5.5, 1, 16), M.dark); roofTw.position.y = 45; tower.add(roofTw);
+    tower.position.set(-150, 0, ZG + 150); scene.add(tower);
+    for (const [x, z, w, h, d] of [[120, 120, 90, 22, 60], [-90, 200, 140, 18, 70], [180, 240, 120, 28, 80]]) {
+      const b = box(w, h, d, new THREE.MeshStandardMaterial({ color: 0x9aa6b2, roughness: 0.7 })); b.position.set(x, h / 2, ZG + z); scene.add(b);
+    }
+    // a distant parked aircraft tail to add life
+    const farFin = mesh(new THREE.ExtrudeGeometry(finShape, { depth: 0.6, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.5 }));
+    farFin.scale.set(1.4, 1.4, 1.4); farFin.position.set(120, 7, ZG + 70); scene.add(farFin);
+  })();
+
+  // ============================================================
+  //  CONTROLS — keyboard navigation (+ optional mouse look)
+  // ============================================================
+  const start = { x: -40, y: 1.7, z: 2 };   // open concourse, clear of furniture
+  const pos = new THREE.Vector3(start.x, start.y, start.z);
+  let yaw = -Math.PI / 2;   // face +x, down the concourse
+  let pitch = -0.04;
+  const keys = Object.create(null);
+  const MOVE = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
+  addEventListener('keydown', e => { keys[e.code] = true; if (MOVE.includes(e.code)) e.preventDefault(); });
+  addEventListener('keyup', e => { keys[e.code] = false; });
+
+  const blocker = document.getElementById('blocker');
+  const dom = renderer.domElement;
+  blocker.addEventListener('click', () => dom.requestPointerLock && dom.requestPointerLock());
+  document.addEventListener('pointerlockchange', () => {
+    document.body.classList.toggle('locked', document.pointerLockElement === dom);
+  });
+  document.addEventListener('mousemove', e => {
+    if (document.pointerLockElement !== dom) return;
+    yaw -= e.movementX * 0.0022;
+    pitch -= e.movementY * 0.0022;
+    pitch = Math.max(-1.35, Math.min(1.35, pitch));
+  });
+
+  // ============================================================
+  //  RENDER LOOP — only the camera updates; the scene is static.
+  // ============================================================
+  const clock = new THREE.Clock();
+  const fwd = new THREE.Vector3(), right = new THREE.Vector3();
+  const statsEl = document.getElementById('stats');
+  let acc = 0, frames = 0, fps = 0;
+
+  function tick() {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const run = keys['ShiftLeft'] || keys['ShiftRight'] ? 2.6 : 1;
+    const sp = 6.5 * run * dt, turn = 1.7 * dt, vy = 4.5 * dt;
+
+    if (keys['ArrowLeft'] || keys['KeyQ']) yaw += turn;
+    if (keys['ArrowRight'] || keys['KeyE']) yaw -= turn;
+
+    fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+    right.set(Math.cos(yaw), 0, -Math.sin(yaw));
+    if (keys['KeyW'] || keys['ArrowUp']) pos.addScaledVector(fwd, sp);
+    if (keys['KeyS'] || keys['ArrowDown']) pos.addScaledVector(fwd, -sp);
+    if (keys['KeyA']) pos.addScaledVector(right, -sp);
+    if (keys['KeyD']) pos.addScaledVector(right, sp);
+    if (keys['Space']) pos.y += vy;
+    if (keys['KeyC'] || keys['ControlLeft']) pos.y -= vy;
+
+    // keep inside the terminal
+    pos.x = Math.max(-LEN + 2, Math.min(LEN - 2, pos.x));
+    pos.z = Math.max(ZB + 1.5, Math.min(ZG - 1.5, pos.z));
+    pos.y = Math.max(1.2, Math.min(CY - 1.5, pos.y));
+
+    camera.position.copy(pos);
+    camera.rotation.set(pitch, yaw, 0, 'YXZ');
+
+    renderer.render(scene, camera);
+
+    frames++; acc += dt;
+    if (acc >= 0.5) { fps = Math.round(frames / acc); frames = 0; acc = 0;
+      statsEl.textContent = `${fps} fps  ·  x ${pos.x.toFixed(0)}  z ${pos.z.toFixed(0)}  ·  static scene`; }
+    requestAnimationFrame(tick);
+  }
+  tick();
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+</script>
+</body>
+</html>

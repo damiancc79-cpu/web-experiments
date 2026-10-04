@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aqua Racer — carrera de motos acuáticas</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden;
+    font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; background: #04143c; }
+  #game { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .overlay { position: fixed; inset: 0; z-index: 10; color: #fff; text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px; }
+  .overlay.hidden { display: none; }
+  #menu    { background: radial-gradient(circle at 50% 25%, rgba(40,150,230,.55), rgba(4,20,60,.95)); }
+  #results { background: radial-gradient(circle at 50% 25%, rgba(20,90,160,.6),  rgba(4,16,48,.96)); }
+
+  h1 { font-size: clamp(38px, 8vw, 86px); letter-spacing: 3px;
+    text-shadow: 0 4px 24px rgba(0,0,0,.5); margin-bottom: 4px;
+    background: linear-gradient(180deg,#bff0ff,#3aa0ff); -webkit-background-clip: text;
+    background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { opacity: .85; font-size: 18px; margin-bottom: 8px; }
+  .controls { margin: 22px 0; line-height: 2; font-size: 16px; opacity: .92;
+    background: rgba(0,0,0,.22); padding: 16px 26px; border-radius: 14px; }
+  .controls b { color: #ffe066; }
+  .btn { margin-top: 10px; font: inherit; font-size: 22px; font-weight: bold;
+    color: #052; background: linear-gradient(180deg,#7CFFB2,#19c46a);
+    border: none; padding: 14px 46px; border-radius: 40px; cursor: pointer;
+    box-shadow: 0 8px 22px rgba(0,0,0,.35); transition: transform .08s ease; }
+  .btn:hover { transform: translateY(-2px) scale(1.03); }
+  .btn:active { transform: translateY(1px) scale(.99); }
+  .btn.alt { background: linear-gradient(180deg,#bcd6ff,#7aa3e0); color: #0a2a55;
+    font-size: 18px; padding: 12px 34px; }
+  .btncol { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; align-items: center; }
+  #results h2 { font-size: 40px; margin-bottom: 10px; }
+  #resultStats { font-size: 20px; line-height: 1.9; margin: 14px 0 8px; }
+  #resultStats span { color: #ffe066; font-weight: bold; }
+
+  .diffLabel { font-size: 15px; opacity: .8; margin-top: 4px; }
+  .diffRow { display: flex; gap: 10px; margin: 8px 0 18px; }
+  .diffBtn { font: inherit; font-size: 15px; font-weight: bold; color: #cfeaff;
+    background: rgba(255,255,255,.12); border: 2px solid transparent;
+    padding: 8px 20px; border-radius: 30px; cursor: pointer; transition: all .12s ease; }
+  .diffBtn:hover { background: rgba(255,255,255,.22); }
+  .diffBtn.active { color: #04203f; background: #9fe0ff; border-color: #fff; }
+  #pause { background: rgba(4,16,48,.74); }
+  #pause h2 { font-size: 46px; margin-bottom: 4px; }
+
+  #hud { position: fixed; inset: 0; z-index: 5; pointer-events: none;
+    color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.6); font-weight: bold; }
+  #hud.hidden { display: none; }
+  .panel { position: absolute; background: rgba(8,30,70,.42); border-radius: 12px;
+    padding: 10px 16px; backdrop-filter: blur(2px); }
+  #timePanel { top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+  #totalTime { font-size: 30px; letter-spacing: 1px; }
+  #lapTimes  { font-size: 14px; opacity: .9; margin-top: 2px; }
+  #lapTimes .best { color: #7CFFB2; }
+  #lapPanel { top: 14px; right: 16px; font-size: 20px; text-align: right; line-height: 1.4; }
+  #lapPanel #posNum { color: #ffe066; font-size: 24px; }
+  #speedPanel { bottom: 16px; right: 20px; font-size: 16px; opacity: .9; }
+  #soundBtn { bottom: 16px; left: 16px; font-size: 18px; cursor: pointer;
+    pointer-events: auto; user-select: none; }
+  #flash { position: absolute; top: 36%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 44px; opacity: 0; transition: opacity .25s ease; text-align: center;
+    text-shadow: 0 3px 12px rgba(0,0,0,.7); white-space: nowrap; }
+</style>
+</head>
+<body>
+  <div id="game"></div>
+
+  <div id="hud" class="hidden">
+    <div id="timePanel" class="panel">
+      <div id="totalTime">0:00.00</div>
+      <div id="lapTimes">Vuelta <span id="curLap">0:00.00</span> &nbsp;·&nbsp;
+        Mejor <span class="best" id="bestLap">--:--.--</span></div>
+    </div>
+    <div id="lapPanel" class="panel">POS <span id="posNum">1/4</span><br>VUELTA <span id="lapNum">1 / 3</span></div>
+    <div id="speedPanel" class="panel">0 km/h</div>
+    <div id="soundBtn" class="panel">🔊 Sonido</div>
+    <div id="flash"></div>
+  </div>
+
+  <div id="menu" class="overlay">
+    <h1>AQUA RACER</h1>
+    <div class="subtitle">Carrera de motos acuáticas sobre olas</div>
+    <div class="controls">
+      <b>↑ / W</b> &nbsp;acelerar &nbsp;&nbsp; <b>↓ / S</b> &nbsp;frenar<br>
+      <b>← / A</b> &nbsp;girar izquierda &nbsp;&nbsp; <b>→ / D</b> &nbsp;girar derecha &nbsp;&nbsp; <b>M</b> &nbsp;silenciar<br>
+      Sigue el canal entre las <b style="color:#ff9a3c">barreras</b>. Esquiva las
+      <b style="color:#aab">rocas</b> y usa las <b>rampas</b> para saltar por encima.<br>
+      Vence a 3 rivales — 3 vueltas al circuito. &nbsp; <b>P</b> o <b>Esc</b> pausa.
+    </div>
+    <div class="diffLabel">Dificultad</div>
+    <div class="diffRow" id="diffRow">
+      <button class="diffBtn" data-diff="facil">Fácil</button>
+      <button class="diffBtn active" data-diff="normal">Normal</button>
+      <button class="diffBtn" data-diff="dificil">Difícil</button>
+    </div>
+    <button class="btn" id="playBtn">JUGAR</button>
+  </div>
+
+  <div id="results" class="overlay hidden">
+    <h2 id="resultTitle">¡Carrera terminada!</h2>
+    <div id="resultStats"></div>
+    <div class="btncol">
+      <button class="btn" id="retryBtn">REINTENTAR</button>
+      <button class="btn alt" id="resultsMenuBtn">MENÚ PRINCIPAL</button>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <h2>Pausa</h2>
+    <div class="btncol">
+      <button class="btn" id="resumeBtn">REANUDAR</button>
+      <button class="btn alt" id="restartBtn">REINICIAR</button>
+      <button class="btn alt" id="menuBtn">MENÚ PRINCIPAL</button>
+    </div>
+  </div>
+
+  <script src="three.min.js"></script>
+  <script>
+  // ============================================================================
+  //  AQUA RACER — motos acuáticas inspirado en el clásico Wave Race.
+  //  Assets 100% originales (geometría generada por código).
+  // ============================================================================
+
+  // ---------- Ajustes ----------
+  const TOTAL_LAPS       = 3;
+  const NUM_CHECKPOINTS  = 12;     // puntos de control INVISIBLES (para vueltas/posición)
+  const NUM_RIVALS       = 3;
+  const TRACK_SAMPLES    = 240;    // resolución de la línea central del circuito
+  const TRACK_HALF_WIDTH = 28;     // medio ancho del canal; las barreras marcan el borde
+  const BARRIER_STEP     = 4;      // un poste de barrera cada N muestras
+  const NUM_OBSTACLES    = 14;
+  const NUM_RAMPS        = 6;
+  const GRAVITY          = 24;     // para los saltos
+  const ENGINE = 26, BRAKE = 34, DRAG = 0.55, MAX_SPEED = 42, MAX_REVERSE = 10, TURN_RATE = 1.9;
+  const COURSE = { rx: 150, rz: 95, cx: 0, cz: 0 };
+
+  const RIVAL_COLORS = [
+    { hull: 0x33aaff, deck: 0xeaffff, rider: 0x113366 },
+    { hull: 0x33cc66, deck: 0xeaffea, rider: 0x114422 },
+    { hull: 0xff9933, deck: 0xfff0e0, rider: 0x663300 }
+  ];
+  const DIFFICULTY = {
+    facil:   { base: 0.034, step: 0.003, rubber: 0.45 },
+    normal:  { base: 0.040, step: 0.004, rubber: 0.65 },
+    dificil: { base: 0.047, step: 0.004, rubber: 0.85 }
+  };
+
+  // ---------- Estado ----------
+  let scene, camera, renderer;
+  let water, player, skiTilt, spray, arrow;
+  let trackPts = [], barriers = [], checkpoints = [], obstacles = [], ramps = [], rivals = [];
+  let keys = { up:false, down:false, left:false, right:false };
+  let state = 'menu';              // 'menu' | 'playing' | 'paused' | 'finished'
+  let difficulty = 'normal';
+  let speed = 0, yaw = 0, time = 0, raceTime = 0;
+  let lap = 1, nextCP = 0, lastAlong = -1;
+  let lapStartTime = 0, lastLapTime = null, bestLap = null;
+  let airborne = false, vy = 0;    // física de salto
+  let clock;
+
+  // ---------- Audio ----------
+  let audioCtx = null, engineOsc = null, engineGain = null, masterGain = null, muted = false;
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const phong = (color, extra) => new THREE.MeshPhongMaterial(Object.assign({ color, shininess: 60 }, extra || {}));
+
+  function waveHeight(x, z, t) {
+    return Math.sin(x * 0.055 + t * 1.3) * 1.15
+         + Math.sin(z * 0.045 + t * 1.0) * 0.95
+         + Math.sin((x + z) * 0.05 + t * 0.8) * 0.55;
+  }
+
+  // ---- EL CIRCUITO ----
+  // Elipse con el radio "ondulado" por armónicos: curvas anchas y cerradas.
+  function coursePoint(u) {
+    const a = u * Math.PI * 2;
+    const r = 1 + 0.30 * Math.sin(a * 2 + 0.5) + 0.14 * Math.sin(a * 3);
+    return new THREE.Vector3(COURSE.cx + Math.cos(a) * COURSE.rx * r, 0,
+                             COURSE.cz + Math.sin(a) * COURSE.rz * r);
+  }
+  function courseTangent(u) {
+    const d = 0.001;
+    return coursePoint((u + d + 1) % 1).sub(coursePoint((u - d + 1) % 1)).normalize();
+  }
+
+  // Precalcula la línea central: posición, tangente y normal (lateral) en cada muestra.
+  // Se usa para las barreras, los muros, la flecha y para medir cuánto te sales del canal.
+  function buildTrack() {
+    trackPts = [];
+    for (let i = 0; i < TRACK_SAMPLES; i++) {
+      const u = i / TRACK_SAMPLES;
+      const tan = courseTangent(u);
+      trackPts.push({ pos: coursePoint(u), tan, nrm: new THREE.Vector3(tan.z, 0, -tan.x) });
+    }
+  }
+  // Devuelve la muestra de la línea central más cercana y tu desplazamiento lateral (offset).
+  function nearestTrack(x, z) {
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < trackPts.length; i++) {
+      const dx = trackPts[i].pos.x - x, dz = trackPts[i].pos.z - z;
+      const d = dx * dx + dz * dz;
+      if (d < bd) { bd = d; best = i; }
+    }
+    const t = trackPts[best];
+    const offset = (x - t.pos.x) * t.nrm.x + (z - t.pos.z) * t.nrm.z;
+    return { index: best, offset, pt: t };
+  }
+
+  // ============================================================================
+  //  ESCENA
+  // ============================================================================
+  function init() {
+    scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xaad7ff, 220, 640);
+    scene.background = makeSkyTexture();
+
+    camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(0, 12, -22);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('game').appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xddeeff, 0x224466, 0.95));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+    sun.position.set(120, 200, 60);
+    scene.add(sun);
+
+    createWater();
+    buildTrack();
+    createSki();
+    createRivals();
+    createBarriers();
+    createCheckpoints();
+    createObstacles();
+    createRamps();
+    createIslands();
+    createArrow();
+
+    clock = new THREE.Clock();
+    window.addEventListener('resize', onResize);
+    setupInput();
+    resetRace();
+    animate();
+  }
+
+  function makeSkyTexture() {
+    const c = document.createElement('canvas'); c.width = 2; c.height = 256;
+    const ctx = c.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0.0, '#1f6fd0'); g.addColorStop(0.45, '#74b9f0'); g.addColorStop(1.0, '#d8f0ff');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 2, 256);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function createWater() {
+    const geo = new THREE.PlaneGeometry(700, 700, 110, 110);
+    geo.rotateX(-Math.PI / 2);
+    water = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+      color: 0x1f7fd0, specular: 0x9fd8ff, shininess: 90, transparent: true, opacity: 0.96 }));
+    scene.add(water);
+  }
+
+  // Cápsula suave entre dos puntos: cilindro + dos casquetes esféricos.
+  // Sirve para construir torsos, brazos, piernas y barras con aspecto redondeado.
+  function limbBetween(parent, p1, p2, r, mat, segs) {
+    segs = segs || 12;
+    const dir = new THREE.Vector3().subVectors(p2, p1);
+    const len = Math.max(dir.length(), 0.001);
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, segs), mat));
+    const s1 = new THREE.Mesh(new THREE.SphereGeometry(r, segs, segs >> 1), mat); s1.position.y = -len / 2;
+    const s2 = new THREE.Mesh(new THREE.SphereGeometry(r, segs, segs >> 1), mat); s2.position.y =  len / 2;
+    g.add(s1, s2);
+    g.position.copy(p1).add(p2).multiplyScalar(0.5);
+    g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    parent.add(g);
+    return g;
+  }
+
+  // Moto acuática + piloto, con geometría suave de mayor fidelidad.
+  function makeSki(hull, deck, rider) {
+    const group = new THREE.Group(), tilt = new THREE.Group();
+    group.add(tilt);
+    const hullMat  = phong(hull,     { shininess: 95, specular: 0x335577 });
+    const deckMat  = phong(deck,     { shininess: 70 });
+    const darkMat  = phong(0x252b33, { shininess: 40 });
+    const metalMat = phong(0xc2cad6, { shininess: 130, specular: 0xffffff });
+    const bodyMat  = phong(rider,    { shininess: 50 });
+    const skinMat  = phong(0xffd2ad, { shininess: 30 });
+    const visorMat = phong(0x10171f, { shininess: 140, specular: 0x9fd8ff });
+    const V = (x, y, z) => new THREE.Vector3(x, y, z);
+    const part = (geo, mat, x, y, z, sx, sy, sz) => {
+      const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z);
+      if (sx !== undefined) m.scale.set(sx, sy, sz);
+      tilt.add(m); return m;
+    };
+
+    // ---- Casco hidrodinámico ----
+    part(new THREE.SphereGeometry(1, 22, 16), hullMat, 0, 0.18, -0.1, 0.82, 0.70, 2.1);   // cuerpo
+    part(new THREE.SphereGeometry(1, 20, 14), hullMat, 0, -0.06, -0.1, 0.64, 0.48, 2.0);   // quilla
+    const bow = new THREE.ConeGeometry(0.64, 1.9, 22); bow.rotateX(-Math.PI / 2);
+    part(bow, hullMat, 0, 0.2, 1.7);                                                        // proa afinada
+    part(new THREE.SphereGeometry(1, 20, 12), deckMat, 0, 0.42, -0.2, 0.70, 0.34, 1.7);     // cubierta
+    part(new THREE.SphereGeometry(1, 18, 14), deckMat, 0, 0.60, 0.5, 0.42, 0.5, 0.6);       // consola
+    const jet = new THREE.CylinderGeometry(0.26, 0.34, 0.6, 16); jet.rotateX(Math.PI / 2);
+    part(jet, darkMat, 0, 0.1, -2.0);                                                       // tobera trasera
+
+    // ---- Manillar ----
+    limbBetween(tilt, V(0, 0.66, 0.46), V(0, 0.98, 0.58), 0.06, metalMat, 10);
+    limbBetween(tilt, V(-0.45, 1.0, 0.6), V(0.45, 1.0, 0.6), 0.05, darkMat, 10);
+    part(new THREE.SphereGeometry(0.09, 12, 10), darkMat, -0.45, 1.0, 0.6);
+    part(new THREE.SphereGeometry(0.09, 12, 10), darkMat,  0.45, 1.0, 0.6);
+
+    // ---- Piloto (postura inclinada hacia el manillar) ----
+    part(new THREE.SphereGeometry(1, 16, 12), bodyMat, 0, 0.95, -0.52, 0.38, 0.32, 0.46);  // cadera
+    limbBetween(tilt, V(0, 0.98, -0.5), V(0, 1.42, -0.3), 0.3, bodyMat, 14);                // torso
+    part(new THREE.SphereGeometry(0.16, 12, 10), bodyMat, -0.28, 1.4, -0.3);                // hombros
+    part(new THREE.SphereGeometry(0.16, 12, 10), bodyMat,  0.28, 1.4, -0.3);
+    limbBetween(tilt, V(-0.28, 1.4, -0.3), V(-0.45, 1.02, 0.55), 0.1, bodyMat, 10);         // brazos
+    limbBetween(tilt, V( 0.28, 1.4, -0.3), V( 0.45, 1.02, 0.55), 0.1, bodyMat, 10);
+    part(new THREE.SphereGeometry(0.11, 10, 8), skinMat, -0.45, 1.02, 0.55);                // manos
+    part(new THREE.SphereGeometry(0.11, 10, 8), skinMat,  0.45, 1.02, 0.55);
+    limbBetween(tilt, V(-0.2, 0.92, -0.55), V(-0.32, 0.74, 0.05), 0.13, bodyMat, 10);       // muslos
+    limbBetween(tilt, V( 0.2, 0.92, -0.55), V( 0.32, 0.74, 0.05), 0.13, bodyMat, 10);
+    limbBetween(tilt, V(-0.32, 0.74, 0.05), V(-0.34, 0.5, 0.5), 0.11, bodyMat, 10);         // pantorrillas
+    limbBetween(tilt, V( 0.32, 0.74, 0.05), V( 0.34, 0.5, 0.5), 0.11, bodyMat, 10);
+    part(new THREE.SphereGeometry(0.14, 10, 8), darkMat, -0.34, 0.48, 0.6, 1, 0.7, 1.5);    // pies
+    part(new THREE.SphereGeometry(0.14, 10, 8), darkMat,  0.34, 0.48, 0.6, 1, 0.7, 1.5);
+    limbBetween(tilt, V(0, 1.46, -0.28), V(0, 1.6, -0.24), 0.1, skinMat, 8);                // cuello
+    part(new THREE.SphereGeometry(0.3, 20, 16), hullMat, 0, 1.74, -0.22);                   // casco
+    part(new THREE.SphereGeometry(0.3, 18, 12), visorMat, 0, 1.72, -0.04, 0.82, 0.55, 0.7); // visera
+
+    scene.add(group);
+    return { group, tilt };
+  }
+
+  function createSki() {
+    const s = makeSki(0xff3b3b, 0xf5f5f5, 0x2266dd);
+    player = s.group; skiTilt = s.tilt;
+    const N = 260;
+    const pgeo = new THREE.BufferGeometry();
+    pgeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+    spray = new THREE.Points(pgeo, new THREE.PointsMaterial({
+      color: 0xffffff, size: 1.1, transparent: true, opacity: 0.85, depthWrite: false, sizeAttenuation: true }));
+    spray.frustumCulled = false;
+    spray.userData.life = new Float32Array(N);
+    spray.userData.vel  = new Float32Array(N * 3);
+    spray.userData.idx  = 0;
+    scene.add(spray);
+  }
+
+  function createRivals() {
+    for (let i = 0; i < NUM_RIVALS; i++) {
+      const c = RIVAL_COLORS[i % RIVAL_COLORS.length];
+      const s = makeSki(c.hull, c.deck, c.rider);
+      const u0 = 0.006 * (i + 1);
+      rivals.push({ group: s.group, tilt: s.tilt, u: u0, u0: u0, lap: 1,
+        uSpeed: 0.040, lane: ((i % 2) ? 1 : -1) * (4 + i * 1.6), phase: Math.random() * 10 });
+    }
+  }
+
+  // Barreras: postes naranjas a ambos lados del canal que marcan el borde físico.
+  function createBarriers() {
+    for (let i = 0; i < TRACK_SAMPLES; i += BARRIER_STEP) {
+      const t = trackPts[i];
+      for (const side of [1, -1]) {
+        const g = new THREE.Group();
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 2.6, 8), phong(0xff7a1a));
+        pole.position.y = 0.7;
+        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.65, 10, 10), phong(0xffffff));
+        ball.position.y = 1.95;
+        g.add(pole, ball);
+        const x = t.pos.x + t.nrm.x * TRACK_HALF_WIDTH * side;
+        const z = t.pos.z + t.nrm.z * TRACK_HALF_WIDTH * side;
+        g.position.set(x, 0, z);
+        g.userData.base = new THREE.Vector3(x, 0, z);
+        scene.add(g); barriers.push(g);
+      }
+    }
+  }
+
+  // Checkpoints invisibles: solo guardamos posición y dirección para detectar el paso.
+  function createCheckpoints() {
+    for (let k = 0; k < NUM_CHECKPOINTS; k++) {
+      const u = k / NUM_CHECKPOINTS;
+      checkpoints.push({ pos: coursePoint(u), tangent: courseTangent(u) });
+    }
+  }
+
+  // Obstáculos: rocas desplazadas hacia un lado del canal, alternando, para obligar a esquivar.
+  function createObstacles() {
+    for (let i = 0; i < NUM_OBSTACLES; i++) {
+      const idx = Math.floor(((i + 0.5) / NUM_OBSTACLES) * TRACK_SAMPLES) % TRACK_SAMPLES;
+      const t = trackPts[idx];
+      const off = ((i % 2) ? 1 : -1) * TRACK_HALF_WIDTH * (0.35 + 0.4 * ((i * 7) % 5) / 5);
+      const x = t.pos.x + t.nrm.x * off, z = t.pos.z + t.nrm.z * off;
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(2.4),
+        new THREE.MeshPhongMaterial({ color: 0x707a86, flatShading: true, shininess: 10 }));
+      rock.rotation.set(Math.random(), Math.random(), Math.random());
+      rock.position.set(x, 0, z);
+      scene.add(rock);
+      obstacles.push({ mesh: rock, pos: new THREE.Vector3(x, 0, z), r: 3.4, yOff: -0.6 });
+    }
+  }
+
+  function makeRamp() {
+    const g = new THREE.Group();
+    const deck = new THREE.BoxGeometry(8.5, 0.5, 11); deck.translate(0, 0, 5.5);
+    const dm = new THREE.Mesh(deck, phong(0xffc21a, { emissive: 0x553300, shininess: 70 }));
+    dm.rotation.x = -0.34; dm.position.y = 0.3; g.add(dm);
+    for (const sx of [-1, 1]) {
+      const rail = new THREE.BoxGeometry(0.5, 0.7, 11); rail.translate(0, 0, 5.5);
+      const rm = new THREE.Mesh(rail, phong(0xff3b3b));
+      rm.rotation.x = -0.34; rm.position.set(sx * 4.2, 0.5, 0); g.add(rm);
+    }
+    return g;
+  }
+
+  // Rampas: en el centro del canal, orientadas en la dirección de avance.
+  function createRamps() {
+    for (let i = 0; i < NUM_RAMPS; i++) {
+      const idx = Math.floor(((i + 0.4) / NUM_RAMPS) * TRACK_SAMPLES) % TRACK_SAMPLES;
+      const t = trackPts[idx];
+      const off = ((i % 2) ? 1 : -1) * 5;
+      const x = t.pos.x + t.nrm.x * off, z = t.pos.z + t.nrm.z * off;
+      const ramp = makeRamp();
+      ramp.position.set(x, 0, z);
+      ramp.rotation.y = Math.atan2(t.tan.x, t.tan.z);
+      scene.add(ramp);
+      ramps.push({ mesh: ramp, pos: new THREE.Vector3(x, 0, z), dir: t.tan.clone(), r: 5 });
+    }
+  }
+
+  function createIslands() {
+    const spots = [[-300, -210], [330, 190], [-320, 250], [350, -230]];
+    for (const [x, z] of spots) {
+      const island = new THREE.Mesh(new THREE.ConeGeometry(40 + Math.random() * 30, 35, 16), phong(0x4caf50));
+      island.position.set(x, 4, z); scene.add(island);
+    }
+  }
+
+  function createArrow() {
+    const g = new THREE.ConeGeometry(0.9, 2.6, 4); g.rotateX(-Math.PI / 2);
+    arrow = new THREE.Mesh(g, phong(0x33ff88, { emissive: 0x114422 }));
+    scene.add(arrow);
+  }
+
+  // ============================================================================
+  //  AUDIO
+  // ============================================================================
+  function initAudio() {
+    if (audioCtx) { audioCtx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    audioCtx = new AC();
+    masterGain = audioCtx.createGain(); masterGain.gain.value = muted ? 0 : 0.5;
+    masterGain.connect(audioCtx.destination);
+    engineOsc = audioCtx.createOscillator(); engineOsc.type = 'sawtooth';
+    engineGain = audioCtx.createGain(); engineGain.gain.value = 0;
+    const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 700;
+    engineOsc.connect(filter); filter.connect(engineGain); engineGain.connect(masterGain);
+    engineOsc.frequency.value = 55; engineOsc.start();
+  }
+  function updateEngineSound() {
+    if (!audioCtx) return;
+    const sp = Math.abs(speed) / MAX_SPEED, playing = (state === 'playing');
+    engineOsc.frequency.setTargetAtTime(55 + sp * 130, audioCtx.currentTime, 0.06);
+    engineGain.gain.setTargetAtTime(playing ? 0.05 + sp * 0.13 : 0, audioCtx.currentTime, 0.1);
+  }
+  function blip(freq, dur, type, vol) {
+    if (!audioCtx || muted) return;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type || 'square'; o.frequency.value = freq; g.gain.value = vol || 0.3;
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.connect(g); g.connect(masterGain); o.start(); o.stop(audioCtx.currentTime + dur);
+  }
+  function jingle(notes) { notes.forEach(([f, t]) => setTimeout(() => blip(f, 0.18, 'triangle', 0.35), t)); }
+  function setMuted(m) {
+    muted = m;
+    if (masterGain) masterGain.gain.value = muted ? 0 : 0.5;
+    document.getElementById('soundBtn').textContent = muted ? '🔇 Silenciado' : '🔊 Sonido';
+  }
+
+  // ============================================================================
+  //  ENTRADA
+  // ============================================================================
+  function setupInput() {
+    const set = (e, v) => {
+      switch (e.code) {
+        case 'ArrowUp': case 'KeyW':    keys.up = v; break;
+        case 'ArrowDown': case 'KeyS':  keys.down = v; break;
+        case 'ArrowLeft': case 'KeyA':  keys.left = v; break;
+        case 'ArrowRight': case 'KeyD': keys.right = v; break;
+        case 'KeyM': if (v) setMuted(!muted); return;
+        case 'KeyP': case 'Escape': if (v) togglePause(); return;
+        default: return;
+      }
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', e => set(e, true));
+    window.addEventListener('keyup',   e => set(e, false));
+    document.getElementById('playBtn').addEventListener('click', startRace);
+    document.getElementById('retryBtn').addEventListener('click', startRace);
+    document.getElementById('soundBtn').addEventListener('click', () => setMuted(!muted));
+    document.getElementById('resumeBtn').addEventListener('click', resumeRace);
+    document.getElementById('restartBtn').addEventListener('click', startRace);
+    document.getElementById('menuBtn').addEventListener('click', goToMenu);
+    document.getElementById('resultsMenuBtn').addEventListener('click', goToMenu);
+    document.querySelectorAll('.diffBtn').forEach(b =>
+      b.addEventListener('click', () => setDifficulty(b.dataset.diff)));
+  }
+
+  // ============================================================================
+  //  FLUJO DE LA PARTIDA
+  // ============================================================================
+  function resetRace() {
+    speed = 0; raceTime = 0; lap = 1; nextCP = 0; lastAlong = -1;
+    lapStartTime = 0; lastLapTime = null; bestLap = null; airborne = false; vy = 0;
+
+    const start = coursePoint(0), t0 = courseTangent(0);
+    yaw = Math.atan2(t0.x, t0.z);
+    player.position.set(start.x - t0.x * 8, 0, start.z - t0.z * 8);
+    player.rotation.y = yaw; skiTilt.rotation.set(0, 0, 0);
+    camera.position.set(player.position.x - t0.x * 22, 12, player.position.z - t0.z * 22);
+
+    const d = DIFFICULTY[difficulty];
+    rivals.forEach((r, i) => { r.u = r.u0; r.lap = 1; r.uSpeed = d.base + i * d.step; });
+    updateRivals(0);
+    updateHUD();
+  }
+  function startRace() {
+    initAudio(); resetRace();
+    document.getElementById('menu').classList.add('hidden');
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('pause').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+    state = 'playing';
+  }
+  function finishRace() {
+    state = 'finished';
+    document.getElementById('hud').classList.add('hidden');
+    document.getElementById('results').classList.remove('hidden');
+    const pos = racePosition(), total = NUM_RIVALS + 1;
+    document.getElementById('resultTitle').textContent = pos === 1 ? '🏆 ¡Ganaste!' : '¡Carrera terminada!';
+    document.getElementById('resultStats').innerHTML =
+      `Posición: <span>${pos}º de ${total}</span><br>` +
+      `Tiempo total: <span>${formatTime(raceTime)}</span><br>` +
+      `Mejor vuelta: <span>${bestLap !== null ? formatTime(bestLap) : '—'}</span>`;
+    jingle(pos === 1 ? [[523,0],[659,140],[784,280],[1047,440]] : [[523,0],[659,160]]);
+  }
+  function racePosition() {
+    const playerProg = (lap - 1) + nextCP / NUM_CHECKPOINTS;
+    let ahead = 0;
+    for (const r of rivals) if ((r.lap - 1) + ((r.u + 1) % 1) > playerProg) ahead++;
+    return ahead + 1;
+  }
+
+  // ---- Pausa, menú y dificultad ----
+  function togglePause() {
+    if (state === 'playing') pauseRace(); else if (state === 'paused') resumeRace();
+  }
+  function pauseRace()  { state = 'paused';  document.getElementById('pause').classList.remove('hidden'); }
+  function resumeRace() { state = 'playing'; document.getElementById('pause').classList.add('hidden'); }
+  function goToMenu() {
+    state = 'menu';
+    document.getElementById('pause').classList.add('hidden');
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('hud').classList.add('hidden');
+    document.getElementById('menu').classList.remove('hidden');
+    resetRace();
+  }
+  function setDifficulty(d) {
+    difficulty = d;
+    document.querySelectorAll('.diffBtn').forEach(b => b.classList.toggle('active', b.dataset.diff === d));
+  }
+
+  // ============================================================================
+  //  ACTUALIZACIÓN
+  // ============================================================================
+  function update(dt) {
+    time += dt;
+    updateWater();
+    if (state === 'playing') {
+      raceTime += dt;
+      updateSki(dt);
+      if (!airborne) checkObstacles();
+      checkCheckpoints();
+      updateHUD();
+    }
+    updateRivals(dt);
+    updateSpray(dt);
+    updateArrow();
+    updateCamera(dt);
+    updateFloaters();
+    updateEngineSound();
+  }
+
+  function updateWater() {
+    const pos = water.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setY(i, waveHeight(pos.getX(i), pos.getZ(i), time));
+    pos.needsUpdate = true;
+    water.geometry.computeVertexNormals();
+  }
+
+  // Mantiene al jugador dentro del canal (colisión con las paredes).
+  function clampToTrack(penalty) {
+    const n = nearestTrack(player.position.x, player.position.z);
+    const lim = TRACK_HALF_WIDTH - 1.2;
+    if (Math.abs(n.offset) > lim) {
+      const over = Math.abs(n.offset) - lim, s = Math.sign(n.offset);
+      player.position.x -= n.pt.nrm.x * s * over;
+      player.position.z -= n.pt.nrm.z * s * over;
+      if (penalty && over > 0.4) { speed *= 0.55; blip(150, 0.1, 'sawtooth', 0.18); }
+    }
+  }
+
+  function updateSki(dt) {
+    // --- en el aire (después de una rampa): control reducido, cae por gravedad ---
+    if (airborne) {
+      const turn = (keys.left ? 1 : 0) - (keys.right ? 1 : 0);
+      yaw += turn * TURN_RATE * dt * 0.3;
+      const fx = Math.sin(yaw), fz = Math.cos(yaw);
+      player.position.x += fx * speed * dt;
+      player.position.z += fz * speed * dt;
+      player.position.y += vy * dt;
+      vy -= GRAVITY * dt;
+      player.rotation.y = yaw;
+      skiTilt.rotation.x = clamp(-vy * 0.04, -0.5, 0.5);
+      skiTilt.rotation.z *= 0.9;
+      clampToTrack(false);
+      const wh = waveHeight(player.position.x, player.position.z, time);
+      if (vy < 0 && player.position.y <= wh + 0.25) {       // aterrizaje
+        airborne = false; vy = 0; player.position.y = wh + 0.25; speed *= 0.9;
+        burstSpray(20); blip(200, 0.18, 'square', 0.25); flash('¡Aterrizaje!', '#bfefff');
+      }
+      return;
+    }
+
+    // --- física normal sobre el agua ---
+    let accel = 0;
+    if (keys.up) accel += ENGINE;
+    if (keys.down) accel -= BRAKE;
+    speed += accel * dt;
+    speed -= speed * DRAG * dt;
+    speed = clamp(speed, -MAX_REVERSE, MAX_SPEED);
+
+    const turn = (keys.left ? 1 : 0) - (keys.right ? 1 : 0);
+    const sf = clamp(Math.abs(speed) / (MAX_SPEED * 0.5), 0, 1);
+    yaw += turn * TURN_RATE * dt * (0.35 + 0.65 * sf) * (speed >= 0 ? 1 : -1);
+
+    const fx = Math.sin(yaw), fz = Math.cos(yaw);
+    player.position.x += fx * speed * dt;
+    player.position.z += fz * speed * dt;
+    player.position.y = waveHeight(player.position.x, player.position.z, time) + 0.25;
+
+    const e = 2.0;
+    const dhx = (waveHeight(player.position.x + e, player.position.z, time)
+               - waveHeight(player.position.x - e, player.position.z, time)) / (2 * e);
+    const dhz = (waveHeight(player.position.x, player.position.z + e, time)
+               - waveHeight(player.position.x, player.position.z - e, time)) / (2 * e);
+    player.rotation.y = yaw;
+    skiTilt.rotation.x = -(dhx * fx + dhz * fz) * 1.4;
+    skiTilt.rotation.z = (dhx * fz - dhz * fx) * 1.4 + turn * 0.35 * sf;
+
+    clampToTrack(true);
+    checkRamps(fx, fz);
+  }
+
+  function checkRamps(fx, fz) {
+    if (speed < 12) return;
+    for (const r of ramps) {
+      const dx = player.position.x - r.pos.x, dz = player.position.z - r.pos.z;
+      if (dx * dx + dz * dz < r.r * r.r && (fx * r.dir.x + fz * r.dir.z) > 0.25) {
+        airborne = true; vy = 11 + speed * 0.22; speed += 4;
+        blip(520, 0.12, 'square', 0.25); blip(720, 0.14, 'triangle', 0.2);
+        flash('¡Salto!', '#ffe066');
+        return;
+      }
+    }
+  }
+
+  function checkObstacles() {
+    for (const o of obstacles) {
+      const dx = player.position.x - o.pos.x, dz = player.position.z - o.pos.z;
+      if (dx * dx + dz * dz < o.r * o.r && speed > 4) {
+        speed *= 0.35;
+        const d = Math.hypot(dx, dz) || 1;                  // empuje para no quedar atascado
+        player.position.x += dx / d * 0.8; player.position.z += dz / d * 0.8;
+        flash('¡Choque!', '#ff9a3c'); blip(110, 0.2, 'sawtooth', 0.3);
+      }
+    }
+  }
+
+  function updateRivals(dt) {
+    const rubber = DIFFICULTY[difficulty].rubber;
+    const playerProg = (lap - 1) + nextCP / NUM_CHECKPOINTS;
+    for (const r of rivals) {
+      if (state === 'playing') {
+        const gap = clamp(playerProg - ((r.lap - 1) + r.u), -0.5, 0.5);  // rubber banding
+        const catchUp = 1 + rubber * gap;
+        const wobble = 1 + 0.06 * Math.sin(time * 1.5 + r.phase);
+        r.u += r.uSpeed * catchUp * wobble * dt;
+        if (r.u >= 1) { r.u -= 1; r.lap++; }
+      }
+      const u = (r.u + 1) % 1;
+      const p = coursePoint(u), t = courseTangent(u);
+      const x = p.x + t.z * r.lane, z = p.z - t.x * r.lane;
+      r.group.position.set(x, waveHeight(x, z, time) + 0.25, z);
+      r.group.rotation.y = Math.atan2(t.x, t.z);
+      r.tilt.rotation.z = Math.sin(time * 2 + r.phase) * 0.08;
+      r.tilt.rotation.x = Math.sin(time * 1.6 + r.phase) * 0.05;
+    }
+  }
+
+  function checkCheckpoints() {
+    const c = checkpoints[nextCP];
+    const toP = player.position.clone().sub(c.pos);
+    const along = toP.dot(c.tangent);
+    if (lastAlong < 0 && along >= 0 && toP.length() < TRACK_HALF_WIDTH + 12) {
+      nextCP++;
+      if (nextCP >= NUM_CHECKPOINTS) {                       // vuelta completada
+        nextCP = 0;
+        lastLapTime = raceTime - lapStartTime;
+        if (bestLap === null || lastLapTime < bestLap) bestLap = lastLapTime;
+        lapStartTime = raceTime;
+        lap++;
+        if (lap > TOTAL_LAPS) { finishRace(); return; }
+        flash('¡Vuelta ' + lap + '!', '#ffe066'); jingle([[660, 0], [880, 120]]);
+      }
+      const nc = checkpoints[nextCP];
+      lastAlong = player.position.clone().sub(nc.pos).dot(nc.tangent);
+    } else {
+      lastAlong = along;
+    }
+  }
+
+  function emitSpray(i, x, y, z, vx, vyy, vz, life) {
+    const pos = spray.geometry.attributes.position, V = spray.userData.vel, L = spray.userData.life;
+    pos.setXYZ(i, x, y, z); V[i*3] = vx; V[i*3+1] = vyy; V[i*3+2] = vz; L[i] = life;
+  }
+  function burstSpray(n) {
+    const N = spray.geometry.attributes.position.count;
+    for (let k = 0; k < n; k++) {
+      const i = spray.userData.idx; spray.userData.idx = (i + 1) % N;
+      emitSpray(i, player.position.x + (Math.random()-0.5)*2, player.position.y + 0.2,
+                player.position.z + (Math.random()-0.5)*2,
+                (Math.random()-0.5)*9, 4 + Math.random()*5, (Math.random()-0.5)*9, 0.5 + Math.random()*0.4);
+    }
+    spray.geometry.attributes.position.needsUpdate = true;
+  }
+  function updateSpray(dt) {
+    const pos = spray.geometry.attributes.position, life = spray.userData.life, vel = spray.userData.vel, N = pos.count;
+    if (state === 'playing' && !airborne && Math.abs(speed) > 6) {
+      const fx = Math.sin(yaw), fz = Math.cos(yaw), emit = Math.min(4, Math.floor(Math.abs(speed) / 8));
+      for (let k = 0; k < emit; k++) {
+        const i = spray.userData.idx; spray.userData.idx = (i + 1) % N;
+        emitSpray(i, player.position.x - fx*2.2 + (Math.random()-0.5), player.position.y + 0.3,
+                  player.position.z - fz*2.2 + (Math.random()-0.5),
+                  (Math.random()-0.5)*3 - fx*2, 3 + Math.random()*3, (Math.random()-0.5)*3 - fz*2, 0.6 + Math.random()*0.4);
+      }
+    }
+    for (let i = 0; i < N; i++) {
+      if (life[i] > 0) {
+        life[i] -= dt; vel[i*3+1] -= 9 * dt;
+        pos.setXYZ(i, pos.getX(i) + vel[i*3]*dt, pos.getY(i) + vel[i*3+1]*dt, pos.getZ(i) + vel[i*3+2]*dt);
+        if (life[i] <= 0) pos.setXYZ(i, 0, -999, 0);
+      }
+    }
+    pos.needsUpdate = true;
+  }
+
+  // La flecha apunta hacia un punto del canal por delante de ti.
+  function updateArrow() {
+    const n = nearestTrack(player.position.x, player.position.z);
+    const ahead = trackPts[(n.index + 12) % TRACK_SAMPLES].pos;
+    arrow.position.set(player.position.x, player.position.y + 4.5, player.position.z);
+    arrow.lookAt(ahead.x, arrow.position.y, ahead.z);
+    arrow.position.y += Math.sin(time * 4) * 0.2;
+  }
+
+  // Las barreras, rocas y rampas flotan con el oleaje.
+  function updateFloaters() {
+    for (const b of barriers) b.position.y = waveHeight(b.userData.base.x, b.userData.base.z, time) - 0.3;
+    for (const o of obstacles) { o.mesh.position.y = waveHeight(o.pos.x, o.pos.z, time) + o.yOff; o.mesh.rotation.y += 0.004; }
+    for (const r of ramps) r.mesh.position.y = waveHeight(r.pos.x, r.pos.z, time) - 0.15;
+  }
+
+  function updateCamera(dt) {
+    const fx = Math.sin(yaw), fz = Math.cos(yaw);
+    const camDist = 15, camHeight = 6.5, lookAhead = 9;
+    const desired = new THREE.Vector3(player.position.x - fx*camDist, player.position.y + camHeight, player.position.z - fz*camDist);
+    camera.position.lerp(desired, 1 - Math.exp(-dt * 4));
+    const wh = waveHeight(camera.position.x, camera.position.z, time);
+    if (camera.position.y < wh + 1.5) camera.position.y = wh + 1.5;
+    camera.lookAt(player.position.x + fx*lookAhead, player.position.y + 1.2, player.position.z + fz*lookAhead);
+  }
+
+  // ============================================================================
+  //  HUD
+  // ============================================================================
+  function formatTime(t) {
+    const m = Math.floor(t / 60), s = (t % 60).toFixed(2).padStart(5, '0');
+    return m + ':' + s;
+  }
+  function updateHUD() {
+    document.getElementById('totalTime').textContent = formatTime(raceTime);
+    document.getElementById('curLap').textContent = formatTime(raceTime - lapStartTime);
+    document.getElementById('bestLap').textContent = bestLap !== null ? formatTime(bestLap) : '--:--.--';
+    document.getElementById('lapNum').textContent = Math.min(lap, TOTAL_LAPS) + ' / ' + TOTAL_LAPS;
+    document.getElementById('posNum').textContent = racePosition() + '/' + (NUM_RIVALS + 1);
+    document.getElementById('speedPanel').textContent = Math.round(Math.abs(speed) * 3.6) + ' km/h';
+  }
+  let flashTimer = null;
+  function flash(text, color) {
+    const el = document.getElementById('flash');
+    el.textContent = text; el.style.color = color; el.style.opacity = 1;
+    clearTimeout(flashTimer); flashTimer = setTimeout(() => { el.style.opacity = 0; }, 900);
+  }
+
+  // ============================================================================
+  //  BUCLE PRINCIPAL
+  // ============================================================================
+  function animate() {
+    requestAnimationFrame(animate);
+    update(Math.min(clock.getDelta(), 0.05));
+    renderer.render(scene, camera);
+  }
+  function onResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  init();
+  </script>
+</body>
+</html>

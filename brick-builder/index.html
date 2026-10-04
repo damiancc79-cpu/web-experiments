@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Brick Builder — 3D Playground</title>
+<style>
+  :root{
+    --bg1:#7fd7ff; --bg2:#c8f0ff; --ink:#17324a;
+    --panel:#ffffff; --panel-2:#f2f8ff;
+    --shadow:0 8px 0 rgba(23,50,74,.18), 0 14px 28px rgba(23,50,74,.22);
+    --yellow:#ffcf2e; --red:#ff5a4d; --blue:#2f9bff; --green:#4ecb52;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;overflow:hidden;
+    font-family:"Baloo 2",Nunito,"Segoe UI Rounded","Comic Sans MS",system-ui,sans-serif;
+    color:var(--ink); background:linear-gradient(180deg,var(--bg1),var(--bg2));
+    -webkit-user-select:none;user-select:none;touch-action:none;}
+  canvas{display:block}
+  #app{position:fixed;inset:0}
+
+  /* ---------- generic toybox chrome ---------- */
+  .panel{
+    position:absolute; background:var(--panel); border-radius:22px;
+    box-shadow:var(--shadow); padding:12px; border:3px solid #fff;
+  }
+  .btn{
+    border:none; cursor:pointer; font:inherit; font-weight:800; color:#fff;
+    background:var(--blue); border-radius:14px; padding:9px 12px; line-height:1;
+    box-shadow:0 4px 0 rgba(0,0,0,.18); transition:transform .08s, box-shadow .08s, filter .15s;
+  }
+  .btn:hover{filter:brightness(1.07)}
+  .btn:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.18)}
+  .btn.ghost{background:#e8eef6;color:var(--ink)}
+  .btn.on{background:var(--green)}
+  .btn.warn{background:var(--red)}
+  .btn.sm{padding:7px 10px;border-radius:12px;font-size:13px}
+
+  /* ---------- title ---------- */
+  #title{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    font-size:26px; font-weight:900; letter-spacing:.5px; color:#fff;
+    text-shadow:0 3px 0 #2f9bff, 0 6px 14px rgba(0,0,0,.25);
+    pointer-events:none; white-space:nowrap;
+  }
+  #title span{color:var(--yellow)}
+
+  /* ---------- left: bricks ---------- */
+  #left{ top:14px; left:14px; width:212px; max-height:calc(100vh - 28px); overflow:auto; }
+  .sec{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:1px;
+       opacity:.55;margin:8px 4px 6px}
+  .sec:first-child{margin-top:2px}
+  #shapes{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .shape{
+    background:var(--panel-2); border:2px solid #dbe6f2; border-radius:12px; cursor:pointer;
+    padding:6px 2px 5px; text-align:center; transition:transform .1s, background .15s, border-color .15s;
+  }
+  .shape:hover{transform:translateY(-2px)}
+  .shape.sel{background:#fff5cf;border-color:var(--yellow);box-shadow:0 0 0 3px #ffe89a inset}
+  .shape svg{display:block;margin:0 auto 3px}
+  .shape b{font-size:10px;font-weight:800;opacity:.7}
+
+  #colors{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .sw{aspect-ratio:1/1;border-radius:9px;cursor:pointer;border:2px solid rgba(0,0,0,.14);
+      box-shadow:inset 0 -3px 0 rgba(0,0,0,.22), inset 0 3px 0 rgba(255,255,255,.28);
+      transition:transform .1s}
+  .sw:hover{transform:scale(1.12)}
+  .sw.sel{outline:3px solid #17324a; outline-offset:2px; transform:scale(1.12)}
+
+  /* ---------- right: tools ---------- */
+  #right{ top:14px; right:14px; width:196px; }
+  .row{display:flex;gap:7px;flex-wrap:wrap}
+  .row .btn{flex:1 1 auto}
+  #right .btn{margin-bottom:0}
+  .stat{font-size:12px;font-weight:800;opacity:.65;margin:8px 4px 0}
+
+  /* ---------- bottom: modes ---------- */
+  #bottom{ bottom:14px; left:50%; transform:translateX(-50%); display:flex; gap:8px; align-items:center; padding:10px 12px;}
+  #bottom .btn{min-width:74px}
+
+  /* ---------- help ---------- */
+  #help{ bottom:14px; left:14px; width:236px; font-size:12.5px; line-height:1.55; }
+  #help b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.55;margin-bottom:5px}
+  kbd{background:#eef3f9;border:1px solid #cfdcea;border-bottom-width:2px;border-radius:6px;
+      padding:1px 5px;font:700 11px/1.4 ui-monospace,monospace}
+  #helpToggle{position:absolute;bottom:14px;left:14px}
+
+  /* ---------- toast ---------- */
+  #toast{position:absolute;bottom:96px;left:50%;transform:translateX(-50%) translateY(16px);
+    background:#17324a;color:#fff;font-weight:800;padding:10px 18px;border-radius:999px;
+    opacity:0;transition:.25s;pointer-events:none;box-shadow:0 8px 20px rgba(0,0,0,.3);font-size:14px}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  ::-webkit-scrollbar{width:8px} ::-webkit-scrollbar-thumb{background:#cfdcea;border-radius:8px}
+
+  @media (max-width:820px){
+    #left{width:150px} #shapes{grid-template-columns:repeat(2,1fr)}
+    #right{width:150px} #help{display:none!important} #title{font-size:18px}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="title">🧱 BRICK <span>BUILDER</span></div>
+
+<!-- LEFT -->
+<div class="panel" id="left">
+  <div class="sec">Piece</div>
+  <div id="shapes"></div>
+  <div class="sec">Color</div>
+  <div id="colors"></div>
+</div>
+
+<!-- RIGHT -->
+<div class="panel" id="right">
+  <div class="sec">Actions</div>
+  <div class="row">
+    <button class="btn ghost sm" id="undo">↶ Undo</button>
+    <button class="btn ghost sm" id="redo">↷ Redo</button>
+  </div>
+  <div class="sec">Save &amp; Load</div>
+  <div class="row">
+    <button class="btn sm" id="save">💾 Save</button>
+    <button class="btn sm" id="load">📂 Load</button>
+  </div>
+  <div class="row" style="margin-top:7px">
+    <button class="btn sm ghost" id="snap">📸 Photo</button>
+    <button class="btn sm warn" id="clear">🗑 Clear</button>
+  </div>
+  <div class="sec">Preset models</div>
+  <div class="row" id="presets"></div>
+  <div class="sec">View</div>
+  <div class="row">
+    <button class="btn ghost sm" id="reset">🎥 Reset</button>
+    <button class="btn ghost sm" id="sound">🔊 On</button>
+  </div>
+  <div class="stat" id="stat">0 bricks</div>
+</div>
+
+<!-- BOTTOM -->
+<div class="panel" id="bottom">
+  <button class="btn on" id="mBuild">🧱 Build</button>
+  <button class="btn ghost" id="mErase">🧹 Erase</button>
+  <button class="btn ghost" id="mPaint">🎨 Paint</button>
+  <button class="btn ghost" id="rotate">⟳ Rotate <kbd style="background:#0002;border:0;color:#fff">R</kbd></button>
+</div>
+
+<!-- HELP -->
+<div class="panel" id="help">
+  <b>How to play</b>
+  <div><kbd>Click</kbd> place · <kbd>Right-click</kbd> delete</div>
+  <div><kbd>Drag</kbd> orbit · <kbd>Shift+Drag</kbd> pan · <kbd>Scroll</kbd> zoom</div>
+  <div><kbd>R</kbd> rotate · <kbd>1-9</kbd> pieces · <kbd>Q</kbd>/<kbd>E</kbd> color</div>
+  <div><kbd>Ctrl+Z</kbd> undo · <kbd>Ctrl+Y</kbd> redo · <kbd>H</kbd> hide this</div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="file" accept=".json,application/json" style="display:none" />
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   BRICK BUILDER — a 3D LEGO-style playground
+   Units: 1 stud pitch = 8, plate height = 3.2, brick = 3 plates
+   ============================================================ */
+const STUD = 8, PLATE = 3.2, BRICK = PLATE * 3;
+const GRID = 32;                       // baseplate is GRID x GRID studs
+const HALF = GRID * STUD / 2;
+const MAXY = 40;                       // max height in plate levels
+
+/* ---------------- palette ---------------- */
+const COLORS = [
+  {n:'Red',      c:0xd0201a}, {n:'Orange',   c:0xff8a18},
+  {n:'Yellow',   c:0xf7c81f}, {n:'Lime',     c:0xa6d90b},
+  {n:'Green',    c:0x2f9e44}, {n:'Teal',     c:0x00a2a0},
+  {n:'Azure',    c:0x14a3e0}, {n:'Blue',     c:0x1256c4},
+  {n:'Purple',   c:0x7b2fbe}, {n:'Magenta',  c:0xd63384},
+  {n:'Pink',     c:0xff9ecd}, {n:'Tan',      c:0xe4cd9e},
+  {n:'Brown',    c:0x6b4423}, {n:'White',    c:0xf6f6f4},
+  {n:'Grey',     c:0x9aa0a6}, {n:'Dark',     c:0x35424c},
+];
+
+/* ---------------- pieces ---------------- */
+const SHAPES = [
+  {id:'b1x1', w:1,d:1, t:'brick', label:'1×1'},
+  {id:'b1x2', w:1,d:2, t:'brick', label:'1×2'},
+  {id:'b1x4', w:1,d:4, t:'brick', label:'1×4'},
+  {id:'b2x2', w:2,d:2, t:'brick', label:'2×2'},
+  {id:'b2x3', w:2,d:3, t:'brick', label:'2×3'},
+  {id:'b2x4', w:2,d:4, t:'brick', label:'2×4'},
+  {id:'b2x6', w:2,d:6, t:'brick', label:'2×6'},
+  {id:'b2x8', w:2,d:8, t:'brick', label:'2×8'},
+  {id:'b1x6', w:1,d:6, t:'brick', label:'1×6'},
+  {id:'p1x2', w:1,d:2, t:'plate', label:'1×2 pl'},
+  {id:'p2x2', w:2,d:2, t:'plate', label:'2×2 pl'},
+  {id:'p2x4', w:2,d:4, t:'plate', label:'2×4 pl'},
+  {id:'p4x4', w:4,d:4, t:'plate', label:'4×4 pl'},
+  {id:'p6x6', w:6,d:6, t:'plate', label:'6×6 pl'},
+  {id:'t1x2', w:1,d:2, t:'tile',  label:'1×2 ti'},
+  {id:'t2x2', w:2,d:2, t:'tile',  label:'2×2 ti'},
+  {id:'c1x1', w:1,d:1, t:'round', label:'1×1 ●'},
+  {id:'s1x1', w:1,d:1, t:'slope', label:'slope'},
+];
+const heightOf = t => (t==='brick'||t==='round'||t==='slope') ? 3 : 1;   // in plate levels
+const hasStuds = t => t!=='tile';
+
+/* ============================================================
+   Three.js scene
+   ============================================================ */
+const app = document.getElementById('app');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xa9e6ff);
+scene.fog = new THREE.Fog(0xa9e6ff, 520, 1200);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 1, 3000);
+const renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+app.appendChild(renderer.domElement);
+
+/* --- lights: bright, cheerful, toy-photography --- */
+scene.add(new THREE.HemisphereLight(0xffffff, 0x6fb2d8, 0.75));
+const sun = new THREE.DirectionalLight(0xfff4dd, 1.05);
+sun.position.set(180, 320, 160);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+const S = 330;
+Object.assign(sun.shadow.camera, {left:-S, right:S, top:S, bottom:-S, near:10, far:900});
+sun.shadow.bias = -0.0006;
+sun.shadow.camera.updateProjectionMatrix();
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xbfe8ff, .32); fill.position.set(-200,140,-180); scene.add(fill);
+
+/* --- ground / baseplate --- */
+const plateMat = new THREE.MeshStandardMaterial({color:0x3fa34d, roughness:.62, metalness:0});
+const base = new THREE.Mesh(new THREE.BoxGeometry(GRID*STUD, PLATE, GRID*STUD), plateMat);
+base.position.y = -PLATE/2; base.receiveShadow = true; base.name='base';
+scene.add(base);
+
+// baseplate studs via InstancedMesh (1024 of them)
+{
+  const g = new THREE.CylinderGeometry(2.45,2.45,1.7,14);
+  const im = new THREE.InstancedMesh(g, plateMat, GRID*GRID);
+  im.receiveShadow = true; im.castShadow = false;
+  const m = new THREE.Matrix4(); let i=0;
+  for(let x=0;x<GRID;x++) for(let z=0;z<GRID;z++){
+    m.makeTranslation((x+.5)*STUD-HALF, .85, (z+.5)*STUD-HALF);
+    im.setMatrixAt(i++, m);
+  }
+  im.instanceMatrix.needsUpdate = true;
+  im.name='baseStuds';
+  scene.add(im);
+}
+// soft shadow-catcher skirt so the plate feels grounded
+{
+  const g = new THREE.CircleGeometry(1400, 48);
+  const m = new THREE.MeshStandardMaterial({color:0x7fd0f0, roughness:1});
+  const f = new THREE.Mesh(g,m); f.rotation.x = -Math.PI/2; f.position.y=-PLATE-0.6;
+  scene.add(f);
+}
+
+/* ============================================================
+   Brick construction
+   ============================================================ */
+const matCache = new Map();
+function bodyMat(colorIdx, ghost=false, bad=false){
+  const key = colorIdx+'|'+(ghost?(bad?'bad':'g'):'s');
+  if(matCache.has(key)) return matCache.get(key);
+  let m;
+  if(ghost){
+    m = new THREE.MeshStandardMaterial({
+      color: bad?0xff2d2d:COLORS[colorIdx].c, transparent:true, opacity: bad?.42:.55,
+      roughness:.3, depthWrite:false, emissive: bad?0x550000:0x111111, emissiveIntensity:.35});
+  } else {
+    m = new THREE.MeshStandardMaterial({color:COLORS[colorIdx].c, roughness:.34, metalness:.02});
+  }
+  matCache.set(key,m); return m;
+}
+const geoCache = new Map();
+function cached(key, make){ if(!geoCache.has(key)) geoCache.set(key, make()); return geoCache.get(key); }
+
+const studGeo = cached('stud', ()=> new THREE.CylinderGeometry(2.42,2.42,1.75,16));
+
+function makeBrickMesh(shape, colorIdx, ghost=false, bad=false){
+  const {w,d,t} = shape;
+  const h = heightOf(t)*PLATE;
+  const grp = new THREE.Group();
+  const mat = bodyMat(colorIdx, ghost, bad);
+
+  let body;
+  if(t==='round'){
+    body = new THREE.Mesh(cached('round'+w, ()=> new THREE.CylinderGeometry(STUD/2-.15, STUD/2-.15, h, 20)), mat);
+  } else if(t==='slope'){
+    body = new THREE.Mesh(cached('slope', ()=>{
+      const sh = new THREE.Shape();
+      const a = STUD-0.2, b = BRICK;
+      sh.moveTo(-a/2,-b/2); sh.lineTo(a/2,-b/2); sh.lineTo(-a/2,b/2); sh.lineTo(-a/2,-b/2);
+      const g = new THREE.ExtrudeGeometry(sh,{depth:a, bevelEnabled:false});
+      g.rotateY(Math.PI/2); g.translate(a/2,0,0); g.center();
+      return g;
+    })(), mat);
+  } else {
+    body = new THREE.Mesh(cached(`box${w}x${d}x${t}`, ()=>
+      new THREE.BoxGeometry(w*STUD-0.2, h, d*STUD-0.2)), mat);
+  }
+  body.castShadow = !ghost; body.receiveShadow = !ghost;
+  grp.add(body);
+
+  if(hasStuds(t) && t!=='slope'){
+    if(t==='round'){
+      const s = new THREE.Mesh(studGeo, mat);
+      s.position.y = h/2 + 0.87; s.castShadow=!ghost; s.receiveShadow=!ghost; grp.add(s);
+    } else {
+      for(let i=0;i<w;i++) for(let j=0;j<d;j++){
+        const s = new THREE.Mesh(studGeo, mat);
+        s.position.set((i - (w-1)/2)*STUD, h/2 + 0.87, (j - (d-1)/2)*STUD);
+        s.castShadow=!ghost; s.receiveShadow=!ghost;
+        grp.add(s);
+      }
+    }
+  }
+  return grp;
+}
+
+/* ============================================================
+   World state
+   ============================================================ */
+const bricks   = new Map();     // id -> {id, sx, sy, sz, w, d, t, rot, color, group, collider}
+const occupied = new Map();     // "x,y,z" -> id
+const colliderGroup = new THREE.Group(); scene.add(colliderGroup);
+const brickGroup    = new THREE.Group(); scene.add(brickGroup);
+const invisible = new THREE.MeshBasicMaterial({visible:false});
+let nextId = 1;
+
+const key = (x,y,z)=> x+','+y+','+z;
+
+function footprint(b){                 // returns {w,d} after rotation
+  return b.rot % 2 === 0 ? {w:b.w, d:b.d} : {w:b.d, d:b.w};
+}
+function cellsOf(b){
+  const {w,d} = footprint(b), hh = heightOf(b.t), out=[];
+  for(let x=0;x<w;x++) for(let z=0;z<d;z++) for(let y=0;y<hh;y++)
+    out.push(key(b.sx+x, b.sy+y, b.sz+z));
+  return out;
+}
+function fits(b){
+  const {w,d} = footprint(b), hh = heightOf(b.t);
+  if(b.sx<0 || b.sz<0 || b.sx+w>GRID || b.sz+d>GRID) return false;
+  if(b.sy<0 || b.sy+hh>MAXY) return false;
+  for(const k of cellsOf(b)) if(occupied.has(k)) return false;
+  return true;
+}
+function worldPos(b){
+  const {w,d} = footprint(b), hh = heightOf(b.t)*PLATE;
+  return new THREE.Vector3(
+    (b.sx + w/2)*STUD - HALF,
+    b.sy*PLATE + hh/2,
+    (b.sz + d/2)*STUD - HALF
+  );
+}
+
+function addBrick(data, animate=true, record=true){
+  const b = Object.assign({id: nextId++}, data);
+  if(!fits(b)){ nextId--; return null; }
+
+  const shape = {w:b.w, d:b.d, t:b.t};
+  const grp = makeBrickMesh(shape, b.color);
+  grp.rotation.y = b.rot * Math.PI/2;
+  grp.position.copy(worldPos(b));
+  brickGroup.add(grp);
+
+  const {w,d} = footprint(b), hh = heightOf(b.t)*PLATE;
+  const col = new THREE.Mesh(new THREE.BoxGeometry(w*STUD, hh + (hasStuds(b.t)?1.75:0), d*STUD), invisible);
+  col.position.copy(grp.position);
+  col.position.y += (hasStuds(b.t)?1.75:0)/2;
+  col.userData.brickId = b.id;
+  colliderGroup.add(col);
+
+  b.group = grp; b.collider = col;
+  bricks.set(b.id, b);
+  for(const k of cellsOf(b)) occupied.set(k, b.id);
+
+  if(animate) pops.push({g:grp, t:0});
+  if(record) pushUndo({type:'add', data:serialize(b)});
+  updateStat();
+  return b;
+}
+
+function removeBrick(id, record=true){
+  const b = bricks.get(id); if(!b) return;
+  if(record) pushUndo({type:'remove', data:serialize(b)});
+  brickGroup.remove(b.group);
+  colliderGroup.remove(b.collider);
+  b.collider.geometry.dispose();
+  for(const k of cellsOf(b)) occupied.delete(k);
+  bricks.delete(id);
+  updateStat();
+}
+
+function paintBrick(id, colorIdx, record=true){
+  const b = bricks.get(id); if(!b || b.color===colorIdx) return;
+  if(record) pushUndo({type:'paint', id, from:b.color, to:colorIdx});
+  b.color = colorIdx;
+  const m = bodyMat(colorIdx);
+  b.group.traverse(o=>{ if(o.isMesh) o.material = m; });
+  pops.push({g:b.group, t:0});
+}
+
+function serialize(b){ return {sx:b.sx, sy:b.sy, sz:b.sz, w:b.w, d:b.d, t:b.t, rot:b.rot, color:b.color, id:b.id}; }
+
+function clearAll(record=true){
+  if(record && bricks.size) pushUndo({type:'bulk', data:[...bricks.values()].map(serialize)});
+  [...bricks.keys()].forEach(id=>removeBrick(id,false));
+}
+
+/* ---------------- undo / redo ---------------- */
+const undoStack=[], redoStack=[];
+function pushUndo(a){ undoStack.push(a); if(undoStack.length>400) undoStack.shift(); redoStack.length=0; }
+function applyInverse(a, toRedo){
+  if(a.type==='add'){ const b=findAt(a.data); if(b) removeBrick(b.id,false); }
+  else if(a.type==='remove'){ addBrick(stripId(a.data), false, false); }
+  else if(a.type==='paint'){ paintBrick(a.id, toRedo? a.to : a.from, false); }
+  else if(a.type==='bulk'){ a.data.forEach(d=>addBrick(stripId(d), false, false)); }
+}
+function stripId(d){ const {id,...rest}=d; return rest; }
+function findAt(d){
+  const id = occupied.get(key(d.sx,d.sy,d.sz));
+  return id ? bricks.get(id) : null;
+}
+function undo(){
+  const a = undoStack.pop(); if(!a){ toast('Nothing to undo'); return; }
+  if(a.type==='add'){ const b=findAt(a.data); if(b) removeBrick(b.id,false); }
+  else if(a.type==='remove'){ addBrick(stripId(a.data), true, false); }
+  else if(a.type==='paint'){ paintBrick(a.id, a.from, false); }
+  else if(a.type==='bulk'){ a.data.forEach(d=>addBrick(stripId(d), false, false)); }
+  redoStack.push(a); blip(300);
+}
+function redo(){
+  const a = redoStack.pop(); if(!a){ toast('Nothing to redo'); return; }
+  if(a.type==='add'){ addBrick(stripId(a.data), true, false); }
+  else if(a.type==='remove'){ const b=findAt(a.data); if(b) removeBrick(b.id,false); }
+  else if(a.type==='paint'){ paintBrick(a.id, a.to, false); }
+  else if(a.type==='bulk'){ clearAll(false); }
+  undoStack.push(a); blip(520);
+}
+
+/* ============================================================
+   Ghost preview
+   ============================================================ */
+let ghost = null, ghostValid = false, ghostCell = null;
+function rebuildGhost(){
+  if(ghost){ brickGroup.remove(ghost); ghost=null; }
+}
+function showGhost(b, valid){
+  const sig = `${b.w}|${b.d}|${b.t}|${b.color}|${valid}`;
+  if(!ghost || ghost.userData.sig !== sig){
+    if(ghost) brickGroup.remove(ghost);
+    ghost = makeBrickMesh({w:b.w,d:b.d,t:b.t}, b.color, true, !valid);
+    ghost.userData.sig = sig;
+    brickGroup.add(ghost);
+  }
+  ghost.rotation.y = b.rot*Math.PI/2;
+  ghost.position.copy(worldPos(b));
+  ghost.visible = true;
+}
+function hideGhost(){ if(ghost) ghost.visible=false; }
+
+/* ============================================================
+   Camera controls (custom orbit — no external OrbitControls)
+   ============================================================ */
+const target = new THREE.Vector3(0, 24, 0);
+const sph = { r: 330, theta: Math.PI*0.28, phi: Math.PI*0.34 };
+const dsph = {r:0, theta:0, phi:0};
+function updateCamera(){
+  sph.phi = Math.max(0.08, Math.min(Math.PI/2 - 0.03, sph.phi));
+  sph.r   = Math.max(60, Math.min(900, sph.r));
+  camera.position.set(
+    target.x + sph.r*Math.sin(sph.phi)*Math.sin(sph.theta),
+    target.y + sph.r*Math.cos(sph.phi),
+    target.z + sph.r*Math.sin(sph.phi)*Math.cos(sph.theta)
+  );
+  camera.lookAt(target);
+}
+updateCamera();
+
+let dragging=false, dragBtn=0, moved=0, lastX=0, lastY=0, downT=0, panning=false;
+const el = renderer.domElement;
+
+el.addEventListener('pointerdown', e=>{
+  el.setPointerCapture(e.pointerId);
+  dragging=true; dragBtn=e.button; moved=0; lastX=e.clientX; lastY=e.clientY; downT=performance.now();
+  panning = e.shiftKey || e.button===1;
+});
+el.addEventListener('pointermove', e=>{
+  const dx = e.clientX-lastX, dy = e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY;
+  if(dragging){
+    moved += Math.abs(dx)+Math.abs(dy);
+    if(moved>4){
+      if(panning){
+        const f = sph.r*0.0018;
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix,0);
+        const up    = new THREE.Vector3().setFromMatrixColumn(camera.matrix,1);
+        target.addScaledVector(right, -dx*f).addScaledVector(up, dy*f);
+        target.y = Math.max(0, Math.min(260, target.y));
+      } else {
+        sph.theta -= dx*0.006;
+        sph.phi   -= dy*0.006;
+      }
+      updateCamera();
+      hideGhost();
+      return;
+    }
+  }
+  pointer.x = (e.clientX/innerWidth)*2-1;
+  pointer.y = -(e.clientY/innerHeight)*2+1;
+  pointerActive = true;
+});
+el.addEventListener('pointerup', e=>{
+  const wasDrag = moved>4;
+  dragging=false; panning=false;
+  if(!wasDrag && performance.now()-downT < 600){
+    pointer.x = (e.clientX/innerWidth)*2-1;
+    pointer.y = -(e.clientY/innerHeight)*2+1;
+    handleClick(e.button);
+  }
+});
+el.addEventListener('contextmenu', e=>e.preventDefault());
+el.addEventListener('wheel', e=>{
+  e.preventDefault();
+  sph.r *= (1 + Math.sign(e.deltaY)*0.09);
+  updateCamera();
+}, {passive:false});
+el.addEventListener('pointerleave', ()=>{ pointerActive=false; hideGhost(); });
+
+/* --- pinch zoom for touch --- */
+let pinchDist = 0;
+el.addEventListener('touchmove', e=>{
+  if(e.touches.length===2){
+    const a=e.touches[0], b=e.touches[1];
+    const d = Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
+    if(pinchDist) { sph.r *= pinchDist/d; updateCamera(); }
+    pinchDist = d;
+  }
+},{passive:true});
+el.addEventListener('touchend', ()=>{ pinchDist=0; });
+
+/* ============================================================
+   Picking
+   ============================================================ */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2(-2,-2);
+let pointerActive = false;
+
+function pick(){
+  raycaster.setFromCamera(pointer, camera);
+  const targets = [base, ...colliderGroup.children];
+  const hits = raycaster.intersectObjects(targets, false);
+  return hits.length ? hits[0] : null;
+}
+
+function cellFromHit(hit){
+  const p = hit.point.clone();
+  const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0,1,0);
+  p.addScaledVector(n, 0.35);
+  return {
+    cx: Math.floor((p.x + HALF)/STUD),
+    cy: Math.max(0, Math.floor(p.y/PLATE + 0.02)),
+    cz: Math.floor((p.z + HALF)/STUD),
+  };
+}
+
+function currentCandidate(hit){
+  const s = SHAPES[selShape];
+  const rotW = rot%2===0 ? s.w : s.d;
+  const rotD = rot%2===0 ? s.d : s.w;
+  const c = cellFromHit(hit);
+  const sx = c.cx - Math.floor((rotW-1)/2);
+  const sz = c.cz - Math.floor((rotD-1)/2);
+  return {sx, sy:c.cy, sz, w:s.w, d:s.d, t:s.t, rot, color:selColor};
+}
+
+function handleClick(button){
+  const hit = pick(); if(!hit) return;
+  const onBrick = hit.object.userData.brickId;
+
+  if(button===2 || mode==='erase'){
+    if(onBrick){ removeBrick(onBrick); blip(220,'saw'); }
+    return;
+  }
+  if(mode==='paint'){
+    if(onBrick){ paintBrick(onBrick, selColor); blip(660); }
+    return;
+  }
+  const cand = currentCandidate(hit);
+  if(fits(cand)){ addBrick(cand); blip(440+Math.random()*90); }
+  else { toast('No room there!'); blip(150,'saw'); }
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+let selShape = 5, selColor = 0, rot = 0, mode = 'build', soundOn = true;
+
+/* shape swatches with tiny SVG previews */
+const shapesEl = document.getElementById('shapes');
+SHAPES.forEach((s,i)=>{
+  const el = document.createElement('div');
+  el.className='shape'+(i===selShape?' sel':'');
+  el.innerHTML = shapeSVG(s) + `<b>${s.label}</b>`;
+  el.title = s.label;
+  el.onclick = ()=>{ selShape=i; syncShapes(); blip(700); };
+  shapesEl.appendChild(el);
+});
+function shapeSVG(s){
+  const u=6, w=Math.min(s.w,4)*u, d=Math.min(s.d,4)*u;
+  const h = s.t==='brick'||s.t==='round'||s.t==='slope' ? 11 : 5;
+  const W=42, H=26, ox=W/2, oy=H-5;
+  const px=(x,z)=>[ox + (x-z)*u*0.86, oy - (x+z)*u*0.5];
+  const top = [px(0,0), px(w/u,0), px(w/u,d/u), px(0,d/u)]
+    .map(p=>`${p[0]},${p[1]-h}`).join(' ');
+  const l = [px(0,0),px(0,d/u)].map(p=>`${p[0]},${p[1]-h}`).concat(
+            [px(0,d/u),px(0,0)].map(p=>`${p[0]},${p[1]}`)).join(' ');
+  const r = [px(w/u,0),px(0,0)].map(p=>`${p[0]},${p[1]-h}`).concat(
+            [px(0,0),px(w/u,0)].map(p=>`${p[0]},${p[1]}`)).join(' ');
+  const dots = s.t==='tile' ? '' : `<circle cx="${ox}" cy="${oy-h-d*0.25-w*0.25+2}" r="1.6" fill="#fff8" />`;
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <polygon points="${l}" fill="#8fb4d6"/><polygon points="${r}" fill="#6f97bd"/>
+    <polygon points="${top}" fill="#bcd9f2"/>${dots}</svg>`;
+}
+function syncShapes(){ [...shapesEl.children].forEach((c,i)=>c.classList.toggle('sel', i===selShape)); }
+
+/* color swatches */
+const colorsEl = document.getElementById('colors');
+COLORS.forEach((c,i)=>{
+  const el = document.createElement('div');
+  el.className='sw'+(i===selColor?' sel':'');
+  el.style.background = '#'+c.c.toString(16).padStart(6,'0');
+  el.title=c.n;
+  el.onclick=()=>{ selColor=i; syncColors(); blip(880); };
+  colorsEl.appendChild(el);
+});
+function syncColors(){ [...colorsEl.children].forEach((c,i)=>c.classList.toggle('sel', i===selColor)); }
+
+/* mode buttons */
+const modeBtns = {build:mBuild, erase:mErase, paint:mPaint};
+function setMode(m){
+  mode=m;
+  for(const k in modeBtns){
+    modeBtns[k].classList.toggle('on', k===m);
+    modeBtns[k].classList.toggle('ghost', k!==m);
+  }
+  el.style.cursor = m==='erase' ? 'crosshair' : m==='paint' ? 'cell' : 'default';
+}
+mBuild.onclick=()=>{setMode('build');blip(520)};
+mErase.onclick=()=>{setMode('erase');blip(300)};
+mPaint.onclick=()=>{setMode('paint');blip(760)};
+document.getElementById('rotate').onclick=()=>{ rot=(rot+1)%4; blip(600); };
+
+document.getElementById('undo').onclick=undo;
+document.getElementById('redo').onclick=redo;
+document.getElementById('clear').onclick=()=>{ if(bricks.size){ clearAll(); toast('Cleared'); } };
+document.getElementById('reset').onclick=()=>{
+  target.set(0,24,0); sph.r=330; sph.theta=Math.PI*0.28; sph.phi=Math.PI*0.34; updateCamera();
+};
+document.getElementById('sound').onclick=e=>{
+  soundOn=!soundOn; e.target.textContent = soundOn?'🔊 On':'🔇 Off';
+};
+document.getElementById('help').style.display='block';
+addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT') return;
+  const k = e.key.toLowerCase();
+  if((e.ctrlKey||e.metaKey) && k==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+  if((e.ctrlKey||e.metaKey) && k==='y'){ e.preventDefault(); redo(); return; }
+  if(k==='r'){ rot=(rot+1)%4; blip(600); }
+  if(k>='1'&&k<='9'){ selShape=Math.min(SHAPES.length-1, +k-1); syncShapes(); }
+  if(k==='q'){ selColor=(selColor+COLORS.length-1)%COLORS.length; syncColors(); }
+  if(k==='e'){ selColor=(selColor+1)%COLORS.length; syncColors(); }
+  if(k==='b') setMode('build');
+  if(k==='x') setMode('erase');
+  if(k==='p') setMode('paint');
+  if(k==='h'){ const h=document.getElementById('help'); h.style.display = h.style.display==='none'?'block':'none'; }
+});
+
+function updateStat(){
+  document.getElementById('stat').textContent = bricks.size + (bricks.size===1?' brick':' bricks');
+}
+let toastT;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 1400);
+}
+
+/* ---------------- sound (tiny WebAudio blips) ---------------- */
+let actx;
+function blip(freq=440, type='triangle'){
+  if(!soundOn) return;
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended') actx.resume();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.06, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+0.12);
+    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime+0.13);
+  }catch(_){}
+}
+
+/* ============================================================
+   Save / Load
+   ============================================================ */
+document.getElementById('save').onclick=()=>{
+  const data = {app:'brick-builder', version:1, grid:GRID,
+    bricks:[...bricks.values()].map(b=>({x:b.sx,y:b.sy,z:b.sz,w:b.w,d:b.d,t:b.t,r:b.rot,c:b.color}))};
+  const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'my-brick-build.json'; a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`Saved ${bricks.size} bricks`);
+};
+document.getElementById('load').onclick=()=>document.getElementById('file').click();
+document.getElementById('file').onchange=ev=>{
+  const f = ev.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const data = JSON.parse(r.result);
+      if(!data.bricks) throw 0;
+      clearAll();
+      data.bricks.forEach(b=>addBrick({sx:b.x, sy:b.y, sz:b.z, w:b.w, d:b.d, t:b.t, rot:b.r, color:b.c}, false, false));
+      toast(`Loaded ${bricks.size} bricks`); blip(880);
+    }catch(_){ toast('Could not read that file'); }
+    ev.target.value='';
+  };
+  r.readAsText(f);
+};
+document.getElementById('snap').onclick=()=>{
+  hideGhost(); renderer.render(scene,camera);
+  const a=document.createElement('a');
+  a.href = renderer.domElement.toDataURL('image/png');
+  a.download='brick-build.png'; a.click();
+  toast('Photo saved');
+};
+
+/* ============================================================
+   Preset models
+   ============================================================ */
+function B(x,y,z,w,d,t,r,c){ return {sx:x, sy:y, sz:z, w, d, t, rot:r, color:c}; }
+
+const PRESETS = {
+  '🏠 House': ()=>{
+    const out=[], x0=11, z0=11, W=10, D=10;
+    const wall=13, roof=0, door=12, win=6;
+    for(let lvl=0; lvl<5; lvl++){
+      const y = lvl*3;
+      for(let i=0;i<W;i+=2){
+        const skipFront = (lvl<3 && i>=4 && i<6);          // doorway
+        if(!skipFront) out.push(B(x0+i, y, z0,      2,1,'brick',0, wall));
+        out.push(B(x0+i, y, z0+D-1, 2,1,'brick',0, wall));
+      }
+      for(let j=1;j<D-1;j+=2){
+        const winL = (lvl===2 && j>=3 && j<7);
+        out.push(B(x0,      y, z0+j, 1,2,'brick',0, winL?win:wall));
+        out.push(B(x0+W-1,  y, z0+j, 1,2,'brick',0, winL?win:wall));
+      }
+    }
+    // floor
+    for(let i=0;i<W;i+=4) for(let j=0;j<D;j+=4) out.push(B(x0+i,0,z0+j,4,4,'plate',0,11));
+    // roof: stepped
+    let y=15;
+    for(let s=0;s<5;s++){
+      const inset=s, w=W-inset*2, d=D-inset*2;
+      if(w<1||d<1) break;
+      for(let i=0;i<w;i+=2) out.push(B(x0+inset+i, y, z0+inset, Math.min(2,w-i),1,'brick',0, 0));
+      for(let i=0;i<w;i+=2) out.push(B(x0+inset+i, y, z0+d-1+inset, Math.min(2,w-i),1,'brick',0, 0));
+      for(let j=1;j<d-1;j++){ out.push(B(x0+inset,y,z0+inset+j,1,1,'brick',0,0)); out.push(B(x0+w-1+inset,y,z0+inset+j,1,1,'brick',0,0)); }
+      y+=3;
+    }
+    out.push(B(x0+4,y,z0+4,2,2,'plate',0,2));
+    return out;
+  },
+
+  '🌳 Tree': ()=>{
+    const out=[], x=15, z=15;
+    for(let l=0;l<6;l++) out.push(B(x, l*3, z, 1,1,'brick',0, 12));
+    const canopy=[[0,-2,-2,5,5],[1,-1,-1,3,3],[2,0,0,1,1]];
+    let y=18;
+    for(let ring=0; ring<3; ring++){
+      const r = 3-ring;
+      for(let i=-r;i<=r;i++) for(let j=-r;j<=r;j++){
+        if(Math.abs(i)+Math.abs(j) > r+1) continue;
+        out.push(B(x+i, y, z+j, 1,1,'brick',0, ring===0?4:3));
+      }
+      y+=3;
+    }
+    return out;
+  },
+
+  '🚀 Rocket': ()=>{
+    const out=[], x=15, z=15;
+    for(let l=0;l<9;l++){
+      const y=l*3, c = l%2? 13 : 0;
+      out.push(B(x-1,y,z-1,2,2,'brick',0,c));
+      out.push(B(x+1,y,z-1,2,2,'brick',0,c));
+      out.push(B(x-1,y,z+1,2,2,'brick',0,c));
+      out.push(B(x+1,y,z+1,2,2,'brick',0,c));
+    }
+    // nose
+    let y=27;
+    out.push(B(x-1,y,z-1,4,4,'plate',0,0)); y+=1;
+    out.push(B(x,y,z,2,2,'brick',0,0)); y+=3;
+    out.push(B(x,y,z,1,1,'round',0,2));
+    // fins
+    for(const [dx,dz] of [[-2,0],[3,0],[0,-2],[0,3]])
+      for(let l=0;l<3;l++) out.push(B(x+dx, l*3, z+dz, 1,1,'brick',0, 0));
+    // window
+    out.push(B(x, 18, z-2, 2,1,'brick',0, 6));
+    return out;
+  },
+
+  '🤖 Robot': ()=>{
+    const out=[], x=14, z=15;
+    // legs
+    for(let l=0;l<3;l++){ out.push(B(x,l*3,z,1,2,'brick',0,15)); out.push(B(x+3,l*3,z,1,2,'brick',0,15)); }
+    out.push(B(x,9,z,4,2,'plate',0,7));
+    // torso
+    for(let l=0;l<4;l++) out.push(B(x,10+l*3,z,4,2,'brick',0,7));
+    // arms
+    for(let l=0;l<3;l++){ out.push(B(x-1,13+l*3,z,1,2,'brick',0,0)); out.push(B(x+4,13+l*3,z,1,2,'brick',0,0)); }
+    // head
+    out.push(B(x+1,22,z,2,2,'plate',0,14));
+    for(let l=0;l<2;l++) out.push(B(x+1,23+l*3,z,2,2,'brick',0,2));
+    out.push(B(x+1,29,z,2,2,'tile',0,14));
+    out.push(B(x+1,30,z,1,1,'round',0,0));
+    return out;
+  },
+
+  '🐱 Cat': ()=>{
+    const out=[], x=12, z=14, c=1;
+    for(let l=0;l<3;l++) out.push(B(x+2,l*3,z,6,4,'brick',0,c));   // body
+    out.push(B(x+2,9,z,6,4,'plate',0,c));
+    for(let l=0;l<2;l++){                                           // head
+      out.push(B(x,10+l*3,z+1,3,3,'brick',0,c));
+    }
+    out.push(B(x,16,z+1,3,3,'plate',0,c));
+    out.push(B(x,17,z+1,1,1,'brick',0,c)); out.push(B(x+2,17,z+1,1,1,'brick',0,c)); // ears
+    out.push(B(x+1,13,z,1,1,'round',0,15)); // nose-ish
+    for(let l=0;l<3;l++) out.push(B(x+8,l*3+3,z+1,1,1,'brick',0,c)); // tail
+    out.push(B(x+8,12,z+1,1,1,'round',0,c));
+    return out;
+  },
+};
+
+const presetsEl = document.getElementById('presets');
+Object.keys(PRESETS).forEach(name=>{
+  const b = document.createElement('button');
+  b.className='btn ghost sm'; b.textContent=name;
+  b.onclick=()=>{
+    clearAll();
+    let list;
+    try{ list = PRESETS[name](); }catch(err){ toast('Preset failed'); return; }
+    let n=0;
+    list.forEach(d=>{ if(addBrick(d,false,false)) n++; });
+    toast(`${name} — ${n} bricks`); blip(700);
+    target.set(0, 40, 0); sph.r=330; updateCamera();
+  };
+  presetsEl.appendChild(b);
+});
+
+/* ============================================================
+   Animation loop
+   ============================================================ */
+const pops = [];
+const clock = new THREE.Clock();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  // bouncy place animation
+  for(let i=pops.length-1;i>=0;i--){
+    const p = pops[i]; p.t += dt*4.2;
+    if(p.t>=1){ p.g.scale.set(1,1,1); pops.splice(i,1); continue; }
+    const e = 1 + 0.28*Math.sin(p.t*Math.PI) * (1-p.t);
+    const s = 1 + (e-1);
+    p.g.scale.set(s, 2-s, s);
+  }
+
+  // ghost update
+  if(pointerActive && !dragging && mode==='build'){
+    const hit = pick();
+    if(hit){
+      const cand = currentCandidate(hit);
+      showGhost(cand, fits(cand));
+    } else hideGhost();
+  } else if(mode!=='build') hideGhost();
+
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ---- opening flourish: a few starter bricks ---- */
+(function starter(){
+  const seeds = [
+    B(14,0,14,4,4,'plate',0,13),
+    B(14,1,14,2,4,'brick',0,7),
+    B(16,1,14,2,4,'brick',0,0),
+    B(14,4,14,4,4,'plate',0,2),
+    B(15,5,15,2,2,'brick',0,4),
+    B(15,8,15,2,2,'tile',0,14),
+  ];
+  seeds.forEach(s=>addBrick(s,false,false));
+  updateStat();
+})();
+setMode('build');
+</script>
+</body>
+</html>

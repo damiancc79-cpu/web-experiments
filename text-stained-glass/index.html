@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stained Glass Text</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    background: #0c0a08;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow-x: hidden;
+    color: #c8c0b0;
+  }
+
+  .scene-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    min-height: 100vh;
+  }
+
+  /* ─── Controls ─── */
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    width: 100%;
+    padding: 18px 20px 14px;
+    background: linear-gradient(to bottom, #0c0a08 50%, rgba(12,10,8,.85) 80%, transparent);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(8px);
+  }
+
+  h1 {
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: #9a9080;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  textarea {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid #2a2520;
+    border-radius: 8px;
+    background: #151210;
+    color: #ddd8cc;
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 44px;
+    max-height: 140px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  textarea:focus { border-color: #6a5a40; }
+  textarea::placeholder { color: #3a3530; }
+
+  .opts {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+  }
+  .opts label {
+    color: #706858;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+  }
+  .opts select {
+    background: #151210;
+    color: #b8b0a0;
+    border: 1px solid #2a2520;
+    border-radius: 5px;
+    padding: 3px 6px;
+    font-size: 12px;
+    outline: none;
+  }
+  .opts input[type=range] {
+    width: 70px;
+    accent-color: #a08050;
+  }
+
+  /* ─── 3D Scene ─── */
+  .scene {
+    perspective: 1100px;
+    perspective-origin: 50% 40%;
+    margin-top: 10px;
+    position: relative;
+    z-index: 5;
+  }
+
+  /* ─── Window Frame ─── */
+  .window {
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(2deg);
+    transition: transform .4s ease;
+  }
+
+  .frame-outer {
+    position: relative;
+    padding: 22px;
+    border-radius: 14px 14px 6px 6px;
+    background: linear-gradient(160deg, #2a2218, #1a1610, #2a2218);
+    border: 3px solid #3a3020;
+    box-shadow:
+      0 8px 40px rgba(0,0,0,.7),
+      0 0 80px rgba(180,140,60,.06),
+      inset 0 1px 0 rgba(255,255,255,.05),
+      inset 0 -1px 0 rgba(0,0,0,.3);
+  }
+
+  .frame-outer::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 10px 10px 3px 3px;
+    border: 2px solid #1a1510;
+    pointer-events: none;
+    box-shadow: inset 0 0 20px rgba(0,0,0,.4);
+  }
+
+  .frame-outer::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 18px 18px 10px 10px;
+    border: 1px solid #221c14;
+    pointer-events: none;
+  }
+
+  .frame-arch {
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 18px;
+    background: linear-gradient(to bottom, #3a3020, #2a2218);
+    border-radius: 50% 50% 0 0;
+    border: 2px solid #3a3020;
+    border-bottom: none;
+    z-index: 3;
+  }
+
+  .frame-corner {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #3a3020;
+    border-radius: 50%;
+    background: radial-gradient(circle, #3a3020, #1a1610);
+    z-index: 4;
+  }
+  .frame-corner.tl { top: 6px; left: 6px; }
+  .frame-corner.tr { top: 6px; right: 6px; }
+  .frame-corner.bl { bottom: 6px; left: 6px; }
+  .frame-corner.br { bottom: 6px; right: 6px; }
+
+  /* ─── Glass Tiles Container ─── */
+  .tiles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lead, 5px);
+    position: relative;
+    z-index: 1;
+    transform-style: preserve-3d;
+  }
+
+  .tile-row {
+    display: flex;
+    gap: var(--lead, 5px);
+    justify-content: center;
+    transform-style: preserve-3d;
+  }
+
+  /* ─── 3D Tile ─── */
+  .tile {
+    --h: 0;
+    --s: 70%;
+    --l: 50%;
+    --depth: 8px;
+    width: var(--tile-size, 56px);
+    height: var(--tile-size, 56px);
+    position: relative;
+    transform-style: preserve-3d;
+    cursor: default;
+    animation: tileIn .5s ease-out both;
+  }
+
+  .tile:hover {
+    z-index: 10;
+  }
+  .tile:hover .tile-front {
+    transform: translateZ(calc(var(--depth) + 4px));
+    box-shadow:
+      0 0 30px hsla(var(--h), 80%, 60%, .5),
+      0 0 60px hsla(var(--h), 70%, 50%, .2);
+  }
+
+  /* Front face - the glass */
+  .tile-front {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    transform: translateZ(var(--depth));
+    transition: transform .2s, box-shadow .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    backface-visibility: hidden;
+  }
+
+  .tile-glass {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(ellipse at 30% 20%,
+        hsla(var(--h), var(--s), calc(var(--l) + 22%), .95) 0%,
+        hsla(var(--h), var(--s), var(--l), .9) 40%,
+        hsla(var(--h), var(--s), calc(var(--l) - 12%), .85) 100%);
+  }
+
+  .tile-texture {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      repeating-conic-gradient(
+        from var(--rot, 0deg) at 50% 50%,
+        rgba(255,255,255,.03) 0deg 15deg,
+        transparent 15deg 30deg
+      );
+    mix-blend-mode: overlay;
+    opacity: .6;
+  }
+
+  .tile-highlight {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      140deg,
+      rgba(255,255,255,.28) 0%,
+      rgba(255,255,255,.06) 30%,
+      transparent 55%,
+      rgba(0,0,0,.1) 100%
+    );
+  }
+
+  .tile-refract {
+    position: absolute;
+    width: 120%;
+    height: 40%;
+    bottom: -5%;
+    left: -10%;
+    background: linear-gradient(
+      to top,
+      rgba(255,255,255,.08),
+      transparent
+    );
+    border-radius: 50%;
+    filter: blur(4px);
+    transform: rotate(var(--refr, -5deg));
+  }
+
+  .tile-bevel {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow:
+      inset 2px 2px 3px rgba(255,255,255,.12),
+      inset -1px -1px 3px rgba(0,0,0,.25),
+      inset 0 0 8px rgba(0,0,0,.15);
+    pointer-events: none;
+  }
+
+  .tile-char {
+    position: relative;
+    z-index: 2;
+    font-family: 'Georgia', 'Palatino', serif;
+    font-size: calc(var(--tile-size, 56px) * .48);
+    font-weight: 800;
+    color: rgba(255,255,255,.88);
+    text-shadow:
+      0 0 12px rgba(255,255,255,.5),
+      0 1px 1px rgba(0,0,0,.6),
+      0 0 3px hsla(var(--h), 60%, 70%, .4);
+    filter: drop-shadow(0 0 2px rgba(0,0,0,.4));
+  }
+
+  /* Side faces for 3D depth */
+  .tile-side-bottom,
+  .tile-side-right {
+    position: absolute;
+    background: linear-gradient(to bottom, #1a1610, #0e0c08);
+    backface-visibility: hidden;
+  }
+
+  .tile-side-bottom {
+    width: 100%;
+    height: var(--depth);
+    bottom: 0;
+    left: 0;
+    transform-origin: bottom;
+    transform: rotateX(-90deg);
+    border-radius: 0 0 2px 2px;
+  }
+
+  .tile-side-right {
+    width: var(--depth);
+    height: 100%;
+    right: 0;
+    top: 0;
+    transform-origin: right;
+    transform: rotateY(90deg);
+    border-radius: 0 2px 2px 0;
+  }
+
+  /* Space tiles are darker, subtler */
+  .tile.space-tile .tile-glass {
+    background: radial-gradient(ellipse at 30% 20%,
+      hsla(var(--h), 15%, calc(var(--l) - 20%), .4) 0%,
+      hsla(var(--h), 10%, calc(var(--l) - 28%), .35) 100%);
+  }
+  .tile.space-tile .tile-char { opacity: 0; }
+  .tile.space-tile .tile-highlight { opacity: .3; }
+
+  @keyframes tileIn {
+    from {
+      opacity: 0;
+      transform: rotateX(25deg) rotateY(calc(var(--ry, 0) * 1deg)) scale(.6);
+    }
+    to {
+      opacity: 1;
+      transform: rotateX(0) rotateY(0) scale(1);
+    }
+  }
+
+  /* ─── Light Rays Canvas ─── */
+  #raysCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ─── Floor / Light Pool ─── */
+  .floor {
+    width: 100%;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  #floorCanvas {
+    width: 100%;
+    height: 400px;
+    display: block;
+  }
+
+  /* ─── Ambient dust particles ─── */
+  .dust-container {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+    overflow: hidden;
+  }
+
+  .dust {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: rgba(255, 240, 200, .3);
+    border-radius: 50%;
+    animation: dustFloat linear infinite;
+  }
+
+  @keyframes dustFloat {
+    0%   { transform: translateY(0) translateX(0); opacity: 0; }
+    10%  { opacity: .4; }
+    90%  { opacity: .3; }
+    100% { transform: translateY(calc(100vh + 20px)) translateX(40px); opacity: 0; }
+  }
+
+  .empty-state {
+    color: #3a3530;
+    font-size: 14px;
+    padding: 50px 30px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  @media (max-width: 600px) {
+    .controls { padding: 12px 10px 10px; }
+    .frame-outer { padding: 12px; }
+    h1 { font-size: 11px; letter-spacing: 3px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scene-wrap">
+  <div class="controls">
+    <h1>Stained Glass Text</h1>
+    <div class="input-row">
+      <textarea id="input" placeholder="Type anything here..." rows="2">Hello World</textarea>
+    </div>
+    <div class="opts">
+      <label>Palette
+        <select id="palette">
+          <option value="cathedral" selected>Cathedral</option>
+          <option value="rainbow">Rainbow</option>
+          <option value="warm">Warm</option>
+          <option value="cool">Cool</option>
+          <option value="jewel">Jewel</option>
+          <option value="neon">Neon</option>
+        </select>
+      </label>
+      <label>Size
+        <input type="range" id="size" min="36" max="96" value="60">
+      </label>
+      <label>Leading
+        <input type="range" id="leading" min="2" max="12" value="5">
+      </label>
+      <label>Ray Intensity
+        <input type="range" id="rayIntensity" min="0" max="100" value="65">
+      </label>
+    </div>
+  </div>
+
+  <div class="scene" id="scene">
+    <div class="window" id="window">
+      <div class="frame-outer">
+        <div class="frame-arch"></div>
+        <div class="frame-corner tl"></div>
+        <div class="frame-corner tr"></div>
+        <div class="frame-corner bl"></div>
+        <div class="frame-corner br"></div>
+        <div class="tiles" id="tiles"></div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="raysCanvas"></canvas>
+
+  <div class="floor">
+    <canvas id="floorCanvas"></canvas>
+  </div>
+
+  <div class="dust-container" id="dustContainer"></div>
+</div>
+
+<script>
+const inputEl      = document.getElementById('input');
+const tilesEl      = document.getElementById('tiles');
+const sceneEl      = document.getElementById('scene');
+const windowEl     = document.getElementById('window');
+const palSel       = document.getElementById('palette');
+const sizeEl       = document.getElementById('size');
+const leadEl       = document.getElementById('leading');
+const raySlider    = document.getElementById('rayIntensity');
+const raysCanvas   = document.getElementById('raysCanvas');
+const floorCanvas  = document.getElementById('floorCanvas');
+const dustCont     = document.getElementById('dustContainer');
+const rCtx         = raysCanvas.getContext('2d');
+const fCtx         = floorCanvas.getContext('2d');
+
+let tileData = [];
+let lightX = 0.5, lightY = 0.3;
+let animFrame;
+
+const palettes = {
+  cathedral: (i, n) => {
+    const hues = [0, 210, 45, 120, 270, 350, 30, 190, 160, 310, 60, 240];
+    const h = hues[i % hues.length] + ((i * 23) % 20) - 10;
+    return { h, s: 72 + (i % 3) * 5, l: 44 + (i % 4) * 4 };
+  },
+  rainbow: (i, n) => ({ h: (i / Math.max(n, 1)) * 360, s: 75, l: 50 }),
+  warm:    (i, n) => {
+    const hues = [0, 15, 30, 45, 350, 340, 20, 50, 8, 38];
+    return { h: hues[i % hues.length] + (i * 7) % 15, s: 80, l: 48 };
+  },
+  cool:    (i, n) => ({ h: 180 + (i / Math.max(n, 1)) * 130, s: 68, l: 46 }),
+  jewel:   (i, n) => {
+    const hues = [0, 120, 210, 270, 340, 45, 160, 300];
+    return { h: hues[i % hues.length] + (i * 17) % 25, s: 78, l: 38 };
+  },
+  neon:    (i, n) => {
+    const hues = [300, 180, 60, 120, 330, 200, 30, 270];
+    return { h: hues[i % hues.length], s: 100, l: 55 };
+  }
+};
+
+function escapeHtml(str) {
+  const d = document.createElement('span');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function render() {
+  const text = inputEl.value;
+  const tileSize = parseInt(sizeEl.value);
+  const leadWidth = parseInt(leadEl.value);
+  const palFn = palettes[palSel.value];
+
+  tilesEl.style.setProperty('--tile-size', tileSize + 'px');
+  tilesEl.style.setProperty('--lead', leadWidth + 'px');
+  tilesEl.innerHTML = '';
+  tileData = [];
+
+  if (!text) {
+    tilesEl.innerHTML = '<div class="empty-state">Type something to see it in glass</div>';
+    drawRays();
+    drawFloor();
+    return;
+  }
+
+  const lines = text.split('\n');
+  let idx = 0;
+  const total = text.replace(/\n/g, '').length;
+
+  lines.forEach(line => {
+    const row = document.createElement('div');
+    row.className = 'tile-row';
+
+    if (!line.length) {
+      const spacer = document.createElement('div');
+      spacer.style.height = tileSize + 'px';
+      row.appendChild(spacer);
+      tilesEl.appendChild(row);
+      return;
+    }
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      const isSpace = ch === ' ';
+      const { h, s, l } = palFn(idx, total);
+      const seed = (ch.charCodeAt(0) * 7 + idx * 31);
+      const rnd = ((seed * 9301 + 49297) % 233280) / 233280;
+      const rot = ((seed * 1277 + 8191) % 360);
+      const refr = ((rnd - .5) * 20);
+
+      const tile = document.createElement('div');
+      tile.className = 'tile' + (isSpace ? ' space-tile' : '');
+      tile.style.setProperty('--h', h.toFixed(0));
+      tile.style.setProperty('--s', s + '%');
+      tile.style.setProperty('--l', l + '%');
+      tile.style.setProperty('--ry', ((rnd - .5) * 20).toFixed(1));
+      tile.style.setProperty('--rot', rot + 'deg');
+      tile.style.setProperty('--refr', refr.toFixed(1) + 'deg');
+      tile.style.animationDelay = (idx * 35) + 'ms';
+
+      tile.innerHTML = `
+        <div class="tile-front">
+          <div class="tile-glass"></div>
+          <div class="tile-texture"></div>
+          <div class="tile-refract"></div>
+          <div class="tile-highlight"></div>
+          <div class="tile-bevel"></div>
+          <span class="tile-char">${escapeHtml(ch === ' ' ? ' ' : ch)}</span>
+        </div>
+        <div class="tile-side-bottom"></div>
+        <div class="tile-side-right"></div>
+      `;
+
+      row.appendChild(tile);
+      tileData.push({ h, s, l, el: tile, isSpace });
+      idx++;
+    }
+
+    tilesEl.appendChild(row);
+  });
+
+  requestAnimationFrame(() => { drawRays(); drawFloor(); });
+}
+
+function sizeCanvases() {
+  const wrap = document.querySelector('.scene-wrap');
+  const w = wrap.offsetWidth;
+  const h = wrap.offsetHeight;
+  const dpr = window.devicePixelRatio || 1;
+
+  raysCanvas.width = w * dpr;
+  raysCanvas.height = h * dpr;
+  raysCanvas.style.width = w + 'px';
+  raysCanvas.style.height = h + 'px';
+  rCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const fw = floorCanvas.parentElement.offsetWidth;
+  floorCanvas.width = fw * dpr;
+  floorCanvas.height = 400 * dpr;
+  floorCanvas.style.width = fw + 'px';
+  fCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function drawRays() {
+  sizeCanvases();
+  const w = raysCanvas.width / (window.devicePixelRatio || 1);
+  const h = raysCanvas.height / (window.devicePixelRatio || 1);
+  const intensity = parseInt(raySlider.value) / 100;
+
+  rCtx.clearRect(0, 0, w, h);
+  if (!tileData.length || intensity === 0) return;
+
+  const wrapRect = document.querySelector('.scene-wrap').getBoundingClientRect();
+  const sourceX = w * lightX;
+  const sourceY = h * lightY * 0.15;
+
+  tileData.forEach((td, i) => {
+    const rect = td.el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2 - wrapRect.left;
+    const cy = rect.top + rect.height / 2 - wrapRect.top;
+    const bw = rect.width;
+
+    const alpha = td.isSpace ? 0.015 : 0.045 * intensity;
+    const spread = 2.5 + intensity * 2;
+
+    const endY = h;
+    const dx = cx - sourceX;
+    const projFactor = (endY - cy) / Math.max(cy - sourceY, 1);
+
+    const endCx = cx + dx * projFactor * 0.3;
+    const endW = bw * spread;
+
+    const grad = rCtx.createLinearGradient(cx, cy, endCx, endY);
+    grad.addColorStop(0, `hsla(${td.h}, ${td.s}%, ${td.l + 15}%, ${alpha * 1.5})`);
+    grad.addColorStop(0.3, `hsla(${td.h}, ${td.s}%, ${td.l + 10}%, ${alpha})`);
+    grad.addColorStop(0.7, `hsla(${td.h}, ${td.s}%, ${td.l}%, ${alpha * 0.5})`);
+    grad.addColorStop(1, `hsla(${td.h}, ${td.s}%, ${td.l}%, 0)`);
+
+    rCtx.beginPath();
+    rCtx.moveTo(cx - bw * 0.4, cy);
+    rCtx.lineTo(cx + bw * 0.4, cy);
+    rCtx.lineTo(endCx + endW / 2, endY);
+    rCtx.lineTo(endCx - endW / 2, endY);
+    rCtx.closePath();
+
+    rCtx.fillStyle = grad;
+    rCtx.fill();
+  });
+
+  rCtx.globalCompositeOperation = 'screen';
+  const sunGrad = rCtx.createRadialGradient(sourceX, sourceY, 0, sourceX, sourceY, 200);
+  sunGrad.addColorStop(0, `rgba(255, 240, 200, ${0.08 * intensity})`);
+  sunGrad.addColorStop(1, 'transparent');
+  rCtx.fillStyle = sunGrad;
+  rCtx.fillRect(0, 0, w, h);
+  rCtx.globalCompositeOperation = 'source-over';
+}
+
+function drawFloor() {
+  const w = floorCanvas.width / (window.devicePixelRatio || 1);
+  const h = 400;
+  const intensity = parseInt(raySlider.value) / 100;
+
+  fCtx.clearRect(0, 0, w, h);
+
+  fCtx.fillStyle = 'rgba(18, 14, 10, 1)';
+  fCtx.fillRect(0, 0, w, h);
+
+  const floorGrad = fCtx.createLinearGradient(0, 0, 0, h);
+  floorGrad.addColorStop(0, 'rgba(30, 25, 18, .9)');
+  floorGrad.addColorStop(0.3, 'rgba(20, 16, 10, .95)');
+  floorGrad.addColorStop(1, 'rgba(10, 8, 5, 1)');
+  fCtx.fillStyle = floorGrad;
+  fCtx.fillRect(0, 0, w, h);
+
+  if (!tileData.length || intensity === 0) return;
+
+  const floorRect = floorCanvas.getBoundingClientRect();
+  const wrapRect = document.querySelector('.scene-wrap').getBoundingClientRect();
+
+  tileData.forEach((td) => {
+    if (td.isSpace) return;
+    const rect = td.el.getBoundingClientRect();
+    const tileCx = rect.left + rect.width / 2 - wrapRect.left;
+    const tileRelX = tileCx / wrapRect.width;
+    const poolX = tileRelX * w;
+    const poolY = 30 + (tileRelX * 0.3 + 0.5) * 60;
+    const poolW = rect.width * 2.5;
+    const poolH = rect.height * 1.8;
+
+    const grad = fCtx.createRadialGradient(poolX, poolY, 0, poolX, poolY, Math.max(poolW, poolH));
+    grad.addColorStop(0, `hsla(${td.h}, ${td.s}%, ${td.l + 15}%, ${0.18 * intensity})`);
+    grad.addColorStop(0.5, `hsla(${td.h}, ${td.s}%, ${td.l}%, ${0.08 * intensity})`);
+    grad.addColorStop(1, 'transparent');
+
+    fCtx.fillStyle = grad;
+    fCtx.beginPath();
+    fCtx.ellipse(poolX, poolY, poolW, poolH, 0, 0, Math.PI * 2);
+    fCtx.fill();
+  });
+
+  for (let x = 0; x < w; x += 80) {
+    fCtx.strokeStyle = 'rgba(40, 32, 22, .25)';
+    fCtx.lineWidth = 1;
+    fCtx.beginPath();
+    fCtx.moveTo(x, 0);
+    fCtx.lineTo(x, h);
+    fCtx.stroke();
+  }
+  for (let y = 0; y < h; y += 40) {
+    fCtx.strokeStyle = 'rgba(40, 32, 22, .15)';
+    fCtx.beginPath();
+    fCtx.moveTo(0, y);
+    fCtx.lineTo(w, y);
+    fCtx.stroke();
+  }
+}
+
+function createDust() {
+  dustCont.innerHTML = '';
+  for (let i = 0; i < 30; i++) {
+    const d = document.createElement('div');
+    d.className = 'dust';
+    d.style.left = (5 + (((i * 7919) % 90))) + '%';
+    d.style.animationDuration = (8 + (i % 7) * 2) + 's';
+    d.style.animationDelay = (-(i * 1.3)) + 's';
+    d.style.width = (1 + (i % 3)) + 'px';
+    d.style.height = d.style.width;
+    d.style.opacity = (0.15 + (i % 4) * 0.08);
+    dustCont.appendChild(d);
+  }
+}
+
+document.addEventListener('mousemove', e => {
+  lightX = e.clientX / window.innerWidth;
+  lightY = e.clientY / window.innerHeight;
+
+  const rx = 2 - (lightY - 0.5) * 6;
+  const ry = (lightX - 0.5) * 4;
+  windowEl.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animFrame = requestAnimationFrame(() => { drawRays(); drawFloor(); });
+});
+
+inputEl.addEventListener('input', render);
+palSel.addEventListener('change', render);
+sizeEl.addEventListener('input', render);
+leadEl.addEventListener('input', render);
+raySlider.addEventListener('input', () => { drawRays(); drawFloor(); });
+window.addEventListener('resize', () => { drawRays(); drawFloor(); });
+
+createDust();
+render();
+</script>
+</body>
+</html>

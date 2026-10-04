@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web Experiments</title>
+<style>
+:root{--bg:#f6f5f2;--fg:#1d1d1f;--muted:#6b6b70;--card:#fff;--line:#e3e1dc;--accent:#d9480f}
+@media (prefers-color-scheme:dark){:root{--bg:#121214;--fg:#ececf0;--muted:#9a9aa3;--card:#1c1c20;--line:#2c2c32;--accent:#ff8a4c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:48px 16px}h1{margin:0 0 4px;font-size:2rem}p{color:var(--muted);margin:0 0 32px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.card{display:flex;flex-direction:column;gap:4px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:inherit;text-decoration:none;transition:border-color .15s,transform .15s}
+.card:hover{border-color:var(--accent);transform:translateY(-2px)}.name{font-weight:600}.slug{font-size:.85rem;color:var(--muted);font-family:ui-monospace,monospace}
+</style></head><body><main>
+  <h1>Web Experiments</h1>
+  <p>28 juegos, simulaciones y demos 3D, cada uno en un solo archivo HTML.</p>
+  <div class="grid">
+    <a class="card" href="airport/"><span class="name">Skyport International — 3D Airport</span><span class="slug">airport</span></a>
+    <a class="card" href="airport-interior/"><span class="name">Terminal — A Static 3D Airport Interior</span><span class="slug">airport-interior</span></a>
+    <a class="card" href="brick-builder/"><span class="name">Brick Builder — 3D Playground</span><span class="slug">brick-builder</span></a>
+    <a class="card" href="caldera-nine-3d/"><span class="name">Caldera Nine — City Overview</span><span class="slug">caldera-nine-3d</span></a>
+    <a class="card" href="ciudad-de-mexico-3d/"><span class="name">CDMX: Street Life — 3D Driving &amp; Walking</span><span class="slug">ciudad-de-mexico-3d</span></a>
+    <a class="card" href="codice-quinto-sol/"><span class="name">Códice del Quinto Sol</span><span class="slug">codice-quinto-sol</span></a>
+    <a class="card" href="coupled-rolling-dynamics/"><span class="name">Coupled Rolling Dynamics</span><span class="slug">coupled-rolling-dynamics</span></a>
+    <a class="card" href="cozy-panda-3d/"><span class="name">Cozy Panda · 3D</span><span class="slug">cozy-panda-3d</span></a>
+    <a class="card" href="derby-demolition/"><span class="name">Derby Demolición</span><span class="slug">derby-demolition</span></a>
+    <a class="card" href="eukaryotic-cell-3d/"><span class="name">Eukaryotic Cell — 3D Simulation</span><span class="slug">eukaryotic-cell-3d</span></a>
+    <a class="card" href="lego-arcade/"><span class="name">LEGO Arcade — Brick Breaker</span><span class="slug">lego-arcade</span></a>
+    <a class="card" href="lego-city-3d/"><span class="name">Brick City — 3D LEGO-style City</span><span class="slug">lego-city-3d</span></a>
+    <a class="card" href="lego-london-3d/"><span class="name">Brick London — 3D LEGO-style City</span><span class="slug">lego-london-3d</span></a>
+    <a class="card" href="lego-valley-train-diorama/"><span class="name">Brick Valley Railway — a LEGO-style 3D diorama</span><span class="slug">lego-valley-train-diorama</span></a>
+    <a class="card" href="lumina-os/"><span class="name">LuminaOS — a desktop in your browser</span><span class="slug">lumina-os</span></a>
+    <a class="card" href="moba/"><span class="name">Riftbound — MOBA</span><span class="slug">moba</span></a>
+    <a class="card" href="motosierra/"><span class="name">Simulador de motosierra</span><span class="slug">motosierra</span></a>
+    <a class="card" href="nacht-der-untoten/"><span class="name">NACHT DER UNTOTEN — Zombies Mockup</span><span class="slug">nacht-der-untoten</span></a>
+    <a class="card" href="pigeon-sim-3d/"><span class="name">Rock Dove — 3D Pigeon Simulator</span><span class="slug">pigeon-sim-3d</span></a>
+    <a class="card" href="pista-caliente/"><span class="name">CATÁLOGO 1:64 — La Revista del Coleccionista Hot Wheels</span><span class="slug">pista-caliente</span></a>
+    <a class="card" href="simulacion-burbujas-aceite/"><span class="name">Oil Bubble Phase Field</span><span class="slug">simulacion-burbujas-aceite</span></a>
+    <a class="card" href="simulacion-coatzacoalcos/"><span class="name">COATZA·MAR — Simulador de inundación costera · Coatzacoalcos, Ver.</span><span class="slug">simulacion-coatzacoalcos</span></a>
+    <a class="card" href="snake3d/"><span class="name">EMERALD — a 3D snake</span><span class="slug">snake3d</span></a>
+    <a class="card" href="swedish-fjall-village-diorama/"><span class="name">Fjällby — a village in the Swedish alps</span><span class="slug">swedish-fjall-village-diorama</span></a>
+    <a class="card" href="text-stained-glass/"><span class="name">Stained Glass Text</span><span class="slug">text-stained-glass</span></a>
+    <a class="card" href="vacuum-rush/"><span class="name">Vacuum Rush 3D</span><span class="slug">vacuum-rush</span></a>
+    <a class="card" href="vacuum-rush-2d/"><span class="name">Vacuum Rush</span><span class="slug">vacuum-rush-2d</span></a>
+    <a class="card" href="wave-racer/"><span class="name">Aqua Racer — carrera de motos acuáticas</span><span class="slug">wave-racer</span></a>
+  </div>
+</main></body></html>

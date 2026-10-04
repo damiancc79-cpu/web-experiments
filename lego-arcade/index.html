@@ -1,0 +1,2018 @@
+<meta charset="utf-8">
+<title>LEGO Arcade — Brick Breaker</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+  html,body{margin:0;height:100%;background:#0d1016;overflow:hidden;
+    font-family:"Trebuchet MS",Verdana,system-ui,sans-serif;color:#e8ecf4;
+    -webkit-user-select:none;user-select:none;touch-action:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+
+  .hud{position:fixed;pointer-events:none;z-index:5}
+  #title{top:14px;left:18px}
+  #title h1{margin:0;font-size:19px;letter-spacing:2px;font-weight:800;
+    text-shadow:0 0 14px rgba(255,110,90,.7),0 2px 0 #000}
+  #title h1 span{color:#ffd23f}
+  #title p{margin:3px 0 0;font-size:11px;opacity:.62;letter-spacing:1px}
+
+  #keys{bottom:14px;left:18px;font-size:11px;line-height:1.85;opacity:.72}
+  #keys b{display:inline-block;min-width:52px;padding:1px 6px;margin-right:7px;
+    border:1px solid #4a5570;border-bottom-width:2px;border-radius:4px;
+    background:#1a2133;text-align:center;font-size:10px;color:#cfe0ff}
+
+  #bar{bottom:14px;right:14px;display:flex;gap:7px;pointer-events:auto;flex-wrap:wrap;
+    justify-content:flex-end;max-width:60vw}
+  button{pointer-events:auto;cursor:pointer;font:inherit;font-size:11px;font-weight:700;
+    letter-spacing:.6px;padding:8px 12px;border-radius:8px;color:#0b1020;
+    background:linear-gradient(#ffd85c,#f0b420);border:0;border-bottom:3px solid #a97a08;
+    transition:transform .08s,filter .12s}
+  button:hover{filter:brightness(1.08)}
+  button:active{transform:translateY(2px);border-bottom-width:1px}
+  button.alt{background:linear-gradient(#5aa9ff,#1c6fd0);border-bottom-color:#12457f;color:#fff}
+  button.off{background:linear-gradient(#6b7488,#4a5266);border-bottom-color:#333a49;color:#dfe6f5}
+  button.ops{background:linear-gradient(#9fbb52,#5f7a24);border-bottom-color:#3c4d15;color:#0d1408}
+
+  #stats{top:12px;right:14px;text-align:right;font-size:11px;line-height:1.7;opacity:.85}
+  #stats .n{font-size:22px;font-weight:800;color:#ffd23f;letter-spacing:1px;
+    text-shadow:0 0 12px rgba(255,210,63,.5)}
+
+  #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:#0d1016;z-index:20;font-size:13px;letter-spacing:3px;transition:opacity .6s}
+  @media (max-width:620px){ #keys{display:none} #title h1{font-size:15px} }
+</style>
+
+<div id="app"></div>
+
+<div class="hud" id="title">
+  <h1>LEGO<span>®</span>-STYLE ARCADE <span>·</span> BRICK BREAKER</h1>
+  <p>DRAG TO ORBIT &nbsp;·&nbsp; SCROLL TO ZOOM &nbsp;·&nbsp; CLICK ANY CABINET</p>
+</div>
+
+<div class="hud" id="stats">
+  <div class="n" id="sScore">0</div>
+  <div id="sInfo">LIVES 3 &nbsp; LEVEL 1</div>
+</div>
+
+<div class="hud" id="keys">
+  <div><b>&larr; &rarr;</b> paddle &nbsp;<i>/</i>&nbsp; <b>WASD</b> drive tank</div>
+  <div><b>SPACE</b> launch ball &nbsp;<i>/</i>&nbsp; fire shell</div>
+  <div><b>C</b> screen / room view</div>
+  <div><b>P</b> pause &nbsp; <b>R</b> restart</div>
+</div>
+
+<div class="hud" id="bar">
+  <button id="bPlay">PLAY</button>
+  <button class="alt" id="bView">SCREEN VIEW</button>
+  <button class="ops" id="bOps">BRICKOPS</button>
+  <button class="alt" id="bSpin">AUTO-SPIN</button>
+  <button class="off" id="bSound">SOUND OFF</button>
+</div>
+
+<div id="load">BUILDING BRICK BY BRICK…</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════════
+   1. BRICK SYSTEM  —  1 unit = 1 stud pitch (8mm)
+   Scale is true minifig scale, as in the reference build:
+     minifig ≈ 5.2 units (4 bricks) · upright cabinet ≈ 8.1 units
+   ══════════════════════════════════════════════════════════════════ */
+const PLATE  = 0.40;
+const BRICK  = 1.20;
+const STUD_R = 0.30;
+const STUD_H = 0.22;
+
+const C = {
+  red:0xC91A09, dkRed:0x720E0F, tileRed:0xA5261C, blue:0x0055BF, dkBlue:0x0A3463,
+  azure:0x1E9BD6, ltAzure:0x9FC3E9, yellow:0xF2CD37, orange:0xFE8A18,
+  green:0x237841, lime:0xBBE90B, ltGreen:0x4B9F3F,
+  white:0xF2F3F2, ltGray:0xA3A9AD, medGray:0x8E9396, dkGray:0x6C6E68,
+  slate:0x5B5F62, black:0x1B2A34, coal:0x101820,
+  tan:0xE4CD9E, brown:0x583927, dkTan:0x958A73,
+  magenta:0xC870A0, purple:0x81007B, lavender:0xC5C1E0, coral:0xFF7B6B,
+  cyan:0x4ECDE6, sand:0xA0BCAC
+};
+
+const geoCache = new Map(), matCache = new Map();
+function boxGeo(w,h,d){
+  const k='b'+w.toFixed(3)+'_'+h.toFixed(3)+'_'+d.toFixed(3);
+  let g = geoCache.get(k);
+  if(!g){ g = new THREE.BoxGeometry(w,h,d); geoCache.set(k,g); }
+  return g;
+}
+function cylGeo(r,h,seg){
+  const k='c'+r.toFixed(3)+'_'+h.toFixed(3)+'_'+seg;
+  let g = geoCache.get(k);
+  if(!g){ g = new THREE.CylinderGeometry(r,r,h,seg); geoCache.set(k,g); }
+  return g;
+}
+function mat(color,o){
+  o = o||{};
+  const k = color+'|'+(o.rough||'')+'|'+(o.metal||'')+'|'+(o.emissive||'')+'|'+
+            (o.emissiveIntensity||'')+'|'+(o.opacity||'')+'|'+(o.flat?1:0);
+  let m = matCache.get(k);
+  if(!m){
+    m = new THREE.MeshStandardMaterial({
+      color: color,
+      roughness: o.rough!==undefined ? o.rough : 0.44,
+      metalness: o.metal!==undefined ? o.metal : 0.03,
+      emissive: o.emissive!==undefined ? o.emissive : 0x000000,
+      emissiveIntensity: o.emissiveIntensity!==undefined ? o.emissiveIntensity : 1,
+      transparent: o.opacity!==undefined && o.opacity<1,
+      opacity: o.opacity!==undefined ? o.opacity : 1,
+      flatShading: !!o.flat
+    });
+    matCache.set(k,m);
+  }
+  return m;
+}
+
+/** Brick placed by MIN-CORNER. w,d in studs; h in world units. */
+function brick(parent,x,y,z,w,d,h,color,o){
+  o = o || {};
+  const m = new THREE.Mesh(boxGeo(w,h,d), mat(color,o));
+  m.position.set(x+w/2, y+h/2, z+d/2);
+  m.castShadow = o.noShadow?false:true;
+  m.receiveShadow = true;
+  parent.add(m);
+  if(o.studs!==false) studs(parent, x, y+h, z, Math.round(w), Math.round(d), color, o);
+  return m;
+}
+
+/** Upward-facing stud field. */
+function studs(parent,x,y,z,w,d,color,o){
+  const n = w*d;
+  if(n<=0) return null;
+  const im = new THREE.InstancedMesh(cylGeo(STUD_R,STUD_H,12), mat(color,o), n);
+  const mtx = new THREE.Matrix4();
+  let i=0;
+  for(let a=0;a<w;a++) for(let b=0;b<d;b++){
+    mtx.makeTranslation(x+a+0.5, y+STUD_H/2, z+b+0.5);
+    im.setMatrixAt(i++, mtx);
+  }
+  im.instanceMatrix.needsUpdate = true;
+  im.castShadow = true; im.receiveShadow = true;
+  parent.add(im);
+  return im;
+}
+
+/** Studs facing sideways — for "studs-out" walls, as in the reference build. */
+function faceStuds(parent, pts, axis, color, o){
+  if(!pts.length) return null;
+  const im = new THREE.InstancedMesh(cylGeo(STUD_R,STUD_H,12), mat(color,o), pts.length);
+  const mtx = new THREE.Matrix4();
+  for(let i=0;i<pts.length;i++){
+    if(axis==='z') mtx.makeRotationX(Math.PI/2);
+    else           mtx.makeRotationZ(-Math.PI/2);
+    mtx.setPosition(pts[i][0], pts[i][1], pts[i][2]);
+    im.setMatrixAt(i, mtx);
+  }
+  im.instanceMatrix.needsUpdate = true;
+  im.castShadow = false; im.receiveShadow = true;
+  parent.add(im);
+  return im;
+}
+
+/* ── 5×7 brick font for the wall signage ─────────────────── */
+const FONT = {
+  A:['01110','10001','10001','11111','10001','10001','10001'],
+  R:['11110','10001','10001','11110','10100','10010','10001'],
+  C:['01110','10001','10000','10000','10000','10001','01110'],
+  D:['11110','10001','10001','10001','10001','10001','11110'],
+  E:['11111','10000','10000','11110','10000','10000','11111'],
+  G:['01110','10001','10000','10111','10001','10001','01110'],
+  M:['10001','11011','10101','10001','10001','10001','10001'],
+  S:['01111','10000','10000','01110','00001','00001','11110']
+};
+/** Brick-built letters standing proud of a wall. facing 'z' or 'x'. */
+function brickText(parent, text, ox, oy, oz, color, facing, depth){
+  const cells=[];
+  let cx = 0;
+  for(const ch of text){
+    const gl = FONT[ch];
+    if(!gl){ cx += 3; continue; }
+    for(let r=0;r<7;r++) for(let c=0;c<5;c++){
+      if(gl[r][c]==='1') cells.push([cx+c, 6-r]);
+    }
+    cx += 6;
+  }
+  const d = depth||0.5;
+  const geo = facing==='z' ? boxGeo(1,1,d) : boxGeo(d,1,1);
+  const im = new THREE.InstancedMesh(geo, mat(color,{rough:.45}), cells.length);
+  const mtx = new THREE.Matrix4();
+  for(let i=0;i<cells.length;i++){
+    const p = cells[i];
+    if(facing==='z') mtx.makeTranslation(ox+p[0]+0.5, oy+p[1]+0.5, oz+d/2);
+    else             mtx.makeTranslation(ox+d/2, oy+p[1]+0.5, oz+p[0]+0.5);
+    im.setMatrixAt(i, mtx);
+  }
+  im.instanceMatrix.needsUpdate = true;
+  im.castShadow = true; im.receiveShadow = true;
+  parent.add(im);
+  return {mesh:im, width:cx-1};
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   2. SCENE / RENDER
+   ══════════════════════════════════════════════════════════════════ */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d1016);
+scene.fog = new THREE.Fog(0x0d1016, 48, 120);
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.05, 400);
+
+/* ── lighting: bright tabletop key + arcade glow ──────────── */
+scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x3a3348, 0.72));
+
+const key = new THREE.DirectionalLight(0xfff4e2, 1.15);
+key.position.set(22, 40, 30);
+key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.near = 4;  key.shadow.camera.far = 110;
+key.shadow.camera.left = -32; key.shadow.camera.right = 32;
+key.shadow.camera.top = 38;   key.shadow.camera.bottom = -18;
+key.shadow.bias = -0.0014;
+key.shadow.normalBias = 0.035;
+scene.add(key);
+
+const fill = new THREE.DirectionalLight(0x9fc0ff, 0.42);
+fill.position.set(-26, 18, 22);
+scene.add(fill);
+
+const neonPink = new THREE.PointLight(0xff6a5c, 1.5, 34, 2); neonPink.position.set(6, 12, -12); scene.add(neonPink);
+const neonLime = new THREE.PointLight(0x9be870, 1.1, 30, 2); neonLime.position.set(-15, 12, -12); scene.add(neonLime);
+const screenGlow = new THREE.PointLight(0x9fd8ff, 0.9, 9, 2); scene.add(screenGlow);
+
+/* ══════════════════════════════════════════════════════════════════
+   3. ROOM  —  40 × 34 studs, studs-out walls, tiled floor
+   ══════════════════════════════════════════════════════════════════ */
+const room = new THREE.Group(); scene.add(room);
+
+const FX = -20, FZ = -17, FW = 40, FD = 34;
+const WALL_COURSES = 15;                  // 15 × 1.2 = 18.0, leaves room above the signs
+const WALL_TOP = PLATE + WALL_COURSES*BRICK;
+const BACK_FACE = FZ + 1;                 // inner face of the back wall
+const LEFT_FACE = FX + 1;                 // inner face of the left wall
+
+// ── smooth base plate
+brick(room, FX, 0, FZ, FW, FD, PLATE, C.medGray, {studs:false, rough:.55});
+
+// ── red tiles in 5×5 blocks with 1-stud gray "grout" lines between them
+(function tileFloor(){
+  const gaps = [];
+  const filled = [];
+  for(let bx=FX; bx<FX+FW; bx+=6){
+    for(let bz=FZ; bz<FZ+FD; bz+=6){
+      const w = Math.min(5, FX+FW-bx), d = Math.min(5, FZ+FD-bz);
+      if(w<=0||d<=0) continue;
+      brick(room, bx, PLATE, bz, w, d, 0.20, C.tileRed, {studs:false, rough:.30, noShadow:true});
+      for(let a=0;a<w;a++) for(let b=0;b<d;b++) filled.push((bx+a)+','+(bz+b));
+    }
+  }
+  const set = new Set(filled);
+  for(let x=FX; x<FX+FW; x++) for(let z=FZ; z<FZ+FD; z++){
+    if(!set.has(x+','+z)) gaps.push([x+0.5, PLATE+STUD_H/2, z+0.5]);
+  }
+  const im = new THREE.InstancedMesh(cylGeo(STUD_R,STUD_H,12), mat(C.ltGray,{rough:.5}), gaps.length);
+  const mtx = new THREE.Matrix4();
+  gaps.forEach((p,i)=>{ mtx.makeTranslation(p[0],p[1],p[2]); im.setMatrixAt(i,mtx); });
+  im.instanceMatrix.needsUpdate = true;
+  im.castShadow = false; im.receiveShadow = true;
+  room.add(im);
+})();
+
+// ── walls: solid light-gray slabs with outward-facing studs
+(function walls(){
+  brick(room, FX, PLATE, FZ, FW, 1, WALL_COURSES*BRICK, C.ltGray, {studs:true, rough:.5});
+  brick(room, FX, PLATE, FZ+1, 1, FD-1, WALL_COURSES*BRICK, C.ltGray, {studs:true, rough:.5});
+
+  const back=[], left=[];
+  for(let j=0;j<WALL_COURSES;j++){
+    const y = PLATE + j*BRICK + BRICK/2;
+    for(let i=0;i<FW;i++)   back.push([FX+i+0.5, y, BACK_FACE+STUD_H/2]);
+    for(let k=1;k<FD;k++)   left.push([LEFT_FACE+STUD_H/2, y, FZ+k+0.5]);
+  }
+  faceStuds(room, back, 'z', C.ltGray, {rough:.5});
+  faceStuds(room, left, 'x', C.ltGray, {rough:.5});
+
+  // dark skirting where wall meets floor
+  brick(room, FX+1, PLATE, BACK_FACE, FW-1, 0.5, PLATE, C.slate, {studs:false});
+  brick(room, LEFT_FACE, PLATE, FZ+1, 0.5, FD-1, PLATE, C.slate, {studs:false});
+})();
+
+/* ── signage ──────────────────────────────────────────────── */
+// lavender band → ARCADE in coral → yellow band, on the back wall.
+// Bands sit above the 7.9-tall cabinet canopies so nothing intersects.
+(function arcadeSign(){
+  const y0 = 9.2, x0 = -16;                    // 6 letters × 6 = 35 studs, ends at x=19
+  brickText(room, 'ARCADE', x0, y0, BACK_FACE, C.coral, 'z', 0.55);
+  for(let i=0;i<37;i++){
+    brick(room, x0-1+i, y0+7.4, BACK_FACE, 1, 0.5, 0.55, C.lavender, {studs:false});
+    brick(room, x0-1+i, 8.3,    BACK_FACE, 1, 0.5, 0.55, C.yellow,   {studs:false});
+  }
+})();
+// GAMES on the left wall, lime on white
+(function gamesSign(){
+  const y0 = 9.2, z0 = -13;                    // 5 letters × 6 = 29 studs, ends at z=16
+  brickText(room, 'GAMES', LEFT_FACE, y0, z0, C.lime, 'x', 0.55);
+  for(let i=0;i<30;i++)
+    brick(room, LEFT_FACE, 8.3, z0-1+i, 0.5, 1, 0.5, C.white, {studs:false});
+})();
+
+// storefront glazing at the front of the left wall
+(function storefront(){
+  const z0 = 9;
+  for(let p=0;p<2;p++){
+    const z = z0 + p*4;
+    brick(room, LEFT_FACE, PLATE, z, 0.35, 3.6, 8.4, C.coal, {studs:false, rough:.35});
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 7.6),
+      new THREE.MeshPhysicalMaterial({color:0x8fd0e8, transparent:true, opacity:.30,
+        roughness:.08, metalness:.1, side:THREE.DoubleSide}));
+    pane.position.set(LEFT_FACE+0.4, PLATE+4.2, z+1.8);
+    pane.rotation.y = Math.PI/2;
+    room.add(pane);
+  }
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   4. CANVAS TEXTURES
+   ══════════════════════════════════════════════════════════════════ */
+function makeCanvas(w,h){
+  const cv = document.createElement('canvas');
+  cv.width=w; cv.height=h;
+  const tx = new THREE.CanvasTexture(cv);
+  tx.encoding = THREE.sRGBEncoding;
+  tx.anisotropy = 4;
+  tx.minFilter = THREE.LinearFilter;
+  return {cv:cv, ctx:cv.getContext('2d'), tex:tx};
+}
+
+function marqueeTexture(name, ink, bg){
+  const S = makeCanvas(512,96), g = S.ctx;
+  g.fillStyle = bg; g.fillRect(0,0,512,96);
+  g.strokeStyle='rgba(0,0,0,.35)'; g.lineWidth=6; g.strokeRect(3,3,506,90);
+  g.textAlign='center'; g.textBaseline='middle';
+  const size = name.length>10 ? 46 : 60;
+  g.font='900 '+size+'px "Trebuchet MS",Impact,sans-serif';
+  g.shadowColor=ink; g.shadowBlur=22; g.fillStyle='#ffffff';
+  g.fillText(name, 256, 50);
+  g.shadowBlur=0; g.lineWidth=2; g.strokeStyle=ink; g.strokeText(name, 256, 50);
+  S.tex.needsUpdate=true;
+  return S.tex;
+}
+
+function sideArtTexture(base, ink){
+  const S = makeCanvas(128,256), g = S.ctx;
+  g.fillStyle=base; g.fillRect(0,0,128,256);
+  g.save(); g.translate(64,240);
+  for(let i=0;i<14;i++){ g.rotate(Math.PI/14);
+    g.fillStyle = i%2 ? ink : 'rgba(255,255,255,.09)';
+    g.beginPath(); g.moveTo(0,0); g.lineTo(-20,-300); g.lineTo(20,-300); g.fill(); }
+  g.restore();
+  for(let r=0;r<4;r++) for(let c=0;c<3;c++){
+    g.fillStyle=['#ffd23f','#ff3e5b','#39d98a','#4ec8ff'][(r+c)%4];
+    g.fillRect(14+c*36, 40+r*30, 30, 18);
+    g.fillStyle='rgba(255,255,255,.35)'; g.fillRect(14+c*36, 40+r*30, 30, 5);
+  }
+  S.tex.needsUpdate=true;
+  return S.tex;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   5. UPRIGHT CABINET  (minifig scale: 4 wide × 3 deep × 8.1 tall)
+   ══════════════════════════════════════════════════════════════════ */
+const CAB_W = 4, CAB_D = 3;
+function buildCabinet(cfg){
+  const g = new THREE.Group();
+  const X0=-CAB_W/2, Z0=-CAB_D/2;
+  const canopy = cfg.canopy;
+
+  // base + body
+  brick(g, X0, 0, Z0, CAB_W, CAB_D, PLATE, C.dkGray, {studs:false});
+  brick(g, X0, PLATE, Z0, CAB_W, CAB_D, 3.2, C.coal, {studs:false, rough:.38});   // lower body
+  brick(g, X0, 3.6+PLATE, Z0, CAB_W, CAB_D, 3.2, C.coal, {studs:false, rough:.38});// upper body
+
+  // control shelf, sticking out toward the player
+  brick(g, X0+0.2, 3.4, Z0+CAB_D-0.15, CAB_W-0.4, 0.9, 0.5, C.coal, {studs:false, rough:.35});
+  const bx=[-1.05,-0.35,0.35,1.05], bc=[C.white,C.orange,C.white,C.orange];
+  for(let i=0;i<4;i++){
+    const b = new THREE.Mesh(cylGeo(0.28,0.20,14), mat(bc[i],{rough:.3}));
+    b.position.set(bx[i], 4.0, Z0+CAB_D+0.30);
+    b.castShadow=true; g.add(b);
+  }
+  if(cfg.joystick){
+    const jb = new THREE.Mesh(cylGeo(0.3,0.12,14), mat(C.dkGray,{metal:.4,rough:.3}));
+    jb.position.set(-1.5, 3.96, Z0+CAB_D+0.30); g.add(jb);
+    const js = new THREE.Group(); js.position.copy(jb.position); g.add(js);
+    const sh = new THREE.Mesh(cylGeo(0.075,0.42,10), mat(C.coal,{rough:.3}));
+    sh.position.y=0.21; js.add(sh);
+    const kn = new THREE.Mesh(new THREE.SphereGeometry(0.2,16,12), mat(C.red,{rough:.28}));
+    kn.position.y=0.5; kn.castShadow=true; js.add(kn);
+    g.userData.joy = js;
+  }
+
+  // screen — sits PROUD of the body face, so nothing can ever clip it
+  const SCR_Z = Z0 + CAB_D + 0.05;
+  const scr = makeCanvas(cfg.scrW||512, cfg.scrH||384);
+  const scrMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.53, 1.90),
+    new THREE.MeshStandardMaterial({map:scr.tex, emissiveMap:scr.tex, emissive:0xffffff,
+      emissiveIntensity:1.1, roughness:.30, metalness:0}));
+  scrMesh.position.set(0, 5.7, SCR_Z);
+  g.add(scrMesh);
+
+  // marquee
+  const mq = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 0.62),
+    new THREE.MeshStandardMaterial({map:cfg.marquee, emissiveMap:cfg.marquee,
+      emissive:0xffffff, emissiveIntensity:1.25, roughness:.4}));
+  mq.position.set(0, 7.15, SCR_Z);
+  g.add(mq);
+
+  // colored canopy, overhanging the front like the reference cabinets
+  brick(g, X0-0.3, 7.5, Z0-0.2, 5, 4, PLATE, canopy, {studs:true, rough:.4});
+
+  // side art
+  for(const s of [-1,1]){
+    const a = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 6.6),
+      new THREE.MeshStandardMaterial({map:cfg.art, roughness:.5}));
+    a.position.set(s*(CAB_W/2+0.02), 4.1, 0);
+    a.rotation.y = s*Math.PI/2;
+    g.add(a);
+  }
+
+  const gl = new THREE.PointLight(cfg.glow||0xffd0a0, 0.5, 6, 2);
+  gl.position.set(0, 7.0, SCR_Z+0.8); g.add(gl);
+
+  g.userData.screen = scr;
+  return g;
+}
+
+/* ── the machine line-up ──────────────────────────────────── */
+const CABS = [
+  {name:'BRICKOPS',  canopy:C.orange,  art:'#3f4a25', glow:0xc4d67a, pos:[-14.5,-14.5], rot:0, ops:true},
+  {name:'Q*BRICK',   canopy:C.yellow,  art:'#7a6a06', glow:0xffe36c, pos:[-9.5,-14.5],  rot:0},
+  {name:'PAC-MON',   canopy:C.lime,    art:'#4d6b07', glow:0xd4f06a, pos:[-4.5,-14.5],  rot:0},
+  {name:'BRICKBREAK',canopy:C.green,   art:'#8c1206', glow:0xff8a6a, pos:[0.5,-14.5],   rot:0, main:true},
+  {name:'DONKEY KING',canopy:C.ltAzure,art:'#0a4b74', glow:0x8fd6ff, pos:[5.5,-14.5],   rot:0},
+  {name:'FROGGY',    canopy:C.green,   art:'#0d4a1e', glow:0x9bf06a, pos:[10.5,-14.5],  rot:0},
+  {name:'CRUSH JOY', canopy:C.yellow,  art:'#7a2a06', glow:0xffc06c, pos:[15.5,-14.5],  rot:0},
+  {name:'COPS & ROBBERS', canopy:C.white, art:'#5a1a1a', glow:0xffd7d7, pos:[-17.5,-9], rot:Math.PI/2},
+  {name:'NEON DROP', canopy:C.magenta, art:'#3d0a52', glow:0xe07ad8, pos:[-17.5,-4],    rot:Math.PI/2},
+  {name:'BRICK RALLY',canopy:C.azure,  art:'#0a3d64', glow:0x6ad8ff, pos:[-17.5,1],     rot:Math.PI/2}
+];
+
+let cabinet = null, opsCab = null;
+const sideCabs = [];
+for(const d of CABS){
+  const playable = !!(d.main || d.ops);
+  const c = buildCabinet({
+    marquee: marqueeTexture(d.name, '#'+d.glow.toString(16).padStart(6,'0'), '#101820'),
+    art: sideArtTexture(d.art, 'rgba(255,255,255,.14)'),
+    canopy: d.canopy, glow: d.glow, joystick: playable,
+    scrW: playable?512:256, scrH: playable?384:192
+  });
+  c.position.set(d.pos[0], PLATE, d.pos[1]);
+  c.rotation.y = d.rot;
+  scene.add(c);
+  if(d.main) cabinet = c;
+  else if(d.ops) opsCab = c;
+  else sideCabs.push({cab:c, title:d.name,
+    names:['MAX','ZOE','LEO','ANA','KAI','RIO','SAM','JUN','EVA','TOM']
+            .slice((sideCabs.length*2)%6, (sideCabs.length*2)%6+5)});
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   6. SIT-DOWN RACER, PINBALL, FOOSBALL, SEATING
+   ══════════════════════════════════════════════════════════════════ */
+const racer = (function(){
+  const g = new THREE.Group();
+  g.position.set(-8.5, PLATE, -4.0);
+  g.rotation.y = 0.5;
+  scene.add(g);
+
+  // screen tower
+  brick(g, -2, 0, -1.5, 4, 3, PLATE, C.dkGray, {studs:false});
+  brick(g, -2, PLATE, -1.5, 4, 3, 6.4, C.coal, {studs:false, rough:.38});
+  const scr = makeCanvas(256,192);
+  const sm = new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.95),
+    new THREE.MeshStandardMaterial({map:scr.tex, emissiveMap:scr.tex, emissive:0xffffff,
+      emissiveIntensity:1.1, roughness:.3}));
+  sm.position.set(0, 4.5, 1.56); g.add(sm);
+  const mq = new THREE.Mesh(new THREE.PlaneGeometry(3.4,0.72),
+    new THREE.MeshStandardMaterial({map:marqueeTexture('SPEEDWAY 500','#ff4d4d','#12203a'),
+      emissiveMap:marqueeTexture('SPEEDWAY 500','#ff4d4d','#12203a'),
+      emissive:0xffffff, emissiveIntensity:1.2, roughness:.4}));
+  mq.position.set(0, 6.4, 1.56); g.add(mq);
+  brick(g, -2.3, 6.8, -1.7, 5, 4, PLATE, C.red, {studs:true});
+  // checkered flank
+  const chk = makeCanvas(64,128);
+  (function(){ const c=chk.ctx;
+    for(let y=0;y<8;y++) for(let x=0;x<4;x++){
+      c.fillStyle = (x+y)%2 ? '#f2f3f2' : '#12181f';
+      c.fillRect(x*16,y*16,16,16);
+    }
+    c.fillStyle='#c91a09'; c.fillRect(0,128-48,64,48);
+    chk.tex.needsUpdate=true; })();
+  for(const s of [-1,1]){
+    const a = new THREE.Mesh(new THREE.PlaneGeometry(3.0,6.2),
+      new THREE.MeshStandardMaterial({map:chk.tex, roughness:.5}));
+    a.position.set(s*2.02, 3.6, 0); a.rotation.y = s*Math.PI/2; g.add(a);
+  }
+
+  // steering wheel — placed where the seated driver's hands land (y≈4.1, z≈2.8)
+  const col = new THREE.Mesh(cylGeo(0.16,1.2,10), mat(C.dkGray,{metal:.4,rough:.3}));
+  col.position.set(0, 3.5, 2.3); col.rotation.x = 0.5; g.add(col);
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.52,0.12,10,22), mat(C.coal,{rough:.35}));
+  wheel.position.set(0, 4.1, 2.8); wheel.rotation.x = 1.15; wheel.castShadow=true; g.add(wheel);
+
+  // seat — cushion top at y=2.0, backrest clear of the driver's torso (back edge z=4.76)
+  brick(g, -1.4, 0, 2.6, 3, 3, 1.6, C.coal, {studs:false});
+  brick(g, -1.4, 1.6, 2.6, 3, 2.4, PLATE, C.white, {studs:false, rough:.35});
+  const back = new THREE.Mesh(boxGeo(2.9,2.6,0.6), mat(C.white,{rough:.35}));
+  back.position.set(0, 3.0, 5.2); back.rotation.x = -0.16; back.castShadow=true; g.add(back);
+  const num = new THREE.Mesh(new THREE.PlaneGeometry(1.5,1.5),
+    new THREE.MeshStandardMaterial({map:(function(){
+      const t=makeCanvas(128,128), c=t.ctx;
+      c.fillStyle='#c91a09'; c.fillRect(0,0,128,128);
+      c.fillStyle='#f2f3f2'; c.font='900 96px "Trebuchet MS",sans-serif';
+      c.textAlign='center'; c.textBaseline='middle'; c.fillText('1',64,64);
+      t.tex.needsUpdate=true; return t.tex;})(), roughness:.45}));
+  num.position.set(0, 3.1, 5.52); num.rotation.x = -0.16; g.add(num);
+
+  g.userData.screen = scr;
+  return g;
+})();
+
+const pinball = (function(){
+  const g = new THREE.Group();
+  g.position.set(-16.5, PLATE, 5.5);
+  g.rotation.y = Math.PI/2;
+  scene.add(g);
+  // legs + cabinet
+  for(const sx of [-1.2,1.2]) for(const sz of [-1.6,1.6]){
+    const l = new THREE.Mesh(boxGeo(0.3,2.6,0.3), mat(C.coal,{rough:.4}));
+    l.position.set(sx, 1.3, sz); l.castShadow=true; g.add(l);
+  }
+  const body = new THREE.Mesh(boxGeo(3.2,0.9,4.2), mat(C.coal,{rough:.38}));
+  body.position.set(0,3.0,0); body.rotation.x = -0.13; body.castShadow=true; g.add(body);
+  // playfield art
+  const pf = makeCanvas(128,192);
+  (function(){ const c=pf.ctx;
+    c.fillStyle='#12203a'; c.fillRect(0,0,128,192);
+    for(let i=0;i<26;i++){
+      c.fillStyle=['#ff3e5b','#ffd23f','#4ec8ff','#39d98a'][i%4];
+      c.beginPath(); c.arc(18+Math.random()*92, 20+Math.random()*150, 5, 0, 7); c.fill();
+    }
+    c.fillStyle='#f2f3f2'; c.fillRect(30,176,26,7); c.fillRect(72,176,26,7);
+    pf.tex.needsUpdate=true; })();
+  const top = new THREE.Mesh(new THREE.PlaneGeometry(3.0,4.0),
+    new THREE.MeshStandardMaterial({map:pf.tex, emissiveMap:pf.tex, emissive:0xffffff,
+      emissiveIntensity:.55, roughness:.3}));
+  top.position.set(0,3.48,0.03); top.rotation.set(-Math.PI/2-0.13,0,0); g.add(top);
+  // backbox
+  const bb = new THREE.Mesh(boxGeo(3.2,3.4,0.6), mat(C.coal,{rough:.38}));
+  bb.position.set(0,5.0,-2.1); bb.rotation.x = 0.12; bb.castShadow=true; g.add(bb);
+  const bt = marqueeTexture('BRICKINATOR 2','#ff4d4d','#1a0d2e');
+  const bf = new THREE.Mesh(new THREE.PlaneGeometry(3.0,2.4),
+    new THREE.MeshStandardMaterial({map:bt, emissiveMap:bt, emissive:0xffffff,
+      emissiveIntensity:1.1, roughness:.4}));
+  bf.position.set(0,5.05,-1.75); bf.rotation.x = 0.12; g.add(bf);
+  return g;
+})();
+
+const foosball = (function(){
+  const g = new THREE.Group();
+  g.position.set(-4.5, PLATE, 4.5);
+  g.rotation.y = 0.22;
+  scene.add(g);
+  for(const sx of [-2.4,2.4]) for(const sz of [-1.5,1.5]){
+    const l = new THREE.Mesh(boxGeo(0.4,2.2,0.4), mat(C.coal,{rough:.4}));
+    l.position.set(sx,1.1,sz); l.castShadow=true; g.add(l);
+  }
+  const tbl = new THREE.Mesh(boxGeo(5.8,0.6,4.0), mat(C.coal,{rough:.38}));
+  tbl.position.y=2.5; tbl.castShadow=tbl.receiveShadow=true; g.add(tbl);
+  const pitch = new THREE.Mesh(boxGeo(5.2,0.1,3.4), mat(0x1f6b3a,{rough:.6}));
+  pitch.position.y=2.82; g.add(pitch);
+  // rods with players
+  for(let r=0;r<6;r++){
+    const x = -2.2 + r*0.88;
+    const rod = new THREE.Mesh(cylGeo(0.075,5.2,8), mat(C.ltGray,{metal:.6,rough:.25}));
+    rod.rotation.x = Math.PI/2; rod.position.set(x, 3.15, 0); g.add(rod);
+    const col = r%2 ? C.blue : C.red;
+    for(let p=0;p<3;p++){
+      const m = new THREE.Mesh(boxGeo(0.32,0.62,0.24), mat(col,{rough:.35}));
+      m.position.set(x, 2.95, -1.1 + p*1.1); m.castShadow=true; g.add(m);
+    }
+    for(const s of [-1,1]){
+      const h = new THREE.Mesh(cylGeo(0.16,0.5,10), mat(C.white,{rough:.35}));
+      h.rotation.x=Math.PI/2; h.position.set(x,3.15,s*2.75); g.add(h);
+    }
+  }
+  return g;
+})();
+
+// blue seat row along the front
+(function seats(){
+  for(let i=0;i<5;i++){
+    const s = new THREE.Group();
+    s.position.set(-1 + i*3.2, PLATE, 13.4);
+    s.rotation.y = Math.PI;
+    scene.add(s);
+    brick(s, -1, 0, -1, 2, 2, 1.4, C.dkGray, {studs:false});
+    brick(s, -1.1, 1.4, -1.1, 2, 2, PLATE, C.blue, {studs:false, rough:.35});
+    const back = new THREE.Mesh(boxGeo(2.2,1.8,0.45), mat(C.blue,{rough:.35}));
+    back.position.set(0, 2.6, -1.0); back.rotation.x = 0.18; back.castShadow=true; s.add(back);
+  }
+})();
+
+// potted plant by the storefront
+(function plant(){
+  const p = new THREE.Group(); p.position.set(-16.5, PLATE, 14); scene.add(p);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.72,1.3,16), mat(C.brown,{rough:.6}));
+  pot.position.y=0.65; pot.castShadow=pot.receiveShadow=true; p.add(pot);
+  for(let i=0;i<8;i++){
+    const a=i*0.9, r=0.5+(i%3)*0.28;
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.46,1.15,7),
+      mat(i%2?C.green:C.ltGreen,{rough:.55,flat:true}));
+    leaf.position.set(Math.cos(a)*r, 1.7+(i%4)*0.45, Math.sin(a)*r);
+    leaf.rotation.set(Math.cos(a)*0.7, a, -Math.sin(a)*0.7);
+    leaf.castShadow=true; p.add(leaf);
+  }
+})();
+
+/* ══════════════════════════════════════════════════════════════════
+   7. MINIFIGURES  (true scale — no rescaling needed)
+   ══════════════════════════════════════════════════════════════════ */
+function buildFig(cfg){
+  const f = new THREE.Group();
+  f.position.set(cfg.pos[0], PLATE + (cfg.y||0), cfg.pos[1]);
+  f.rotation.y = cfg.rot;
+  scene.add(f);
+
+  const legC = cfg.legs, topC = cfg.shirt, skin = cfg.skin || C.yellow;
+
+  // legs pivot at the hip so they can bend for a seated pose
+  const legGrp = new THREE.Group();
+  legGrp.position.y = 1.55;
+  if(cfg.seated) legGrp.rotation.x = -Math.PI/2;
+  f.add(legGrp);
+  for(const s of [-1,1]){
+    const leg = new THREE.Mesh(boxGeo(0.62,1.55,0.85), mat(legC,{rough:.38}));
+    leg.position.set(s*0.34,-0.775,0); leg.castShadow=true; legGrp.add(leg);
+    const foot = new THREE.Mesh(boxGeo(0.66,0.18,1.05), mat(C.black,{rough:.4}));
+    foot.position.set(s*0.34,-1.46,0.1); legGrp.add(foot);
+  }
+  const hips = new THREE.Mesh(boxGeo(1.4,0.42,0.9), mat(legC,{rough:.38}));
+  hips.position.y=1.72; hips.castShadow=true; f.add(hips);
+
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.86,0.72,1.75,4,1), mat(topC,{rough:.38}));
+  torso.rotation.y=Math.PI/4; torso.position.y=2.8; torso.castShadow=true; f.add(torso);
+  const collar = new THREE.Mesh(cylGeo(0.3,0.2,14), mat(topC,{rough:.38}));
+  collar.position.y=3.72; f.add(collar);
+
+  const arms=[];
+  for(const s of [-1,1]){
+    const arm = new THREE.Group(); arm.position.set(s*0.82,3.42,0); f.add(arm);
+    const up = new THREE.Mesh(boxGeo(0.5,1.15,0.62), mat(topC,{rough:.38}));
+    up.position.set(0,-0.5,0.1); up.rotation.x=-0.35; up.castShadow=true; arm.add(up);
+    const hand = new THREE.Mesh(new THREE.TorusGeometry(0.24,0.11,8,14), mat(skin,{rough:.35}));
+    hand.position.set(0,-1.05,0.5); hand.rotation.x=1.0; arm.add(hand);
+    arm.rotation.x = cfg.seated ? -0.95 : -0.5;
+    arms.push(arm);
+  }
+
+  const head = new THREE.Mesh(cylGeo(0.62,1.15,20), mat(skin,{rough:.32}));
+  head.position.y=4.42; head.castShadow=true; f.add(head);
+  const hstud = new THREE.Mesh(cylGeo(STUD_R,STUD_H,12), mat(skin,{rough:.32}));
+  hstud.position.y=5.09; f.add(hstud);
+
+  const face = makeCanvas(128,128);
+  (function(){ const g=face.ctx;
+    g.clearRect(0,0,128,128);
+    g.fillStyle='#1b1b1b';
+    g.beginPath(); g.arc(44,52,8,0,7); g.fill();
+    g.beginPath(); g.arc(84,52,8,0,7); g.fill();
+    g.strokeStyle='#1b1b1b'; g.lineWidth=6; g.lineCap='round';
+    g.beginPath(); g.arc(64,68,24,0.35,Math.PI-0.35); g.stroke();
+    face.tex.needsUpdate=true; })();
+  const fp = new THREE.Mesh(new THREE.PlaneGeometry(1.05,1.05),
+    new THREE.MeshStandardMaterial({map:face.tex, transparent:true, roughness:.35}));
+  fp.position.set(0,0,0.622); head.add(fp);
+
+  if(cfg.cap){
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.68,16,12,0,6.3,0,1.3), mat(cfg.cap,{rough:.45}));
+    cap.position.y=4.95; cap.scale.set(1,0.8,1); cap.castShadow=true; f.add(cap);
+    const peak = new THREE.Mesh(boxGeo(1.0,0.14,0.7), mat(cfg.cap,{rough:.45}));
+    peak.position.set(0,4.86,0.62); f.add(peak);
+  } else {
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.72,16,12,0,6.3,0,1.35), mat(cfg.hair,{rough:.55}));
+    hair.position.y=4.92; hair.scale.set(1,0.9,1.06); hair.castShadow=true; f.add(hair);
+  }
+
+  return {group:f, arms:arms, head:head, baseRot:cfg.rot,
+          baseY:PLATE+(cfg.y||0), phase:Math.random()*6.28, seated:!!cfg.seated};
+}
+
+const figs = [];
+/* The two figures standing at the playable machines sit dead-on the screen-view
+   camera axis, so their heads fill the frame. Each gets an "aside" spot: when
+   you take that machine over they step out of shot and turn to watch. 2.5 units
+   of lateral travel clears the widest framing (1.58 needed at 16:9). */
+const minifig = buildFig({pos:[0.5,-11.4], rot:Math.PI, legs:C.dkBlue, shirt:C.lime, hair:C.brown});
+minifig.owns='breaker'; minifig.home=[0.5,-11.4]; minifig.aside=[3.0,-10.5]; minifig.slide=0;
+figs.push(minifig);
+
+const opsFig = buildFig({pos:[-14.4,-11.4], rot:Math.PI-0.2, legs:C.brown, shirt:C.azure, hair:C.black});
+opsFig.owns='brickops'; opsFig.home=[-14.4,-11.4]; opsFig.aside=[-11.9,-10.5]; opsFig.slide=0;
+figs.push(opsFig);
+
+[
+  {pos:[-4.5,-11.4], rot:Math.PI,    legs:C.black,  shirt:C.magenta, hair:C.orange},
+  {pos:[5.5,-11.4],  rot:Math.PI,    legs:C.blue,   shirt:C.white,   hair:C.black},
+  {pos:[10.8,-11.4], rot:Math.PI+.2, legs:C.dkGray, shirt:C.red,     cap:C.blue},
+  {pos:[-14.2,-9],   rot:-Math.PI/2, legs:C.dkBlue, shirt:C.white,   cap:C.green},
+  {pos:[-14.2,-4],   rot:-Math.PI/2, legs:C.black,  shirt:C.yellow,  hair:C.brown},
+  // the two foosball players, standing at the ends of the table's long axis
+  {pos:[-8.79,5.46], rot:1.79,       legs:C.blue,   shirt:C.blue,    hair:C.black},
+  {pos:[-0.21,3.54], rot:4.93,       legs:C.white,  shirt:C.white,   hair:C.brown},
+  {pos:[7.5,9.5],    rot:2.6,        legs:C.dkBlue, shirt:C.orange,  cap:C.red}
+].forEach(c=>figs.push(buildFig(c)));
+
+// Seated driver, parented to the racer so it rides with the cabinet.
+// y = 0.875 puts the underside of the horizontal thighs exactly on the 2.0
+// cushion; rot = PI turns it to face the screen (the racer's screen is at -z).
+const driver = buildFig({pos:[0,0], rot:0, legs:C.white, shirt:C.white, hair:C.black, seated:true});
+scene.remove(driver.group);
+driver.group.position.set(0, 0.875, 3.9);
+driver.group.rotation.y = Math.PI;
+racer.add(driver.group);
+driver.baseY = 0.875;
+driver.baseRot = Math.PI;
+figs.push(driver);
+
+/* ══════════════════════════════════════════════════════════════════
+   8. BRICK BREAKER  (rendered to the BRICKBREAK cabinet's CRT)
+   ══════════════════════════════════════════════════════════════════ */
+const SC = cabinet.userData.screen;
+const GW = SC.cv.width, GH = SC.cv.height;
+const g2 = SC.ctx;
+
+const FIELD = {x:14, y:52, w:GW-28, h:GH-62};
+const ROWS = 6, COLS = 9;
+const ROW_COLORS = ['#ff2f2f','#ff8a18','#ffd23f','#4ec84e','#3aa0ff','#c56cf0'];
+
+const G = {
+  state:'attract',
+  score:0, best:0, lives:3, level:1,
+  paddle:{x:GW/2, w:78, h:11, v:0},
+  ball:{x:GW/2, y:0, vx:3.2, vy:-3.6, r:5.4, speed:4.6, dry:0},
+  bricks:[], left:0, msgT:0, shake:0, flashT:0, flashCol:'#fff',
+  parts:[]
+};
+
+function layout(level){
+  G.bricks.length = 0;
+  const bw = FIELD.w/COLS, bh = 17, top = FIELD.y+16;
+  const rows = Math.min(ROWS, 3 + level);
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<COLS;c++){
+      if(level>2 && (r+c)%7===0) continue;
+      G.bricks.push({
+        x: FIELD.x + c*bw + 2, y: top + r*(bh+5), w: bw-4, h: bh,
+        col: ROW_COLORS[r%ROW_COLORS.length],
+        hp: (level>=3 && r===0) ? 2 : 1, alive:true
+      });
+    }
+  }
+  G.left = G.bricks.length;
+}
+function resetBall(){
+  G.ball.x = G.paddle.x;
+  G.ball.y = FIELD.y+FIELD.h-26;
+  const dir = Math.random()<.5 ? -1 : 1;
+  G.ball.speed = 4.5 + (G.level-1)*0.32;
+  G.ball.vx = dir*G.ball.speed*0.62;
+  G.ball.vy = -G.ball.speed*0.8;
+  G.ball.dry = 0;
+}
+function newGame(){
+  G.score=0; G.lives=3; G.level=1;
+  layout(1); resetBall(); G.state='ready'; G.msgT=0; G.parts.length=0;
+}
+function startAttract(){
+  G.score=0; G.lives=3; G.level=1;
+  layout(2); resetBall(); G.state='attract';
+}
+startAttract();
+
+/* ── audio ────────────────────────────────────────────────── */
+let AC=null, soundOn=false;
+function beep(freq, dur, type, vol){
+  if(!soundOn) return;
+  try{
+    if(!AC) AC = new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended') AC.resume();
+    const o=AC.createOscillator(), gn=AC.createGain();
+    o.type=type||'square'; o.frequency.value=freq;
+    gn.gain.setValueAtTime(vol||0.05, AC.currentTime);
+    gn.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime+dur);
+    o.connect(gn); gn.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime+dur);
+  }catch(e){}
+}
+
+/* ── input ────────────────────────────────────────────────── */
+const KEY = {};
+addEventListener('keydown', e=>{
+  const k = e.key.toLowerCase();
+  KEY[k]=true;
+  if(['arrowleft','arrowright',' ','arrowup','arrowdown','w','a','s','d'].indexOf(k)>=0) e.preventDefault();
+  if(k===' '){
+    if(activeGame==='brickops'){ if(BO.press()) beep(560,.07); }
+    else launch();
+  }
+  if(k==='p'){
+    if(activeGame==='brickops') BO.pause();
+    else if(G.state==='play'){G.state='paused';} else if(G.state==='paused'){G.state='play';}
+  }
+  if(k==='r'){
+    if(activeGame==='brickops') BO.newGame();
+    else { newGame(); setView('screen'); }
+  }
+  if(k==='c'){ setView(view==='room' ? 'screen' : 'room'); }
+  if(k==='m'){ toggleSound(); }
+});
+addEventListener('keyup', e=>{ KEY[e.key.toLowerCase()]=false; });
+
+function launch(){
+  if(G.state==='attract'){ newGame(); setView('screen'); return; }
+  if(G.state==='ready'||G.state==='dead'){ resetBall(); G.state='play'; beep(660,.07); }
+  else if(G.state==='over'||G.state==='win'){ newGame(); }
+}
+
+function burst(x,y,col,n){
+  for(let i=0;i<(n||9);i++){
+    G.parts.push({x:x,y:y,vx:(Math.random()-.5)*4.5,vy:(Math.random()-.7)*4.5,
+      life:1, col:col, s:2+Math.random()*3.4, r:Math.random()*6});
+  }
+}
+
+let tick=0;
+
+/* ── update ───────────────────────────────────────────────── */
+function updateGame(dt){
+  const p=G.paddle, b=G.ball;
+  G.shake *= Math.pow(0.86, dt);
+  G.flashT = Math.max(0, G.flashT - dt*0.06);
+
+  let want = 0;
+  if(G.state==='attract'){
+    const aim = b.x + b.vx*6 + Math.sin(tick*0.021)*26;
+    want = Math.max(-1, Math.min(1, (aim - p.x)/26));
+  } else if(activeGame==='breaker' && (G.state==='play'||G.state==='ready'||G.state==='dead')){
+    if(KEY['arrowleft']||KEY['a']) want -= 1;
+    if(KEY['arrowright']||KEY['d']) want += 1;
+  }
+  p.v += (want*10.5 - p.v)*Math.min(1, 0.34*dt);
+  p.x += p.v*dt;
+  p.x = Math.max(FIELD.x+p.w/2, Math.min(FIELD.x+FIELD.w-p.w/2, p.x));
+
+  const py = FIELD.y+FIELD.h-16;
+
+  if(G.state==='ready'||G.state==='dead'){
+    b.x = p.x; b.y = py - 12;
+    G.msgT += dt;
+    if(G.state==='dead' && G.msgT>60){ G.state='ready'; G.msgT=0; }
+    return;
+  }
+  if(G.state!=='play' && G.state!=='attract') { G.msgT+=dt; return; }
+
+  const steps = Math.max(1, Math.ceil(Math.hypot(b.vx,b.vy)*dt/3));
+  for(let s=0;s<steps;s++){
+    const sd = dt/steps;
+    b.x += b.vx*sd; b.y += b.vy*sd;
+
+    if(b.x-b.r < FIELD.x){ b.x=FIELD.x+b.r; b.vx=Math.abs(b.vx); beep(420,.04); G.shake=2; }
+    if(b.x+b.r > FIELD.x+FIELD.w){ b.x=FIELD.x+FIELD.w-b.r; b.vx=-Math.abs(b.vx); beep(420,.04); G.shake=2; }
+    if(b.y-b.r < FIELD.y){ b.y=FIELD.y+b.r; b.vy=Math.abs(b.vy); beep(420,.04); G.shake=2; }
+
+    // paddle
+    if(b.vy>0 && b.y+b.r>=py && b.y-b.r<py+p.h &&
+       b.x > p.x-p.w/2-b.r && b.x < p.x+p.w/2+b.r){
+      b.y = py-b.r;
+      const off = Math.max(-1, Math.min(1, (b.x-p.x)/(p.w/2)));
+      // anti-stall: nudge the angle so the ball can never lock into a
+      // repeating vertical loop between the paddle and the ceiling
+      b.dry = (b.dry||0) + 1;
+      let ang = off*1.02 + (Math.random()-0.5)*0.07 + (b.dry>7 ? (Math.random()-0.5)*0.5 : 0);
+      ang = Math.max(-1.16, Math.min(1.16, ang));
+      if(Math.abs(ang) < 0.10) ang = (ang<0?-1:1)*0.10;
+      const sp = Math.min(7.4, Math.hypot(b.vx,b.vy)*1.008);
+      b.vx = Math.sin(ang)*sp; b.vy = -Math.abs(Math.cos(ang)*sp);
+      beep(300+Math.abs(off)*260, .05, 'square', .045);
+      burst(b.x, py, '#ffffff', 4);
+      G.shake = 3;
+      if(typeof minifig!=='undefined' && minifig) minifig.armPulse = 1;
+    }
+
+    // bricks
+    for(let i=0;i<G.bricks.length;i++){
+      const k = G.bricks[i];
+      if(!k.alive) continue;
+      if(b.x+b.r < k.x || b.x-b.r > k.x+k.w || b.y+b.r < k.y || b.y-b.r > k.y+k.h) continue;
+      const ox = Math.min(b.x+b.r-k.x, k.x+k.w-(b.x-b.r));
+      const oy = Math.min(b.y+b.r-k.y, k.y+k.h-(b.y-b.r));
+      if(ox<oy){ b.vx = -b.vx; b.x += b.vx>0 ? ox : -ox; }
+      else     { b.vy = -b.vy; b.y += b.vy>0 ? oy : -oy; }
+      k.hp--;
+      if(k.hp<=0){
+        k.alive=false; G.left--;
+        G.score += 10*G.level;
+        burst(k.x+k.w/2, k.y+k.h/2, k.col, 11);
+        beep(520+Math.random()*260, .06, 'square', .05);
+        G.shake = 4.5;
+        G.flashT = 1; G.flashCol = k.col; b.dry = 0;
+      } else {
+        beep(240,.05,'triangle',.04); G.shake=3;
+        burst(b.x, b.y, '#ffffff', 4);
+      }
+      break;
+    }
+
+    if(b.y-b.r > FIELD.y+FIELD.h+6){
+      if(G.state==='attract'){ resetBall(); }
+      else{
+        G.lives--; beep(160,.34,'sawtooth',.06); G.shake=9;
+        burst(b.x, FIELD.y+FIELD.h, '#ff4444', 16);
+        if(G.lives<=0){ G.state='over'; G.msgT=0; G.best=Math.max(G.best,G.score); }
+        else { G.state='dead'; G.msgT=0; }
+      }
+      break;
+    }
+  }
+
+  if(G.left<=0){
+    if(G.state==='attract'){ G.level = 1+(G.level%3); layout(G.level+1); resetBall(); }
+    else{
+      G.level++; G.score += 100;
+      if(G.level>4){ G.state='win'; G.msgT=0; G.best=Math.max(G.best,G.score); }
+      else{ layout(G.level); resetBall(); G.state='ready'; G.msgT=0; beep(880,.18,'triangle',.05); }
+    }
+  }
+
+  for(let i=G.parts.length-1;i>=0;i--){
+    const q=G.parts[i];
+    q.x+=q.vx*dt; q.y+=q.vy*dt; q.vy+=0.19*dt; q.r+=0.2*dt;
+    q.life -= 0.028*dt;
+    if(q.life<=0) G.parts.splice(i,1);
+  }
+}
+
+/* ── draw ─────────────────────────────────────────────────── */
+function roundRect(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.quadraticCurveTo(x+w,y,x+w,y+r);
+  c.lineTo(x+w,y+h-r); c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  c.lineTo(x+r,y+h); c.quadraticCurveTo(x,y+h,x,y+h-r);
+  c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y); c.closePath();
+}
+function drawStudBrick(c,x,y,w,h,col){
+  roundRect(c,x,y,w,h,3); c.fillStyle=col; c.fill();
+  c.fillStyle='rgba(255,255,255,.30)'; c.fillRect(x+2,y+2,w-4,Math.max(2,h*0.24));
+  c.fillStyle='rgba(0,0,0,.28)';       c.fillRect(x+2,y+h-4,w-4,3);
+  const n = w>44?2:1;
+  for(let i=0;i<n;i++){
+    const cx = x + w*(i+0.5)/n;
+    c.fillStyle='rgba(255,255,255,.55)';
+    c.beginPath(); c.ellipse(cx, y+h*0.46, 5.4, 3.4, 0, 0, 7); c.fill();
+    c.fillStyle='rgba(0,0,0,.16)';
+    c.beginPath(); c.ellipse(cx, y+h*0.52, 5.4, 3.0, 0, 0, 7); c.fill();
+  }
+}
+
+function drawGame(dt){
+  tick += dt;
+  const c = g2;
+  c.save();
+  const sh = G.shake;
+  if(sh>0.15) c.translate((Math.random()-.5)*sh, (Math.random()-.5)*sh);
+
+  const bg = c.createLinearGradient(0,0,0,GH);
+  bg.addColorStop(0,'#0b1030'); bg.addColorStop(.55,'#120a2c'); bg.addColorStop(1,'#05060f');
+  c.fillStyle=bg; c.fillRect(-8,-8,GW+16,GH+16);
+
+  c.strokeStyle='rgba(90,120,255,.16)'; c.lineWidth=1;
+  for(let i=0;i<10;i++){
+    const yy = GH - (i*i)*3.4 - 4;
+    if(yy<FIELD.y) break;
+    c.beginPath(); c.moveTo(0,yy); c.lineTo(GW,yy); c.stroke();
+  }
+  for(let i=-6;i<=6;i++){
+    c.beginPath(); c.moveTo(GW/2 + i*14, GH); c.lineTo(GW/2 + i*90, FIELD.y); c.stroke();
+  }
+
+  if(G.flashT>0){
+    c.globalAlpha = G.flashT*0.10; c.fillStyle=G.flashCol; c.fillRect(0,0,GW,GH); c.globalAlpha=1;
+  }
+
+  c.strokeStyle='rgba(150,190,255,.35)'; c.lineWidth=2;
+  c.strokeRect(FIELD.x-3, FIELD.y-3, FIELD.w+6, FIELD.h+6);
+
+  c.fillStyle='rgba(0,0,0,.42)'; c.fillRect(0,0,GW,FIELD.y-6);
+  c.font='bold 20px "Trebuchet MS",monospace'; c.textBaseline='middle';
+  c.textAlign='left';  c.fillStyle='#ffd23f'; c.fillText('SCORE '+String(G.score).padStart(5,'0'), 14, 22);
+  c.textAlign='right'; c.fillStyle='#4ec8ff'; c.fillText('LV '+G.level, GW-14, 22);
+  c.textAlign='center';c.fillStyle='#ff7ec4'; c.fillText('HI '+String(G.best).padStart(5,'0'), GW/2, 22);
+  c.textAlign='left';
+  for(let i=0;i<G.lives;i++){
+    c.fillStyle='#ff4d4d';
+    roundRect(c, 14+i*17, 34, 13, 8, 2); c.fill();
+    c.fillStyle='rgba(255,255,255,.5)'; c.fillRect(16+i*17, 35, 9, 2);
+  }
+
+  for(const k of G.bricks){
+    if(!k.alive) continue;
+    if(k.hp>1){
+      drawStudBrick(c,k.x,k.y,k.w,k.h,'#c8cdd6');
+      c.strokeStyle='rgba(0,0,0,.35)'; c.lineWidth=1; c.strokeRect(k.x+.5,k.y+.5,k.w-1,k.h-1);
+    } else drawStudBrick(c,k.x,k.y,k.w,k.h,k.col);
+  }
+
+  for(const q of G.parts){
+    c.globalAlpha = Math.max(0,q.life);
+    c.fillStyle=q.col;
+    c.save(); c.translate(q.x,q.y); c.rotate(q.r);
+    c.fillRect(-q.s/2,-q.s/2,q.s,q.s);
+    c.restore();
+  }
+  c.globalAlpha=1;
+
+  const p=G.paddle, py=FIELD.y+FIELD.h-16;
+  c.shadowColor='#39d3ff'; c.shadowBlur=14;
+  drawStudBrick(c, p.x-p.w/2, py, p.w, p.h, '#2fb8ff');
+  c.shadowBlur=0;
+
+  const b=G.ball;
+  c.shadowColor='#ffffff'; c.shadowBlur=16;
+  c.fillStyle='#ffffff';
+  c.beginPath(); c.arc(b.x,b.y,b.r,0,7); c.fill();
+  c.shadowBlur=0;
+  c.fillStyle='rgba(255,255,255,.35)';
+  c.beginPath(); c.arc(b.x-b.vx*1.6, b.y-b.vy*1.6, b.r*0.62, 0, 7); c.fill();
+
+  const blink = (Math.floor(tick/26)%2)===0;
+  c.textAlign='center';
+  function bigMsg(t1,t2,col){
+    c.fillStyle='rgba(0,0,0,.62)'; c.fillRect(0,GH/2-46,GW,92);
+    c.font='900 32px "Trebuchet MS",sans-serif';
+    c.shadowColor=col; c.shadowBlur=22; c.fillStyle=col;
+    c.fillText(t1, GW/2, GH/2-14); c.shadowBlur=0;
+    if(t2){ c.font='bold 15px "Trebuchet MS",sans-serif'; c.fillStyle='#dfe7ff'; c.fillText(t2, GW/2, GH/2+22); }
+  }
+  if(G.state==='attract'){
+    c.fillStyle='rgba(0,0,0,.55)'; c.fillRect(0,GH/2-52,GW,104);
+    c.font='900 34px "Trebuchet MS",sans-serif';
+    c.shadowColor='#ff2f9e'; c.shadowBlur=24; c.fillStyle='#ffffff';
+    c.fillText('BRICK BREAKER', GW/2, GH/2-18); c.shadowBlur=0;
+    if(blink){ c.font='bold 17px "Trebuchet MS",sans-serif'; c.fillStyle='#ffd23f';
+      c.fillText('PRESS SPACE  ·  CLICK SCREEN', GW/2, GH/2+20); }
+    c.font='12px "Trebuchet MS",sans-serif'; c.fillStyle='rgba(200,215,255,.65)';
+    c.fillText('DEMO MODE', GW/2, GH/2+46);
+  }
+  else if(G.state==='ready'){ if(blink) bigMsg('READY!','PRESS SPACE TO LAUNCH','#4ec8ff'); }
+  else if(G.state==='dead'){ bigMsg('BALL LOST','LIVES  '+G.lives,'#ff5c5c'); }
+  else if(G.state==='paused'){ bigMsg('PAUSED','PRESS P TO RESUME','#ffd23f'); }
+  else if(G.state==='over'){ bigMsg('GAME OVER','SCORE '+G.score+'  ·  SPACE TO RETRY','#ff5c5c'); }
+  else if(G.state==='win'){ bigMsg('YOU WIN!','SCORE '+G.score+'  ·  SPACE TO PLAY AGAIN','#7CFF8A'); }
+
+  c.restore();
+
+  c.fillStyle='rgba(0,0,0,.13)';
+  for(let y=0;y<GH;y+=3) c.fillRect(0,y,GW,1);
+  const vg = c.createRadialGradient(GW/2,GH/2,GH*0.28, GW/2,GH/2,GH*0.82);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.6)');
+  c.fillStyle=vg; c.fillRect(0,0,GW,GH);
+  // black bezel drawn into the texture, so no geometry can ever clip the picture
+  c.strokeStyle='#0a0e14'; c.lineWidth=10; c.strokeRect(5,5,GW-10,GH-10);
+
+  SC.tex.needsUpdate = true;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   8b. BRICKOPS  —  top-down brick warfare on the second playable cabinet
+
+   Art direction: olive-drab camo field, red-brown brick walls built from
+   four destructible quadrants each, riveted steel plates that shrug off
+   shells, and a gold HQ brick you have to keep alive. Everything is drawn
+   as stud-topped LEGO plates seen from above.
+
+   Mechanics: 4-way tank movement, one shell in flight at a time, walls
+   chip away a quadrant per hit so you can carve your own firing lanes.
+   Enemies spawn from the top edge and hunt either you or the HQ. Lose the
+   HQ and it's over regardless of lives remaining.
+   ══════════════════════════════════════════════════════════════════ */
+const BO = (function(){
+  const S = opsCab.userData.screen;
+  const W = S.cv.width, H = S.cv.height, c = S.ctx;
+  const N = 13, TILE = 26, FX = 10, FY = 36;
+  const FW = N*TILE, FH = N*TILE;
+  const EMPTY=0, BRICK=1, STEEL=2, BASE=3;
+
+  const COL = {
+    brick:'#9c4630', brickTop:'#c05a3c', brickDark:'#6d2f1f',
+    steel:'#b9c0c6', steelDark:'#7b858d',
+    ground:'#6d7444', ground2:'#5b6139', ground3:'#7d8450',
+    hq:'#f0c020', hqDark:'#a37f0c'
+  };
+
+  function mulberry32(a){ return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };}
+
+  // ── camo backdrop, baked once ──────────────────────────────
+  const bg = document.createElement('canvas');
+  bg.width=FW; bg.height=FH;
+  (function(){
+    const g = bg.getContext('2d');
+    g.fillStyle=COL.ground; g.fillRect(0,0,FW,FH);
+    const r = mulberry32(99);
+    for(let i=0;i<120;i++){
+      g.fillStyle = r()<0.5 ? COL.ground2 : COL.ground3;
+      const x=r()*FW, y=r()*FH, w=18+r()*46, h=14+r()*34;
+      g.beginPath();
+      g.ellipse(x,y,w/2,h/2,r()*3,0,7); g.fill();
+    }
+    g.globalAlpha=0.10; g.strokeStyle='#000'; g.lineWidth=1;
+    for(let i=0;i<=N;i++){
+      g.beginPath(); g.moveTo(i*TILE,0); g.lineTo(i*TILE,FH); g.stroke();
+      g.beginPath(); g.moveTo(0,i*TILE); g.lineTo(FW,i*TILE); g.stroke();
+    }
+    g.globalAlpha=1;
+  })();
+
+  const st = {
+    state:'attract', grid:[], player:null, enemies:[], bullets:[], boom:[],
+    pickups:[], score:0, best:0, lives:3, wave:1, toSpawn:0, spawnCd:0,
+    msgT:0, shake:0, t:0, kills:0, baseAlive:true, flash:0
+  };
+
+  /* ── map ────────────────────────────────────────────────── */
+  function idx(cx,cy){ return cy*N+cx; }
+  function genMap(wave){
+    const r = mulberry32(wave*7919+13);
+    st.grid = new Array(N*N);
+    for(let i=0;i<N*N;i++) st.grid[i] = {t:EMPTY, q:15};
+    for(let cy=1;cy<N-1;cy++) for(let cx=0;cx<N;cx++){
+      const v = r();
+      if(v < 0.30) st.grid[idx(cx,cy)] = {t:BRICK, q:15};
+      else if(v < 0.34 + wave*0.004) st.grid[idx(cx,cy)] = {t:STEEL, q:15};
+    }
+    const clear = (cx,cy,w,h)=>{
+      for(let y=cy;y<cy+h;y++) for(let x=cx;x<cx+w;x++)
+        if(x>=0&&y>=0&&x<N&&y<N) st.grid[idx(x,y)] = {t:EMPTY,q:15};
+    };
+    clear(0,0,3,2); clear(5,0,3,2); clear(10,0,3,2);   // enemy drop zones
+    clear(2,11,3,2);                                    // player start
+    clear(0,12,N,1);                                    // keep the back road open
+    // HQ and its brick bunker
+    st.grid[idx(6,12)] = {t:BASE, q:15};
+    for(const p of [[5,11],[6,11],[7,11],[5,12],[7,12]])
+      st.grid[idx(p[0],p[1])] = {t:BRICK, q:15};
+    st.baseAlive = true;
+  }
+
+  /* ── collision ──────────────────────────────────────────── */
+  // Quadrant-accurate: a half-shot wall really does open a gap you can drive through.
+  function solidAt(px,py){
+    const cx = Math.floor((px-FX)/TILE), cy = Math.floor((py-FY)/TILE);
+    if(cx<0||cy<0||cx>=N||cy>=N) return STEEL;
+    const tl = st.grid[idx(cx,cy)];
+    if(tl.t===EMPTY) return 0;
+    if(tl.t===STEEL) return STEEL;
+    if(tl.t===BASE)  return BASE;
+    const qx = ((px-FX)-cx*TILE) >= TILE/2 ? 1:0;
+    const qy = ((py-FY)-cy*TILE) >= TILE/2 ? 1:0;
+    return (tl.q & (1<<(qy*2+qx))) ? BRICK : 0;
+  }
+  function boxFree(x,y,s){
+    const h=s/2, pts=[[-h,-h],[h,-h],[-h,h],[h,h],[0,-h],[0,h],[-h,0],[h,0]];
+    for(const p of pts) if(solidAt(x+p[0], y+p[1])) return false;
+    return true;
+  }
+
+  /* ── entities ───────────────────────────────────────────── */
+  const DIRV = [[0,-1],[1,0],[0,1],[-1,0]];
+  function mkTank(x,y,dir,kind){
+    return {x:x,y:y,dir:dir,kind:kind,cool:30+Math.random()*60,
+            hp:kind===2?3:1, think:0, alive:true, inv:0, blink:0};
+  }
+  function tankSpeed(k){ return k===1 ? 1.45 : k===2 ? 0.72 : 0.98; }
+
+  function spawnPlayer(){
+    st.player = mkTank(FX+2.5*TILE+TILE/2, FY+11.5*TILE+TILE/2, 0, -1);
+    st.player.inv = 140;
+  }
+  function newGame(){
+    st.score=0; st.lives=3; st.wave=1; st.kills=0;
+    startWave(); st.state='ready'; st.msgT=0;
+  }
+  function startAttract(){
+    st.score=0; st.lives=3; st.wave=1; st.kills=0;
+    startWave(); st.state='attract';
+  }
+  function startWave(){
+    genMap(st.wave);
+    st.enemies.length=0; st.bullets.length=0; st.boom.length=0; st.pickups.length=0;
+    st.toSpawn = Math.min(20, 4 + st.wave*2);
+    st.spawnCd = 40;
+    spawnPlayer();
+  }
+
+  function trySpawnEnemy(){
+    if(st.toSpawn<=0 || st.enemies.length>=4) return;
+    const lanes=[1,6,11];
+    const cx = lanes[Math.floor(Math.random()*3)];
+    const x = FX+cx*TILE+TILE/2, y = FY+0.5*TILE+TILE/2;
+    for(const e of st.enemies) if(Math.abs(e.x-x)<TILE && Math.abs(e.y-y)<TILE) return;
+    let kind = 0;
+    const roll = Math.random();
+    if(roll < 0.18 + st.wave*0.02) kind = 2;
+    else if(roll < 0.45) kind = 1;
+    st.enemies.push(mkTank(x,y,2,kind));
+    st.toSpawn--;
+    boom(x,y,'#ffffff',8);
+  }
+
+  function fire(t, owner){
+    if(t.cool>0) return;
+    for(const b of st.bullets) if(b.owner===owner && b.from===t) return; // one shell each
+    const d = DIRV[t.dir];
+    st.bullets.push({x:t.x+d[0]*11, y:t.y+d[1]*11, dx:d[0], dy:d[1],
+                     sp: owner==='p'?4.4:3.0, owner:owner, from:t});
+    t.cool = owner==='p' ? 20 : 70+Math.random()*70;
+  }
+
+  function boom(x,y,col,n){
+    for(let i=0;i<(n||12);i++)
+      st.boom.push({x:x,y:y,vx:(Math.random()-.5)*4.6,vy:(Math.random()-.5)*4.6,
+        life:1, col:col, s:2+Math.random()*3.6, r:Math.random()*6});
+  }
+
+  function damageTile(px,py,vertical){
+    const cx = Math.floor((px-FX)/TILE), cy = Math.floor((py-FY)/TILE);
+    if(cx<0||cy<0||cx>=N||cy>=N) return false;
+    const tl = st.grid[idx(cx,cy)];
+    if(tl.t===BRICK){
+      const qx = ((px-FX)-cx*TILE) >= TILE/2 ? 1:0;
+      const qy = ((py-FY)-cy*TILE) >= TILE/2 ? 1:0;
+      const q = qy*2+qx;
+      tl.q &= ~(1<<q);
+      // a shell punches a slot the full width of its travel: a vertical shot
+      // takes out the quadrant beside it, a horizontal shot the one above/below
+      tl.q &= ~(1<<(q ^ (vertical ? 1 : 2)));
+      if(tl.q===0) tl.t=EMPTY;
+      boom(px,py,COL.brickTop,5);
+      return true;
+    }
+    if(tl.t===STEEL){ boom(px,py,'#e8eef2',5); return true; }
+    if(tl.t===BASE){
+      tl.t=EMPTY; boom(px,py,COL.hq,26); st.shake=14;
+      // NB: never call startWave() from here — this runs inside the bullet
+      // loop and startWave() empties st.bullets underneath the iterator.
+      if(st.state==='attract'){ st.restart = true; }        // demo just resets
+      else {
+        st.baseAlive=false;
+        st.state='over'; st.msgT=0; st.best=Math.max(st.best,st.score);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function killTank(t, byPlayer){
+    t.alive=false;
+    boom(t.x,t.y, t.kind===2?'#ff7a4d':'#ffd23f', 18);
+    st.shake=6;
+    if(byPlayer){
+      st.score += t.kind===2?300:t.kind===1?200:100;
+      st.kills++;
+      if(st.kills%5===0) dropPickup();
+    }
+  }
+  function dropPickup(){
+    const free=[];
+    for(let cy=1;cy<N-2;cy++) for(let cx=0;cx<N;cx++)
+      if(st.grid[idx(cx,cy)].t===EMPTY) free.push([cx,cy]);
+    if(!free.length) return;
+    const p = free[Math.floor(Math.random()*free.length)];
+    const kinds=['SHIELD','LIFE','REPAIR','NUKE'];
+    st.pickups.push({x:FX+p[0]*TILE+TILE/2, y:FY+p[1]*TILE+TILE/2,
+                     k:kinds[Math.floor(Math.random()*4)], t:0});
+  }
+  function takePickup(p){
+    if(p.k==='SHIELD') st.player.inv = 420;
+    else if(p.k==='LIFE') st.lives++;
+    else if(p.k==='REPAIR'){
+      for(const q of [[5,11],[6,11],[7,11],[5,12],[7,12]])
+        st.grid[idx(q[0],q[1])] = {t:BRICK,q:15};
+    } else if(p.k==='NUKE'){
+      for(const e of st.enemies) if(e.alive) killTank(e,true);
+      st.flash=1;
+    }
+    st.score += 50;
+    boom(p.x,p.y,'#ffffff',16);
+  }
+
+  /* ── AI ─────────────────────────────────────────────────── */
+  function steer(t, dt, targetX, targetY, aggression){
+    t.think -= dt;
+    const blocked = !canStep(t, tankSpeed(t.kind)*dt);
+    if(t.think<=0 || blocked){
+      t.think = 26 + Math.random()*54;
+      const opts=[];
+      for(let d=0;d<4;d++){
+        const dv=DIRV[d], sp=tankSpeed(t.kind)*2;
+        if(boxFree(t.x+dv[0]*sp, t.y+dv[1]*sp, 20)) opts.push(d);
+      }
+      if(opts.length){
+        if(Math.random() < aggression){
+          const dx=targetX-t.x, dy=targetY-t.y;
+          const want = Math.abs(dx)>Math.abs(dy) ? (dx>0?1:3) : (dy>0?2:0);
+          t.dir = opts.indexOf(want)>=0 ? want : opts[(Math.random()*opts.length)|0];
+        } else t.dir = opts[(Math.random()*opts.length)|0];
+      }
+    }
+  }
+  function canStep(t, sp){
+    const d=DIRV[t.dir];
+    return boxFree(t.x+d[0]*sp, t.y+d[1]*sp, 20);
+  }
+
+  /* ── update ─────────────────────────────────────────────── */
+  function update(dt, mine){
+    st.t += dt;
+    st.shake *= Math.pow(0.86, dt);
+    st.flash = Math.max(0, st.flash - dt*0.05);
+
+    if(st.state==='ready'){ st.msgT+=dt; if(st.msgT>70){ st.state='play'; st.msgT=0; } }
+    if(st.state==='dead'){ st.msgT+=dt; if(st.msgT>80){ spawnPlayer(); st.state='play'; } }
+    if(st.state==='over'||st.state==='clear'||st.state==='paused'){ st.msgT+=dt; }
+    const live = (st.state==='play'||st.state==='attract'||st.state==='ready');
+
+    if(st.state==='clear' && st.msgT>110){ st.wave++; startWave(); st.state='ready'; st.msgT=0; }
+
+    if(!live){
+      for(let i=st.boom.length-1;i>=0;i--){
+        const q=st.boom[i]; q.x+=q.vx*dt; q.y+=q.vy*dt; q.life-=0.03*dt;
+        if(q.life<=0) st.boom.splice(i,1);
+      }
+      return;
+    }
+
+    const p = st.player;
+    if(p){
+      if(p.cool>0) p.cool-=dt;
+      if(p.inv>0){ p.inv-=dt; p.blink+=dt; }
+      let want = -1;
+      if(mine && st.state!=='attract'){
+        if(KEY['arrowup']||KEY['w']) want=0;
+        else if(KEY['arrowright']||KEY['d']) want=1;
+        else if(KEY['arrowdown']||KEY['s']) want=2;
+        else if(KEY['arrowleft']||KEY['a']) want=3;
+      } else {
+        // demo pilot: hunt the nearest enemy, shoot when lined up
+        let tgt=null, bd=1e9;
+        for(const e of st.enemies) if(e.alive){
+          const d=Math.hypot(e.x-p.x,e.y-p.y); if(d<bd){bd=d;tgt=e;}
+        }
+        p.think = (p.think||0) - dt;
+        if(p.think<=0){
+          p.think = 18+Math.random()*30;
+          if(tgt){
+            const dx=tgt.x-p.x, dy=tgt.y-p.y;
+            want = Math.abs(dx)>Math.abs(dy) ? (dx>0?1:3) : (dy>0?2:0);
+            const dv=DIRV[want];
+            if(!boxFree(p.x+dv[0]*4, p.y+dv[1]*4, 20)) want=(want+1+((Math.random()*3)|0))%4;
+          } else want=(Math.random()*4)|0;
+          p.aim = want;
+        }
+        want = p.aim!==undefined ? p.aim : -1;
+        if(tgt && (Math.abs(tgt.x-p.x)<16 || Math.abs(tgt.y-p.y)<16)) fire(p,'p');
+        else if(Math.random()<0.02) fire(p,'p');
+      }
+      if(want>=0){
+        p.dir = want;
+        const sp = 1.35*dt, d=DIRV[p.dir];
+        if(boxFree(p.x+d[0]*sp, p.y+d[1]*sp, 20)){ p.x+=d[0]*sp; p.y+=d[1]*sp; }
+      }
+      if(mine && st.state==='play' && KEY[' ']) fire(p,'p');
+    }
+
+    // enemies
+    st.spawnCd -= dt;
+    if(st.spawnCd<=0){ trySpawnEnemy(); st.spawnCd = 90 + Math.random()*60; }
+    for(const e of st.enemies){
+      if(!e.alive) continue;
+      if(e.cool>0) e.cool-=dt;
+      const hunt = (st.t%600 < 300 && p) ? [p.x,p.y] : [FX+6.5*TILE, FY+12.5*TILE];
+      steer(e, dt, hunt[0], hunt[1], 0.55);
+      const sp = tankSpeed(e.kind)*dt, d=DIRV[e.dir];
+      if(boxFree(e.x+d[0]*sp, e.y+d[1]*sp, 20)){ e.x+=d[0]*sp; e.y+=d[1]*sp; }
+      const aligned = p && (Math.abs(e.x-p.x)<15 || Math.abs(e.y-p.y)<15);
+      if(aligned || Math.random()<0.012*dt) fire(e,'e');
+    }
+    for(let i=st.enemies.length-1;i>=0;i--) if(!st.enemies[i].alive) st.enemies.splice(i,1);
+
+    // bullets
+    for(let i=st.bullets.length-1;i>=0;i--){
+      const b=st.bullets[i];
+      if(!b) continue;                       // array can shrink mid-loop
+      let gone=false;
+      const steps = Math.ceil(b.sp*dt/3);
+      for(let s=0;s<steps && !gone;s++){
+        b.x += b.dx*b.sp*dt/steps; b.y += b.dy*b.sp*dt/steps;
+        if(b.x<FX||b.y<FY||b.x>FX+FW||b.y>FY+FH){ boom(b.x,b.y,'#dfe7ff',4); gone=true; break; }
+        if(solidAt(b.x,b.y)){ damageTile(b.x,b.y, b.dx===0); gone=true; break; }
+        if(b.owner==='p'){
+          for(const e of st.enemies){
+            if(!e.alive) continue;
+            if(Math.abs(b.x-e.x)<11 && Math.abs(b.y-e.y)<11){
+              e.hp--; boom(b.x,b.y,'#ffffff',5);
+              if(e.hp<=0) killTank(e,true);
+              gone=true; break;
+            }
+          }
+        } else if(p && p.inv<=0 && Math.abs(b.x-p.x)<11 && Math.abs(b.y-p.y)<11){
+          gone=true;
+          killTank(p,false);
+          st.player=null; st.shake=12;
+          if(st.state!=='attract'){
+            st.lives--;
+            if(st.lives<=0){ st.state='over'; st.msgT=0; st.best=Math.max(st.best,st.score); }
+            else { st.state='dead'; st.msgT=0; }
+          } else { spawnPlayer(); }
+        }
+      }
+      if(gone) st.bullets.splice(i,1);
+    }
+
+    // pickups
+    for(let i=st.pickups.length-1;i>=0;i--){
+      const q=st.pickups[i]; q.t+=dt;
+      if(p && Math.abs(q.x-p.x)<16 && Math.abs(q.y-p.y)<16){ takePickup(q); st.pickups.splice(i,1); }
+      else if(q.t>620) st.pickups.splice(i,1);
+    }
+
+    for(let i=st.boom.length-1;i>=0;i--){
+      const q=st.boom[i];
+      q.x+=q.vx*dt; q.y+=q.vy*dt; q.vx*=0.94; q.vy*=0.94; q.r+=0.2*dt;
+      q.life-=0.03*dt;
+      if(q.life<=0) st.boom.splice(i,1);
+    }
+
+    // deferred restarts, applied only once every iterator has finished
+    if(st.restart){ st.restart=false; st.wave=1; startWave(); return; }
+
+    if(st.toSpawn<=0 && st.enemies.length===0 && st.state!=='over'){
+      if(st.state==='attract'){ st.wave++; startWave(); }
+      else { st.score+=500; st.state='clear'; st.msgT=0; }
+    }
+  }
+
+  /* ── drawing ────────────────────────────────────────────── */
+  function rr(x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.quadraticCurveTo(x+w,y,x+w,y+r);
+    c.lineTo(x+w,y+h-r); c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    c.lineTo(x+r,y+h); c.quadraticCurveTo(x,y+h,x,y+h-r);
+    c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y); c.closePath();
+  }
+  function studDot(x,y,r,light){
+    c.fillStyle = light||'rgba(255,255,255,.34)';
+    c.beginPath(); c.ellipse(x,y,r,r*0.82,0,0,7); c.fill();
+    c.fillStyle='rgba(0,0,0,.14)';
+    c.beginPath(); c.ellipse(x,y+r*0.28,r,r*0.7,0,0,7); c.fill();
+  }
+  function drawBrickQuad(x,y,s){
+    rr(x+0.5,y+0.5,s-1,s-1,2); c.fillStyle=COL.brick; c.fill();
+    c.fillStyle=COL.brickTop; c.fillRect(x+1.5,y+1.5,s-3,s*0.34);
+    c.fillStyle=COL.brickDark; c.fillRect(x+1.5,y+s-3.5,s-3,2);
+    studDot(x+s/2, y+s*0.55, s*0.20);
+  }
+  function drawTile(tl,cx,cy){
+    const x = FX+cx*TILE, y = FY+cy*TILE;
+    if(tl.t===BRICK){
+      const h=TILE/2;
+      for(let q=0;q<4;q++) if(tl.q & (1<<q))
+        drawBrickQuad(x+(q%2)*h, y+((q>>1))*h, h);
+    } else if(tl.t===STEEL){
+      rr(x+1,y+1,TILE-2,TILE-2,3); c.fillStyle=COL.steel; c.fill();
+      c.fillStyle='rgba(255,255,255,.45)'; c.fillRect(x+2.5,y+2.5,TILE-5,4);
+      c.fillStyle=COL.steelDark; c.fillRect(x+2.5,y+TILE-5,TILE-5,2.5);
+      for(const p of [[0.3,0.32],[0.7,0.32],[0.3,0.7],[0.7,0.7]])
+        studDot(x+TILE*p[0], y+TILE*p[1], 2.6, 'rgba(255,255,255,.6)');
+    } else if(tl.t===BASE){
+      rr(x+1,y+1,TILE-2,TILE-2,3); c.fillStyle=COL.hq; c.fill();
+      c.fillStyle=COL.hqDark; c.fillRect(x+2,y+TILE-6,TILE-4,4);
+      c.fillStyle='#1b2a34';
+      c.fillRect(x+TILE*0.44, y+5, 2.5, TILE-11);
+      c.beginPath();
+      c.moveTo(x+TILE*0.5, y+5); c.lineTo(x+TILE*0.84, y+9);
+      c.lineTo(x+TILE*0.5, y+13); c.closePath();
+      c.fillStyle='#e8342a'; c.fill();
+      studDot(x+TILE*0.28, y+TILE*0.78, 2.6, 'rgba(255,255,255,.5)');
+      studDot(x+TILE*0.72, y+TILE*0.78, 2.6, 'rgba(255,255,255,.5)');
+    }
+  }
+  const TANKC = [
+    {b:'#4f6b2a', t:'#2f4118', k:'#93b356'},   // grunt
+    {b:'#c8a24a', t:'#8a6a20', k:'#efd07a'},   // scout (fast)
+    {b:'#9c3226', t:'#5f1a12', k:'#d76a55'}    // heavy
+  ];
+  function drawTank(t, isPlayer){
+    const P = isPlayer ? {b:'#3f7fbf', t:'#1e4a77', k:'#8fc4ef'} : TANKC[t.kind];
+    c.save();
+    c.translate(t.x, t.y);
+    c.rotate(t.dir*Math.PI/2);
+    c.fillStyle='rgba(0,0,0,.28)';
+    rr(-11.5,-10.5,23,22,3); c.fill();
+    c.fillStyle=P.t;                                  // treads
+    rr(-11,-11,7,22,2); c.fill();
+    rr(4,-11,7,22,2); c.fill();
+    c.fillStyle='rgba(0,0,0,.30)';
+    for(let i=0;i<5;i++){ c.fillRect(-10.5,-9.5+i*4.4,6,1.6); c.fillRect(4.5,-9.5+i*4.4,6,1.6); }
+    c.fillStyle=P.b;                                  // hull
+    rr(-5,-9,10,18,2); c.fill();
+    c.fillStyle=P.k; c.fillRect(-4,-8,8,3);
+    c.fillStyle=P.t;                                  // barrel
+    c.fillRect(-1.7,-17,3.4,10);
+    c.fillStyle=P.b;                                  // turret
+    c.beginPath(); c.arc(0,0,5.4,0,7); c.fill();
+    studDot(0,0,3.0,'rgba(255,255,255,.42)');
+    if(t.hp>1){ c.strokeStyle='rgba(255,255,255,.5)'; c.lineWidth=1.4;
+      c.beginPath(); c.arc(0,0,8.4,0,7); c.stroke(); }
+    c.restore();
+    if(isPlayer && t.inv>0 && (Math.floor(t.blink/4)%2)===0){
+      c.strokeStyle='#8fe8ff'; c.lineWidth=2;
+      c.beginPath(); c.arc(t.x,t.y,14,0,7); c.stroke();
+    }
+  }
+
+  function draw(dt){
+    c.save();
+    if(st.shake>0.2) c.translate((Math.random()-.5)*st.shake,(Math.random()-.5)*st.shake);
+
+    c.fillStyle='#20241a'; c.fillRect(0,0,W,H);
+    c.drawImage(bg, FX, FY);
+    c.strokeStyle='#39412a'; c.lineWidth=4; c.strokeRect(FX-2,FY-2,FW+4,FH+4);
+
+    for(let cy=0;cy<N;cy++) for(let cx=0;cx<N;cx++){
+      const tl=st.grid[idx(cx,cy)];
+      if(tl.t!==EMPTY) drawTile(tl,cx,cy);
+    }
+
+    for(const q of st.pickups){
+      if(Math.floor(q.t/8)%2===0 || q.t>500){
+        const s=18;
+        rr(q.x-s/2,q.y-s/2,s,s,3);
+        c.fillStyle = q.k==='SHIELD'?'#4ec8ff': q.k==='LIFE'?'#59d97a':
+                      q.k==='REPAIR'?'#ffd23f':'#ff5c5c';
+        c.fill();
+        c.fillStyle='rgba(0,0,0,.75)'; c.font='bold 11px "Trebuchet MS",sans-serif';
+        c.textAlign='center'; c.textBaseline='middle';
+        c.fillText(q.k[0], q.x, q.y+0.5);
+      }
+    }
+
+    for(const e of st.enemies) if(e.alive) drawTank(e,false);
+    if(st.player) drawTank(st.player,true);
+
+    for(const b of st.bullets){
+      c.fillStyle = b.owner==='p' ? '#ffffff' : '#ffb03a';
+      c.shadowColor=c.fillStyle; c.shadowBlur=7;
+      c.fillRect(b.x-2.2, b.y-2.2, 4.4, 4.4);
+      c.shadowBlur=0;
+    }
+    for(const q of st.boom){
+      c.globalAlpha=Math.max(0,q.life); c.fillStyle=q.col;
+      c.save(); c.translate(q.x,q.y); c.rotate(q.r);
+      c.fillRect(-q.s/2,-q.s/2,q.s,q.s); c.restore();
+    }
+    c.globalAlpha=1;
+
+    if(st.flash>0){ c.globalAlpha=st.flash*0.5; c.fillStyle='#fff';
+      c.fillRect(0,0,W,H); c.globalAlpha=1; }
+    c.restore();
+
+    /* ── HUD panel ── */
+    const HX = FX+FW+8;
+    c.fillStyle='#171c14'; c.fillRect(HX,FY-2,W-HX-8,FH+4);
+    c.strokeStyle='#39412a'; c.lineWidth=3; c.strokeRect(HX,FY-2,W-HX-8,FH+4);
+    c.textAlign='left'; c.textBaseline='middle';
+    c.fillStyle='#c4d67a'; c.font='900 15px "Trebuchet MS",sans-serif';
+    c.fillText('BRICKOPS', HX+10, FY+16);
+    c.fillStyle='#7d8450'; c.fillRect(HX+10, FY+27, W-HX-28, 2);
+
+    c.font='bold 11px "Trebuchet MS",monospace';
+    c.fillStyle='#9fae72'; c.fillText('SCORE', HX+10, FY+46);
+    c.fillStyle='#ffd23f'; c.font='900 19px "Trebuchet MS",monospace';
+    c.fillText(String(st.score).padStart(6,'0'), HX+10, FY+64);
+    c.font='bold 11px "Trebuchet MS",monospace';
+    c.fillStyle='#9fae72'; c.fillText('BEST  '+String(st.best).padStart(6,'0'), HX+10, FY+82);
+
+    c.fillStyle='#9fae72'; c.fillText('SECTOR', HX+10, FY+108);
+    c.fillStyle='#8fe8ff'; c.font='900 19px "Trebuchet MS",monospace';
+    c.fillText(String(st.wave).padStart(2,'0'), HX+10, FY+126);
+
+    c.font='bold 11px "Trebuchet MS",monospace';
+    c.fillStyle='#9fae72'; c.fillText('HOSTILES', HX+10, FY+152);
+    const remain = st.toSpawn + st.enemies.length;
+    for(let i=0;i<Math.min(remain,20);i++){
+      c.fillStyle='#c8503c';
+      c.fillRect(HX+10+(i%5)*13, FY+162+((i/5)|0)*12, 9, 9);
+      c.fillStyle='rgba(255,255,255,.35)';
+      c.fillRect(HX+11+(i%5)*13, FY+163+((i/5)|0)*12, 7, 2.5);
+    }
+    c.fillStyle='#9fae72'; c.font='bold 11px "Trebuchet MS",monospace';
+    c.fillText('ARMOUR', HX+10, FY+226);
+    for(let i=0;i<Math.max(0,st.lives);i++){
+      c.fillStyle='#3f7fbf';
+      c.fillRect(HX+10+i*14, FY+236, 10, 10);
+      c.fillStyle='rgba(255,255,255,.4)'; c.fillRect(HX+11+i*14, FY+237, 8, 3);
+    }
+    c.fillStyle = st.baseAlive ? '#59d97a' : '#ff5c5c';
+    c.font='bold 11px "Trebuchet MS",monospace';
+    c.fillText(st.baseAlive?'HQ SECURE':'HQ LOST', HX+10, FY+268);
+    c.fillStyle='#6f7a4c'; c.font='9px "Trebuchet MS",monospace';
+    c.fillText('ARROWS MOVE', HX+10, FY+298);
+    c.fillText('SPACE FIRE',  HX+10, FY+310);
+
+    /* ── overlays ── */
+    const blink = Math.floor(st.t/26)%2===0;
+    c.textAlign='center';
+    function msg(a,b,col){
+      c.fillStyle='rgba(0,0,0,.7)'; c.fillRect(FX,FY+FH/2-42,FW,84);
+      c.font='900 27px "Trebuchet MS",sans-serif';
+      c.shadowColor=col; c.shadowBlur=20; c.fillStyle=col;
+      c.fillText(a, FX+FW/2, FY+FH/2-12); c.shadowBlur=0;
+      if(b){ c.font='bold 13px "Trebuchet MS",sans-serif'; c.fillStyle='#dfe7ff';
+        c.fillText(b, FX+FW/2, FY+FH/2+18); }
+    }
+    if(st.state==='attract'){
+      c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(FX,FY+FH/2-50,FW,100);
+      c.font='900 30px "Trebuchet MS",sans-serif';
+      c.shadowColor='#c4d67a'; c.shadowBlur=22; c.fillStyle='#ffffff';
+      c.fillText('BRICKOPS', FX+FW/2, FY+FH/2-18); c.shadowBlur=0;
+      c.font='bold 13px "Trebuchet MS",sans-serif'; c.fillStyle='#c4d67a';
+      c.fillText('DEFEND THE BASE', FX+FW/2, FY+FH/2+8);
+      if(blink){ c.fillStyle='#ffd23f'; c.font='bold 14px "Trebuchet MS",sans-serif';
+        c.fillText('CLICK CABINET  ·  PRESS SPACE', FX+FW/2, FY+FH/2+32); }
+    }
+    else if(st.state==='ready') msg('SECTOR '+st.wave, 'DEFEND THE HQ', '#8fe8ff');
+    else if(st.state==='dead')  msg('TANK DOWN', 'ARMOUR '+st.lives, '#ff5c5c');
+    else if(st.state==='paused')msg('PAUSED', 'PRESS P TO RESUME', '#ffd23f');
+    else if(st.state==='clear') msg('SECTOR CLEAR', '+500  ·  ADVANCING', '#7CFF8A');
+    else if(st.state==='over')  msg(st.baseAlive?'MISSION FAILED':'HQ DESTROYED',
+                                    'SCORE '+st.score+'  ·  SPACE TO RETRY', '#ff5c5c');
+
+    c.fillStyle='rgba(0,0,0,.13)';
+    for(let y=0;y<H;y+=3) c.fillRect(0,y,W,1);
+    const vg=c.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.85);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.55)');
+    c.fillStyle=vg; c.fillRect(0,0,W,H);
+    c.strokeStyle='#0a0e14'; c.lineWidth=10; c.strokeRect(5,5,W-10,H-10);
+    S.tex.needsUpdate = true;
+  }
+
+  startAttract();
+  return {
+    state:'attract', st:st, update:update, draw:draw,
+    newGame:newGame, startAttract:startAttract,
+    press:function(){
+      if(st.state==='attract'){ newGame(); return true; }
+      if(st.state==='over'){ newGame(); return true; }
+      return false;
+    },
+    pause:function(){
+      if(st.state==='play') st.state='paused';
+      else if(st.state==='paused') st.state='play';
+    }
+  };
+})();
+
+/* ── attract screens on every other machine ──────────────── */
+function drawSideScreens(t){
+  for(let n=0;n<sideCabs.length;n++){
+    const S = sideCabs[n].cab.userData.screen;
+    const c = S.ctx, w=S.cv.width, h=S.cv.height, off = n*97;
+    c.fillStyle='#06111f'; c.fillRect(0,0,w,h);
+    for(let i=0;i<7;i++){
+      c.fillStyle=['#ff2f2f','#ff8a18','#ffd23f','#4ec84e','#3aa0ff','#8a5cf0','#ff5fb0'][i];
+      c.fillRect(i*(w/7), 0, w/7, 18);
+    }
+    c.textAlign='center';
+    c.font='900 19px "Trebuchet MS",sans-serif';
+    c.fillStyle='#ffd23f'; c.fillText(sideCabs[n].title, w/2, 44);
+    c.font='bold 12px monospace';
+    const names = sideCabs[n].names;
+    for(let i=0;i<names.length;i++){
+      const hi = (Math.floor((t+off)/40)%names.length)===i;
+      c.fillStyle = hi ? '#ffffff' : '#5fd0ff';
+      c.fillText(names[i]+' ···· '+((5-i)*1240+70+n*33), w/2, 72+i*18);
+    }
+    c.fillStyle = (Math.floor((t+off)/28)%2) ? '#ff5fb0' : 'rgba(255,95,176,.2)';
+    c.font='bold 11px "Trebuchet MS",sans-serif';
+    c.fillText('INSERT COIN', w/2, h-12);
+    c.fillStyle='rgba(0,0,0,.16)';
+    for(let y=0;y<h;y+=3) c.fillRect(0,y,w,1);
+    c.strokeStyle='#0a0e14'; c.lineWidth=8; c.strokeRect(4,4,w-8,h-8);
+    S.tex.needsUpdate = true;
+  }
+}
+
+/* ── racer's own attract screen ──────────────────────────── */
+const RS = racer.userData.screen;
+function drawRacerScreen(t){
+  const c = RS.ctx, w=RS.cv.width, h=RS.cv.height;
+  const sky = c.createLinearGradient(0,0,0,h*0.55);
+  sky.addColorStop(0,'#4aa6e8'); sky.addColorStop(1,'#bfe4ff');
+  c.fillStyle=sky; c.fillRect(0,0,w,h*0.55);
+  c.fillStyle='#4b5560'; c.fillRect(0,h*0.55,w,h*0.45);
+  c.fillStyle='#3a444e';
+  c.beginPath(); c.moveTo(w*0.5-16,h*0.55); c.lineTo(w*0.5+16,h*0.55);
+  c.lineTo(w,h); c.lineTo(0,h); c.fill();
+  c.fillStyle='#f2f3f2';
+  for(let i=0;i<6;i++){
+    const p = ((t*0.02 + i/6) % 1), yy = h*0.55 + p*p*h*0.45, ww = 2+p*16;
+    c.fillRect(w/2-ww/2, yy, ww, 3+p*10);
+  }
+  c.fillStyle='#c91a09';
+  c.fillRect(w*0.38, h*0.72, w*0.24, h*0.14);
+  c.fillStyle='#12181f'; c.fillRect(w*0.36, h*0.84, w*0.28, h*0.05);
+  c.fillStyle='#ffd23f'; c.font='bold 13px monospace'; c.textAlign='left';
+  c.fillText('LAP 2/3', 6, 16);
+  c.textAlign='right'; c.fillText(String(54+Math.floor(t*0.01)%40)+' MPH', w-6, 16);
+  c.fillStyle='rgba(0,0,0,.16)';
+  for(let y=0;y<h;y+=3) c.fillRect(0,y,w,1);
+  c.strokeStyle='#0a0e14'; c.lineWidth=8; c.strokeRect(4,4,w-8,h-8);
+  RS.tex.needsUpdate = true;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   9. CAMERA
+   ══════════════════════════════════════════════════════════════════ */
+const ROOM_VIEW = {theta:0.30, phi:0.98, r:38, tgt:new THREE.Vector3(-2, 5.5, -3)};
+
+const cam = {
+  theta: ROOM_VIEW.theta, phi: ROOM_VIEW.phi, r: ROOM_VIEW.r,
+  tTheta: ROOM_VIEW.theta, tPhi: ROOM_VIEW.phi, tR: ROOM_VIEW.r,
+  target: ROOM_VIEW.tgt.clone(),
+  tTarget: ROOM_VIEW.tgt.clone()
+};
+let view='room', autoSpin=false, activeGame=null;
+
+const SCREEN_WORLD = new THREE.Vector3();
+cabinet.updateMatrixWorld(true);
+SCREEN_WORLD.set(0, 5.7, CAB_D/2+0.05).applyMatrix4(cabinet.matrixWorld);
+const OPS_WORLD = new THREE.Vector3();
+opsCab.updateMatrixWorld(true);
+OPS_WORLD.set(0, 5.7, CAB_D/2+0.05).applyMatrix4(opsCab.matrixWorld);
+
+/** Only one machine takes input at a time; the other auto-pauses so you
+ *  don't come back to a game that lost all its lives while you looked away. */
+function setActive(g){
+  if(activeGame===g) return;
+  if(activeGame==='breaker' && G.state==='play') G.state='paused';
+  if(activeGame==='brickops' && BO.st.state==='play') BO.st.state='paused';
+  activeGame = g;
+  if(g==='breaker' && G.state==='paused') G.state='play';
+  if(g==='brickops' && BO.st.state==='paused') BO.st.state='play';
+}
+
+function setView(v){
+  view = v;
+  if(v==='screen'){
+    cam.tTheta = cabinet.rotation.y; cam.tPhi = 1.50; cam.tR = 4.0;
+    cam.tTarget.copy(SCREEN_WORLD);
+    autoSpin = false; bSpin.classList.add('off');
+    bView.textContent = 'ROOM VIEW';
+    setActive('breaker');
+  } else if(v==='ops'){
+    cam.tTheta = opsCab.rotation.y; cam.tPhi = 1.50; cam.tR = 4.0;
+    cam.tTarget.copy(OPS_WORLD);
+    autoSpin = false; bSpin.classList.add('off');
+    bView.textContent = 'ROOM VIEW';
+    setActive('brickops');
+  } else {
+    cam.tTheta = ROOM_VIEW.theta; cam.tPhi = ROOM_VIEW.phi; cam.tR = ROOM_VIEW.r;
+    cam.tTarget.copy(ROOM_VIEW.tgt);
+    bView.textContent = 'SCREEN VIEW';
+    setActive(null);
+  }
+}
+
+let dragging=false, lx=0, ly=0, moved=0;
+const el = renderer.domElement;
+el.addEventListener('pointerdown', e=>{ dragging=true; moved=0; lx=e.clientX; ly=e.clientY; el.setPointerCapture(e.pointerId); });
+el.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  const dx=e.clientX-lx, dy=e.clientY-ly; lx=e.clientX; ly=e.clientY;
+  moved += Math.abs(dx)+Math.abs(dy);
+  cam.tTheta -= dx*0.0055;
+  cam.tPhi = Math.max(0.18, Math.min(1.53, cam.tPhi - dy*0.0045));
+  autoSpin=false; bSpin.classList.add('off');
+});
+el.addEventListener('pointerup', e=>{ dragging=false; if(moved<6) pick(e); });
+el.addEventListener('wheel', e=>{
+  e.preventDefault();
+  cam.tR = Math.max(3, Math.min(72, cam.tR * (1 + Math.sign(e.deltaY)*0.09)));
+}, {passive:false});
+
+let pinch=0;
+el.addEventListener('touchstart', e=>{ if(e.touches.length===2) pinch = Math.hypot(
+  e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }, {passive:true});
+el.addEventListener('touchmove', e=>{
+  if(e.touches.length!==2) return;
+  const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+  if(pinch) cam.tR = Math.max(3, Math.min(72, cam.tR * (pinch/d)));
+  pinch = d;
+}, {passive:true});
+
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+function pick(e){
+  ptr.x = (e.clientX/innerWidth)*2-1;
+  ptr.y = -(e.clientY/innerHeight)*2+1;
+  ray.setFromCamera(ptr, camera);
+  const all = [cabinet, opsCab, racer].concat(sideCabs.map(s=>s.cab));
+  const hits = ray.intersectObjects(all, true);
+  if(!hits.length) return;
+  let root = hits[0].object;
+  while(root.parent && root.parent!==scene) root = root.parent;
+  if(root===cabinet){
+    if(G.state==='attract') launch();
+    if(view!=='screen') setView('screen');
+    beep(760,.08,'square',.05);
+  } else if(root===opsCab){
+    if(view!=='ops') setView('ops');
+    if(BO.st.state==='attract') BO.newGame();
+    beep(430,.09,'square',.05);
+  } else {
+    const fwd = new THREE.Vector3(Math.sin(root.rotation.y), 0, Math.cos(root.rotation.y));
+    cam.tTarget.set(root.position.x + fwd.x*0.4, root===racer?4.6:5.7, root.position.z + fwd.z*0.4);
+    cam.tTheta = root.rotation.y; cam.tPhi = 1.44; cam.tR = 6;
+    view='other'; bView.textContent='ROOM VIEW';
+    beep(520,.08,'square',.05);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   10. UI
+   ══════════════════════════════════════════════════════════════════ */
+const bPlay=document.getElementById('bPlay'), bView=document.getElementById('bView'),
+      bOps=document.getElementById('bOps'),
+      bSpin=document.getElementById('bSpin'), bSound=document.getElementById('bSound'),
+      sScore=document.getElementById('sScore'), sInfo=document.getElementById('sInfo');
+bSpin.classList.add('off');
+
+bPlay.onclick = ()=>{
+  if(activeGame==='brickops'){
+    if(BO.st.state==='play'||BO.st.state==='paused') BO.pause();
+    else BO.press();
+    return;
+  }
+  if(G.state==='play'){ G.state='paused'; bPlay.textContent='RESUME'; }
+  else if(G.state==='paused'){ G.state='play'; bPlay.textContent='PAUSE'; }
+  else { launch(); setView('screen'); }
+};
+bView.onclick = ()=> setView(view==='room' ? 'screen' : 'room');
+bOps.onclick  = ()=> setView(view==='ops' ? 'room' : 'ops');
+bSpin.onclick = ()=>{ autoSpin=!autoSpin; bSpin.classList.toggle('off', !autoSpin); if(autoSpin) setView('room'); };
+function toggleSound(){
+  soundOn=!soundOn;
+  bSound.textContent = soundOn?'SOUND ON':'SOUND OFF';
+  bSound.classList.toggle('off', !soundOn);
+  if(soundOn) beep(700,.08);
+}
+bSound.onclick = toggleSound;
+
+/* ══════════════════════════════════════════════════════════════════
+   11. LOOP
+   ══════════════════════════════════════════════════════════════════ */
+let last = performance.now();
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt = (now-last)/16.6667; last = now;
+  // Clamp BOTH ends. rAF timestamps don't always share performance.now()'s time
+  // origin, and a single negative dt would push countdown timers (enemy spawns,
+  // cooldowns) to absurd values they could never count back down from.
+  dt = Math.max(0, Math.min(dt, 3));
+
+  if(autoSpin) cam.tTheta += 0.0022*dt;
+
+  updateGame(dt);
+  drawGame(dt);
+  BO.update(dt, activeGame==='brickops');
+  BO.draw(dt);
+  drawSideScreens(now*0.06);
+  drawRacerScreen(now*0.06);
+
+  const k = 1-Math.pow(0.86, dt);
+  cam.theta += (cam.tTheta-cam.theta)*k;
+  cam.phi   += (cam.tPhi-cam.phi)*k;
+  cam.r     += (cam.tR-cam.r)*k;
+  cam.target.lerp(cam.tTarget, k);
+  const sp = Math.sin(cam.phi);
+  camera.position.set(
+    cam.target.x + cam.r*sp*Math.sin(cam.theta),
+    cam.target.y + cam.r*Math.cos(cam.phi),
+    cam.target.z + cam.r*sp*Math.cos(cam.theta)
+  );
+  camera.lookAt(cam.target);
+
+  if(cabinet.userData.joy){
+    const jn = cabinet.userData.joy;
+    jn.rotation.z += ((-G.paddle.v*0.05) - jn.rotation.z)*0.2;
+  }
+  if(opsCab.userData.joy){
+    // BRICKOPS stick leans in whichever way the tank is driving
+    const jn = opsCab.userData.joy, p = BO.st.player;
+    const d = p ? p.dir : -1;
+    const tz = d===1 ? -0.42 : d===3 ? 0.42 : 0;
+    const tx = d===0 ? -0.42 : d===2 ? 0.42 : 0;
+    jn.rotation.z += (tz - jn.rotation.z)*0.18;
+    jn.rotation.x += (tx - jn.rotation.x)*0.18;
+  }
+
+  const t = now*0.001;
+  for(const fg of figs){
+    fg.group.position.y = fg.baseY + Math.sin(t*1.6 + fg.phase)*0.05;
+    let turn = 0;
+    if(fg.aside){
+      // step out of the screen-view camera's line of sight while you're playing
+      const want = (activeGame===fg.owns) ? 1 : 0;
+      fg.slide += (want - fg.slide)*Math.min(1, 0.10*dt);
+      const s = fg.slide<0.001 ? 0 : fg.slide;
+      fg.group.position.x = fg.home[0] + (fg.aside[0]-fg.home[0])*s;
+      fg.group.position.z = fg.home[1] + (fg.aside[1]-fg.home[1])*s;
+      turn = -0.85*s;                       // turn to watch over your shoulder
+    }
+    fg.group.rotation.y = fg.baseRot + turn + Math.sin(t*0.7 + fg.phase)*0.03;
+    fg.armPulse = (fg.armPulse||0)*0.92;
+    // seated figs keep their arms up on the wheel rather than dropping to the idle pose
+    const armT = (fg.seated ? -0.95 : -0.52) - fg.armPulse*0.35 + Math.sin(t*3.1 + fg.phase)*0.05;
+    fg.arms[0].rotation.x += (armT - fg.arms[0].rotation.x)*0.2;
+    fg.arms[1].rotation.x += (armT - fg.arms[1].rotation.x)*0.2;
+  }
+
+  screenGlow.position.copy(SCREEN_WORLD).add(new THREE.Vector3(
+    Math.sin(cabinet.rotation.y)*1.1, 0, Math.cos(cabinet.rotation.y)*1.1));
+  screenGlow.intensity = 0.85 + G.flashT*1.1 + Math.sin(now*0.004)*0.06;
+  if(G.flashT>0.1) screenGlow.color.setStyle(G.flashCol);
+  else screenGlow.color.lerp(new THREE.Color(0x9fd8ff), 0.06);
+
+  if(activeGame==='brickops'){
+    const b = BO.st;
+    sScore.textContent = b.score;
+    sInfo.textContent = 'BRICKOPS  ·  ARMOUR '+Math.max(0,b.lives)+'   SECTOR '+b.wave+
+      (b.state==='attract' ? '   · DEMO' : b.state==='paused' ? '   · PAUSED' : '');
+    bPlay.textContent = b.state==='play' ? 'PAUSE' : (b.state==='paused' ? 'RESUME' : 'PLAY');
+  } else {
+    sScore.textContent = G.score;
+    sInfo.textContent = 'BRICK BREAKER  ·  LIVES '+Math.max(0,G.lives)+'   LEVEL '+G.level+
+      (G.state==='attract' ? '   · DEMO' : G.state==='paused' ? '   · PAUSED' : '');
+    bPlay.textContent = G.state==='play' ? 'PAUSE' : (G.state==='paused' ? 'RESUME' : 'PLAY');
+  }
+
+  renderer.render(scene, camera);
+}
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+requestAnimationFrame(frame);
+setTimeout(()=>{
+  const l=document.getElementById('load');
+  if(l){ l.style.opacity=0; setTimeout(()=>l.remove(), 700); }
+}, 450);
+
+})();
+</script>

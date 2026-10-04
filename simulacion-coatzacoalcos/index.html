@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COATZA·MAR — Simulador de inundación costera · Coatzacoalcos, Ver.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --tinta:#070f13;
+  --panel:rgba(7,17,22,.82);
+  --borde:rgba(72,178,188,.28);
+  --cian:#3fd9c9;
+  --cian-tenue:rgba(63,217,201,.55);
+  --ambar:#ffb454;
+  --rojo:#ff5249;
+  --arena:#e7c987;
+  --texto:#cfe6e6;
+  --texto-2:#7fa3a6;
+  --mono:'IBM Plex Mono','Menlo',monospace;
+  --display:'Saira Condensed','Avenir Next Condensed','Arial Narrow',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--tinta);font-family:var(--mono);color:var(--texto)}
+#escena{position:fixed;inset:0;display:block;cursor:grab}
+#escena:active{cursor:grabbing}
+
+.panel{
+  background:var(--panel);
+  border:1px solid var(--borde);
+  backdrop-filter:blur(9px);
+  -webkit-backdrop-filter:blur(9px);
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));
+  padding:10px 12px;
+  position:relative;
+}
+.panel::after{
+  content:'';position:absolute;inset:0;pointer-events:none;opacity:.05;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,#9ff 2px 3px);
+}
+.ptitulo{
+  font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.14em;
+  color:var(--cian);text-transform:uppercase;margin-bottom:8px;
+  display:flex;align-items:center;gap:7px;
+}
+.ptitulo::before{content:'';width:7px;height:7px;background:var(--cian);
+  clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);}
+
+/* ---------- cabecera ---------- */
+#cabecera{
+  position:fixed;top:0;left:0;right:0;z-index:30;
+  display:flex;align-items:stretch;gap:10px;padding:10px 14px 0 14px;
+  pointer-events:none;
+}
+#cabecera>*{pointer-events:auto}
+#marca{display:flex;flex-direction:column;justify-content:center;padding:8px 16px}
+#marca h1{font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:.06em;line-height:1;color:#eef9f7}
+#marca h1 b{color:var(--cian)}
+#marca small{font-size:9.5px;color:var(--texto-2);letter-spacing:.08em;margin-top:3px}
+#reloj{display:flex;flex-direction:column;justify-content:center;align-items:center;padding:8px 18px;min-width:170px}
+#reloj .hora{font-size:21px;font-weight:700;color:#fff;letter-spacing:.04em}
+#reloj .sub{font-size:9.5px;color:var(--texto-2);margin-top:2px}
+#chipEstado{display:flex;align-items:center;justify-content:center;min-width:190px;padding:8px 16px;
+  font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:.12em}
+#chipEstado.normal{color:var(--cian)}
+#chipEstado.vigilancia{color:var(--ambar)}
+#chipEstado.menor{color:#ff8c42}
+#chipEstado.critica{color:var(--rojo);animation:pulso 1s infinite}
+@keyframes pulso{0%,100%{opacity:1}50%{opacity:.35}}
+#controles{display:flex;align-items:center;gap:6px;padding:8px 12px;margin-left:auto}
+#controles select{
+  background:#0b1d22;border:1px solid var(--borde);color:var(--texto);
+  font-family:var(--mono);font-size:11px;padding:6px 8px;outline:none;max-width:210px}
+.btn{
+  background:#0b1d22;border:1px solid var(--borde);color:var(--texto);
+  font-family:var(--mono);font-size:12px;padding:6px 10px;cursor:pointer;
+  transition:all .15s;white-space:nowrap}
+.btn:hover{border-color:var(--cian);color:var(--cian);box-shadow:0 0 10px rgba(63,217,201,.25)}
+.btn.activo{background:rgba(63,217,201,.15);border-color:var(--cian);color:var(--cian)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* ---------- columnas ---------- */
+#colIzq{position:fixed;left:14px;top:86px;width:258px;z-index:20;
+  display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 240px);overflow-y:auto;scrollbar-width:thin}
+#colDer{position:fixed;right:14px;top:86px;width:312px;z-index:20;
+  display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 240px);overflow-y:auto;scrollbar-width:thin}
+#colIzq::-webkit-scrollbar,#colDer::-webkit-scrollbar{width:4px}
+#colIzq::-webkit-scrollbar-thumb,#colDer::-webkit-scrollbar-thumb{background:var(--borde)}
+
+#twlGrande{font-size:36px;font-weight:700;color:#fff;line-height:1;letter-spacing:-.02em}
+#twlGrande small{font-size:14px;color:var(--texto-2);font-weight:400}
+.fila{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;margin:5px 0 2px}
+.fila .et{color:var(--texto-2)}
+.fila .val{color:var(--texto);font-weight:500}
+.barra{height:5px;background:rgba(255,255,255,.06);position:relative;overflow:hidden}
+.barra i{position:absolute;left:0;top:0;bottom:0;display:block;transition:width .2s}
+.bMarea i{background:var(--cian)}
+.bViento i{background:#5e9cf2}
+.bPresion i{background:#b78cf2}
+.bOleaje i{background:var(--arena)}
+.sep{border:none;border-top:1px dashed rgba(127,163,166,.25);margin:9px 0}
+.datoG{display:flex;justify-content:space-between;font-size:11px;margin:4px 0}
+.datoG b{color:#fff;font-weight:500}
+.alertVal{color:var(--rojo)!important;font-weight:700!important}
+
+#leyenda{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9.5px;color:var(--texto-2)}
+#leyenda span{display:flex;align-items:center;gap:5px}
+#leyenda i{width:10px;height:10px;display:inline-block;flex:none}
+
+canvas.grafica{display:block;width:100%;background:rgba(0,0,0,.25);margin-top:4px}
+
+#statNums{font-size:10.5px;line-height:1.65;margin-top:8px}
+#statNums b{color:var(--ambar);font-weight:700}
+#statNums .res{color:#fff}
+
+details{font-size:10px;color:var(--texto-2);line-height:1.6}
+details summary{cursor:pointer;font-family:var(--display);font-size:12px;letter-spacing:.1em;color:var(--cian);text-transform:uppercase}
+details .eq{color:var(--texto);background:rgba(255,255,255,.04);padding:2px 6px;margin:3px 0;display:block;font-size:9.5px}
+details .nota{color:#8c7a55;font-style:italic;display:block;margin-top:6px}
+
+/* ---------- pie: línea de tiempo ---------- */
+#pie{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;z-index:25;
+  display:flex;gap:10px;align-items:stretch}
+#evtInfo{width:250px;padding:8px 12px;font-size:10px;line-height:1.55}
+#evtInfo .ptitulo{margin-bottom:4px}
+#evtInfo b{color:var(--ambar)}
+#evtInfo .crit{color:var(--rojo);font-weight:700}
+#cajaLinea{padding:6px 10px 4px}
+
+/* ---------- banner crítico ---------- */
+#banner{
+  position:fixed;top:96px;left:50%;transform:translate(-50%,-30px);z-index:40;
+  background:rgba(40,5,5,.92);border:1px solid var(--rojo);
+  padding:14px 28px;text-align:center;opacity:0;pointer-events:none;
+  transition:all .5s;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));
+}
+#banner.visible{opacity:1;transform:translate(-50%,0)}
+#banner h2{font-family:var(--display);font-size:24px;letter-spacing:.16em;color:var(--rojo);animation:pulso 0.9s infinite}
+#banner p{font-size:11px;color:#ffd9d0;margin-top:4px}
+
+#brujula{position:fixed;left:286px;top:96px;z-index:15;width:44px;height:44px;border-radius:50%;
+  border:1px solid var(--borde);background:rgba(7,17,22,.6);display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-weight:700;color:var(--cian);font-size:15px;pointer-events:none}
+#brujula i{display:block;transform-origin:center}
+
+@media (max-width:1180px){ #colDer{display:none} #brujula{display:none} }
+@media (max-width:840px){ #colIzq{display:none} #evtInfo{display:none} }
+</style>
+</head>
+<body>
+<canvas id="escena"></canvas>
+
+<header id="cabecera">
+  <div class="panel" id="marca">
+    <h1>COATZA<b>·</b>MAR</h1>
+    <small>SIMULADOR DE INUNDACIÓN COSTERA · COATZACOALCOS, VERACRUZ · 18.15°N 94.43°O</small>
+  </div>
+  <div class="panel" id="reloj">
+    <div class="hora" id="horaSim">DÍA 1 · 00:00</div>
+    <div class="sub" id="horaSub">t+0.0 h · ×240</div>
+  </div>
+  <div class="panel" id="chipEstado">— NORMAL —</div>
+  <div class="panel" id="controles">
+    <select id="selEsc" title="Escenario meteorológico"></select>
+    <button class="btn" id="btnPlay" title="Pausar / reanudar">⏸</button>
+    <button class="btn velBtn" data-v="60">×60</button>
+    <button class="btn velBtn activo" data-v="240">×240</button>
+    <button class="btn velBtn" data-v="960">×960</button>
+    <button class="btn" id="btnSalto" title="Saltar a 1.5 h antes del cruce crítico">⤇ cruce crítico</button>
+    <button class="btn" id="btnReset" title="Reiniciar evento">↺</button>
+  </div>
+</header>
+
+<div id="brujula"><i id="flechaN">N↑</i></div>
+
+<aside id="colIzq">
+  <div class="panel">
+    <div class="ptitulo">Nivel total del agua</div>
+    <div id="twlGrande">+0.00 <small>m s.n.m.m.</small></div>
+    <hr class="sep">
+    <div class="fila"><span class="et">Marea astronómica</span><span class="val" id="vMarea">—</span></div>
+    <div class="barra bMarea"><i id="bMarea"></i></div>
+    <div class="fila"><span class="et">Marea de tormenta (viento)</span><span class="val" id="vViento">—</span></div>
+    <div class="barra bViento"><i id="bViento"></i></div>
+    <div class="fila"><span class="et">Barómetro inverso (presión)</span><span class="val" id="vPresion">—</span></div>
+    <div class="barra bPresion"><i id="bPresion"></i></div>
+    <div class="fila"><span class="et">Setup del oleaje</span><span class="val" id="vOleaje">—</span></div>
+    <div class="barra bOleaje"><i id="bOleaje"></i></div>
+  </div>
+
+  <div class="panel">
+    <div class="ptitulo">Condiciones</div>
+    <div class="datoG"><span>Viento sostenido</span><b id="cViento">—</b></div>
+    <div class="datoG"><span>Caída de presión</span><b id="cPresion">—</b></div>
+    <div class="datoG"><span>Altura sign. de ola H<sub>s</sub></span><b id="cHs">—</b></div>
+    <div class="datoG"><span>Runup R<sub>2%</sub> (Stockdon)</span><b id="cRunup">—</b></div>
+  </div>
+
+  <div class="panel">
+    <div class="ptitulo">Impacto</div>
+    <div class="datoG"><span>Terreno inundado</span><b id="iFrac">0.0 %</b></div>
+    <div class="datoG"><span>Superficie</span><b id="iArea">0.00 km²</b></div>
+    <div class="datoG"><span>Edificaciones afectadas</span><b id="iEdif">0 / 0</b></div>
+    <hr class="sep">
+    <div id="leyenda">
+      <span><i style="background:#d9bd85"></i>Playa / arena</span>
+      <span><i style="background:#8a8d86"></i>Zona urbana</span>
+      <span><i style="background:#5d7a4a"></i>Vegetación</span>
+      <span><i style="background:#15536b"></i>Mar / río</span>
+      <span><i style="background:#26424d"></i>Terreno inundado</span>
+      <span><i style="background:#d9472b"></i>Edificio afectado</span>
+    </div>
+  </div>
+</aside>
+
+<aside id="colDer">
+  <div class="panel">
+    <div class="ptitulo">Extremos · Gumbel (EVT)</div>
+    <canvas id="gfGumbel" class="grafica" width="288" height="172"></canvas>
+    <canvas id="gfMC" class="grafica" width="288" height="120"></canvas>
+    <div id="statNums">cargando…</div>
+  </div>
+  <div class="panel">
+    <details>
+      <summary>Modelo físico y supuestos</summary>
+      <span class="eq">Marea: η<sub>m</sub>(t) = Σ Aᵢ·cos(ωᵢt + φᵢ) — K1, O1, P1, M2, S2 (régimen diurno mixto del sur del Golfo)</span>
+      <span class="eq">Esfuerzo del viento: τ = ρₐ·C<sub>D</sub>·W², con C<sub>D</sub> = (0.8 + 0.065·W)·10⁻³ (Wu, 1982)</span>
+      <span class="eq">Marea de tormenta: η<sub>v</sub> = τ·F / (ρ<sub>w</sub>·g·h̄) — sobreelevación por viento en plataforma</span>
+      <span class="eq">Barómetro inverso: η<sub>p</sub> ≈ 0.0101 m/hPa · ΔP</span>
+      <span class="eq">Oleaje: setup = 0.19·H<sub>b</sub>; runup R<sub>2%</sub> según Stockdon et al. (2006)</span>
+      <span class="eq">Extremos: Gumbel F(z)=exp(−e^{−(z−μ)/β}); nivel de retorno z<sub>T</sub> = μ − β·ln(−ln(1−1/T)); ajuste por momentos sobre 58 máximos anuales sintéticos</span>
+      <span class="eq">Monte Carlo: 20 000 series con ascenso del nivel del mar de 3.6 mm/año (+aceleración)</span>
+      <span class="eq">Inundación: modelo de bañera con conectividad hidráulica (BFS) sobre MDE sintético de 25 m; crítica = ≥15 % del terreno emergido</span>
+      <span class="nota">Modelo educativo: batimetría, topografía y climatología son sintéticas, calibradas a rangos publicados para el litoral sur del Golfo de México. No sustituye estudios oficiales de Protección Civil / CONAGUA.</span>
+    </details>
+  </div>
+</aside>
+
+<footer id="pie">
+  <div class="panel" id="evtInfo">
+    <div class="ptitulo">Evento simulado</div>
+    <div id="evtTexto">—</div>
+  </div>
+  <div class="panel" id="cajaLinea">
+    <canvas id="gfLinea" class="grafica" width="700" height="118"></canvas>
+  </div>
+</footer>
+
+<div id="banner">
+  <h2>⚠ INUNDACIÓN CRÍTICA ⚠</h2>
+  <p id="bannerTxt"></p>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   COATZA·MAR — simulador físico-estadístico de inundación costera
+   Coatzacoalcos, Veracruz, México.  Modelo educativo.
+   ===================================================================== */
+
+/* ---------- utilidades numéricas ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const rng=mulberry32(20260609);
+function hash2(ix,iz){let n=(Math.imul(ix,374761393)+Math.imul(iz,668265263))|0;n=Math.imul(n^(n>>>13),1274126177);return((n^(n>>>16))>>>0)/4294967295;}
+function vnoise(x,z){const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz;
+  const sx=fx*fx*(3-2*fx),sz=fz*fz*(3-2*fz);
+  const a=hash2(ix,iz),b=hash2(ix+1,iz),c=hash2(ix,iz+1),d=hash2(ix+1,iz+1);
+  return a+(b-a)*sx+(c-a)*sz+(a-b-c+d)*sx*sz;}
+function fbm(x,z){return 0.6*vnoise(x,z)+0.3*vnoise(x*2.13+5.2,z*2.13+1.3)+0.1*vnoise(x*4.7+9.1,z*4.7+3.7);}
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const smoothstep=(a,b,v)=>{const t=clamp((v-a)/(b-a),0,1);return t*t*(3-2*t);};
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+/* ---------- dominio y terreno (MDE sintético 25 m) ---------- */
+const DOM=4000, G=161, STEP=DOM/(G-1), HALF=DOM/2;
+function shoreZ(x){return -800+130*Math.sin(x*0.00078)+55*Math.sin(x*0.0021+1.7);}
+function riverX(z){return 620+95*Math.sin(z*0.0011+0.6)+40*Math.sin(z*0.0031+2.0);}
+function terrainHeight(x,z){
+  const zsh=shoreZ(x), d=z-zsh;
+  const xr=riverX(z), rd=Math.abs(x-xr);
+  let h;
+  if(d<0){
+    h=Math.max(-16,d*0.013);
+  }else{
+    h=1.25*(1-Math.exp(-d/65))
+     +1.15*(1-Math.exp(-d/520))
+     +6.2*smoothstep(950,2300,d);
+    h+=1.1*(fbm(x*0.0016,z*0.0016)-0.5)*smoothstep(60,400,d);
+    const fp=Math.exp(-(rd*rd)/(230*230))*smoothstep(20,160,d)*(1-smoothstep(950,2300,d));
+    const hfp=1.05+0.7*fbm(x*0.004+3.3,z*0.004+7.7);
+    h=lerp(h,Math.min(h,hfp),fp);
+  }
+  if(z>zsh-460){
+    const m=1-smoothstep(95,190,rd);
+    if(m>0) h=lerp(h,-7.5,m*0.92);
+  }
+  if(z>zsh-430&&z<zsh+50&&rd>140&&rd<200) h=Math.max(h,2.3);   // escolleras
+  if(d>45&&d<88&&x<xr-280) h=Math.max(h,2.7);                  // malecón
+  return h;
+}
+
+const H=new Float32Array(G*G);          // alturas en vértices
+let nLand=0;
+for(let j=0;j<G;j++)for(let i=0;i<G;i++){
+  const x=i*STEP-HALF, z=j*STEP-HALF;
+  const h=terrainHeight(x,z);
+  H[j*G+i]=h;
+  if(h>0)nLand++;
+}
+const AREA_LAND_KM2=nLand*STEP*STEP/1e6;
+
+/* ---------- inundación por conectividad (modelo de bañera + BFS) ---------- */
+const visited=new Uint8Array(G*G);
+const cola=new Int32Array(G*G);
+function bfsInundacion(nivel){
+  visited.fill(0);
+  let qh=0,qt=0;
+  for(let i=0;i<G;i++){
+    const tops=[i, (G-1)*G+i, i*G, i*G+(G-1)];
+    for(const s of tops){ if(!visited[s]&&H[s]<nivel){visited[s]=1;cola[qt++]=s;} }
+  }
+  let landFlood=0;
+  while(qh<qt){
+    const c=cola[qh++];
+    if(H[c]>0)landFlood++;
+    const ci=c%G, cj=(c-ci)/G;
+    if(ci>0){const n=c-1;if(!visited[n]&&H[n]<nivel){visited[n]=1;cola[qt++]=n;}}
+    if(ci<G-1){const n=c+1;if(!visited[n]&&H[n]<nivel){visited[n]=1;cola[qt++]=n;}}
+    if(cj>0){const n=c-G;if(!visited[n]&&H[n]<nivel){visited[n]=1;cola[qt++]=n;}}
+    if(cj<G-1){const n=c+G;if(!visited[n]&&H[n]<nivel){visited[n]=1;cola[qt++]=n;}}
+  }
+  return landFlood/nLand;
+}
+
+/* curva nivel→fracción inundada, y umbrales z (5 % menor, 15 % crítico) */
+const NIV_MAX=3.6, NIV_PASO=0.02;
+const curvaInund=[];
+for(let L=0;L<=NIV_MAX;L+=NIV_PASO)curvaInund.push({z:L,f:bfsInundacion(L)});
+function nivelParaFrac(frac){
+  for(const p of curvaInund)if(p.f>=frac)return p.z;
+  return NaN;
+}
+const Z_MENOR=nivelParaFrac(0.05);
+const Z_CRIT =nivelParaFrac(0.15);
+
+/* ---------- marea astronómica (armónicos, régimen diurno mixto) ---------- */
+function fase(T,tpk){return -2*Math.PI*((tpk/T)%1);}
+const CONST_MAREA=[ // [A m, T h, φ]
+  [0.165,23.934,fase(23.934,40.0)],   // K1
+  [0.145,25.819,fase(25.819,41.5)],   // O1
+  [0.052,24.066,fase(24.066,40.0)],   // P1
+  [0.085,12.421,fase(12.421,39.7)],   // M2
+  [0.032,12.000,fase(12.000,42.0)],   // S2
+];
+function marea(tH){let s=0;for(const c of CONST_MAREA)s+=c[0]*Math.cos(2*Math.PI*tH/c[1]+c[2]);return s;}
+
+/* ---------- escenarios meteorológicos ---------- */
+const ESCENARIOS={
+  moderado:{nombre:'Norte moderado',W0:6,Wmax:19,dPmax:8, Hs0:0.8,Hsmax:2.4,tp:42,sw:13,dur:72,fetch:80000,hShelf:30,Tp0:7,TpMax:9},
+  severo:  {nombre:'Norte severo (frente frío intenso)',W0:6,Wmax:27,dPmax:15,Hs0:0.9,Hsmax:3.8,tp:42,sw:14,dur:84,fetch:90000,hShelf:28,Tp0:7,TpMax:10},
+  huracan: {nombre:'Huracán cat. 2 — aproximación directa',W0:7,Wmax:33,dPmax:35,Hs0:1.0,Hsmax:5.5,tp:42,sw:10,dur:72,fetch:110000,hShelf:26,Tp0:8,TpMax:12},
+};
+let escClave='severo';
+let ESC=ESCENARIOS[escClave];
+
+const RHO_A=1.22, RHO_W=1025, GRAV=9.81, BETA_PLAYA=0.025;
+function componentes(tH,esc){
+  const g1=Math.exp(-((tH-esc.tp)**2)/(2*esc.sw**2));
+  const g2=Math.exp(-((tH-esc.tp-2.5)**2)/(2*(esc.sw*1.25)**2));
+  const W=esc.W0+(esc.Wmax-esc.W0)*g1;
+  const dP=esc.dPmax*Math.exp(-((tH-esc.tp)**2)/(2*(esc.sw*1.15)**2));
+  const Hs=esc.Hs0+(esc.Hsmax-esc.Hs0)*g2;
+  const Tp=esc.Tp0+(esc.TpMax-esc.Tp0)*g2;
+  const Cd=(0.8+0.065*W)*1e-3;
+  const tau=RHO_A*Cd*W*W;
+  const setupV=tau*esc.fetch/(RHO_W*GRAV*esc.hShelf);
+  const ib=0.0101*dP;
+  const Hb=0.8*Hs;
+  const setupO=0.19*Hb;
+  const m=marea(tH);
+  const L0=GRAV*Tp*Tp/(2*Math.PI);
+  const HL=Math.sqrt(Math.max(0,Hs*L0));
+  const runup=1.1*(0.35*BETA_PLAYA*HL+Math.sqrt(Hs*L0*(0.563*BETA_PLAYA*BETA_PLAYA+0.004))/2);
+  return {W,dP,Hs,Tp,m,setupV,ib,setupO,runup,twl:m+setupV+ib+setupO};
+}
+
+/* línea de tiempo del evento: cuándo se cruza el nivel crítico */
+let lineaT=null;
+function calcularLineaTiempo(esc){
+  const dt=2/60, pts=[];
+  let tCrit=null,tMenor=null,pico=-1e9,tPico=0,fracPico=0;
+  for(let t=0;t<=esc.dur+1e-9;t+=dt){
+    const c=componentes(t,esc);
+    pts.push({t,twl:c.twl,m:c.m});
+    if(c.twl>pico){pico=c.twl;tPico=t;}
+    if(tMenor===null&&c.twl>=Z_MENOR)tMenor=t;
+    if(tCrit===null&&c.twl>=Z_CRIT)tCrit=t;
+  }
+  for(const p of curvaInund){if(p.z<=pico)fracPico=p.f;}
+  return {pts,tCrit,tMenor,pico,tPico,fracPico,dur:esc.dur};
+}
+
+/* ---------- estadística de extremos: Gumbel + Monte Carlo ---------- */
+const GUM_MU=0.95, GUM_BETA=0.25;             // población "verdadera" sintética
+const N_OBS=58;                                // 58 máximos anuales (1968–2025)
+const obs=[];
+{ const r=mulberry32(777);
+  for(let i=0;i<N_OBS;i++){const u=r();obs.push(GUM_MU-GUM_BETA*Math.log(-Math.log(u)));}
+  obs.sort((a,b)=>a-b);
+}
+/* ajuste por momentos */
+const mediaObs=obs.reduce((s,v)=>s+v,0)/N_OBS;
+const sdObs=Math.sqrt(obs.reduce((s,v)=>s+(v-mediaObs)**2,0)/(N_OBS-1));
+const BETA_HAT=sdObs*Math.sqrt(6)/Math.PI;
+const MU_HAT=mediaObs-0.5772156649*BETA_HAT;
+const Fgum=z=>Math.exp(-Math.exp(-(z-MU_HAT)/BETA_HAT));
+const zRetorno=T=>MU_HAT-BETA_HAT*Math.log(-Math.log(1-1/T));
+const pAnualCrit=1-Fgum(Z_CRIT);
+const T_RETORNO=1/pAnualCrit;
+
+/* Monte Carlo: primera inundación crítica con ascenso del nivel del mar */
+const ANO_BASE=2026, MC_N=20000, MC_HOR=80;
+const slr=y=>0.0036*y+0.00004*y*y;
+const mcAnios=[]; let mcCensura=0;
+{ const r=mulberry32(424242);
+  const pAnio=[];
+  for(let y=1;y<=MC_HOR;y++)pAnio.push(1-Fgum(Z_CRIT-slr(y)));
+  for(let n=0;n<MC_N;n++){
+    let hit=0;
+    for(let y=1;y<=MC_HOR;y++){ if(r()<pAnio[y-1]){hit=y;break;} }
+    if(hit)mcAnios.push(hit); else mcCensura++;
+  }
+  mcAnios.sort((a,b)=>a-b);
+}
+function cuantilMC(q){
+  const k=Math.floor(q*(MC_N-1));
+  return k<mcAnios.length?mcAnios[k]:MC_HOR+1;
+}
+const MC_P10=cuantilMC(0.10), MC_P50=cuantilMC(0.50), MC_P90=cuantilMC(0.90);
+let P_10ANIOS=1; for(let y=1;y<=10;y++)P_10ANIOS*=Fgum(Z_CRIT-slr(y)); P_10ANIOS=1-P_10ANIOS;
+
+/* ---------- escena 3D ---------- */
+const cv=document.getElementById('escena');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+const scene=new THREE.Scene();
+const CIELO_CLARO=new THREE.Color(0x9ec4da), CIELO_TORMENTA=new THREE.Color(0x3d4a52);
+scene.background=CIELO_CLARO.clone();
+scene.fog=new THREE.FogExp2(0x9ec4da,0.00013);
+
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,2,30000);
+camera.position.set(260,1150,2400);
+const controls=new THREE.OrbitControls(camera,cv);
+controls.target.set(0,0,-250);
+controls.enableDamping=true; controls.dampingFactor=0.07;
+controls.maxPolarAngle=1.47; controls.minDistance=180; controls.maxDistance=6500;
+
+const hemi=new THREE.HemisphereLight(0xbfd9e8,0x4a3f2e,0.75); scene.add(hemi);
+const sol=new THREE.DirectionalLight(0xfff1d6,1.15); sol.position.set(-1400,1600,800); scene.add(sol);
+
+/* --- malla del terreno --- */
+const terrGeo=new THREE.BufferGeometry();
+{
+  const pos=new Float32Array(G*G*3), col=new Float32Array(G*G*3);
+  const idx=new Uint32Array((G-1)*(G-1)*6);
+  for(let j=0;j<G;j++)for(let i=0;i<G;i++){
+    const k=j*G+i, x=i*STEP-HALF, z=j*STEP-HALF, h=H[k];
+    pos[k*3]=x; pos[k*3+1]=h; pos[k*3+2]=z;
+  }
+  let p=0;
+  for(let j=0;j<G-1;j++)for(let i=0;i<G-1;i++){
+    const a=j*G+i,b=a+1,c=a+G,d=c+1;
+    idx[p++]=a;idx[p++]=c;idx[p++]=b; idx[p++]=b;idx[p++]=c;idx[p++]=d;
+  }
+  terrGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  terrGeo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  terrGeo.setIndex(new THREE.BufferAttribute(idx,1));
+  terrGeo.computeVertexNormals();
+}
+/* colores base del terreno */
+const colorBase=new Float32Array(G*G*3);
+{
+  const cArena=[0.85,0.74,0.52],cArenaHum=[0.62,0.55,0.40],cUrb=[0.54,0.55,0.52],
+        cVeg=[0.36,0.48,0.29],cFondo=[0.10,0.22,0.27],cLecho=[0.16,0.30,0.30],cMuro=[0.62,0.60,0.55];
+  for(let j=0;j<G;j++)for(let i=0;i<G;i++){
+    const k=j*G+i, x=i*STEP-HALF, z=j*STEP-HALF, h=H[k];
+    const zsh=shoreZ(x), d=z-zsh, xr=riverX(z), rd=Math.abs(x-xr);
+    let c;
+    const n=fbm(x*0.003+11,z*0.003+4);
+    if(h<=0){
+      const t=clamp(-h/12,0,1);
+      const base=rd<170?cLecho:cFondo;
+      c=[lerp(cArenaHum[0],base[0],t),lerp(cArenaHum[1],base[1],t),lerp(cArenaHum[2],base[2],t)];
+    }else if(h>=2.25&&d>40&&d<92&&x<xr-280){
+      c=cMuro.slice();
+    }else if(d<140||h<1.05){
+      c=cArena.slice();
+    }else{
+      const urb=(x<xr-260)?smoothstep(160,360,d)*(1-smoothstep(1500,2200,d)):0.25*smoothstep(200,500,d);
+      const v=[lerp(cVeg[0],cUrb[0],urb),lerp(cVeg[1],cUrb[1],urb),lerp(cVeg[2],cUrb[2],urb)];
+      c=v;
+    }
+    const sh=0.86+0.14*n;
+    colorBase[k*3]=c[0]*sh;colorBase[k*3+1]=c[1]*sh;colorBase[k*3+2]=c[2]*sh;
+  }
+  terrGeo.getAttribute('color').array.set(colorBase);
+  terrGeo.getAttribute('color').needsUpdate=true;
+}
+const terrMat=new THREE.MeshPhongMaterial({vertexColors:true,shininess:4,side:THREE.DoubleSide});
+scene.add(new THREE.Mesh(terrGeo,terrMat));
+
+/* --- edificaciones (InstancedMesh) --- */
+const edificios=[]; // {x,z,base,alt,cell}
+{
+  const r=mulberry32(99);
+  for(let j=6;j<G-2;j++)for(let i=2;i<G-2;i++){
+    if(i%4===0||j%4===0)continue;
+    const k=j*G+i, h=H[k];
+    if(h<1.0||h>7.5)continue;
+    const x=i*STEP-HALF, z=j*STEP-HALF;
+    const zsh=shoreZ(x), d=z-zsh, xr=riverX(z), rd=Math.abs(x-xr);
+    if(d<115||rd<330)continue;
+    const oeste=x<xr;
+    const prob=oeste?0.62:0.10;
+    if(r()>prob)continue;
+    let alt;
+    const u=r();
+    if(d<450&&oeste&&u>0.88)alt=24+r()*16;        // torres frente al malecón
+    else if(u>0.72)alt=12+r()*9;
+    else alt=5+r()*7;
+    edificios.push({x:x+(r()-0.5)*14,z:z+(r()-0.5)*14,base:h,alt,cell:k,ancho:13+r()*9});
+    if(edificios.length>=1100)break;
+  }
+}
+const edifGeo=new THREE.BoxGeometry(1,1,1);
+const edifMat=new THREE.MeshPhongMaterial({shininess:8});
+const edifMesh=new THREE.InstancedMesh(edifGeo,edifMat,edificios.length);
+const colNormalEdif=[],_m4=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3();
+{
+  const r=mulberry32(55);
+  const paleta=[0xb9b4a6,0xa8a39a,0xcfc6b2,0x9aa0a3,0xc2a98e,0xd8d2c4];
+  for(let n=0;n<edificios.length;n++){
+    const e=edificios[n];
+    _p.set(e.x,e.base+e.alt/2,e.z);_s.set(e.ancho,e.alt,e.ancho);_q.identity();
+    _m4.compose(_p,_q,_s);edifMesh.setMatrixAt(n,_m4);
+    const c=new THREE.Color(paleta[Math.floor(r()*paleta.length)]);
+    colNormalEdif.push(c);edifMesh.setColorAt(n,c);
+  }
+  edifMesh.instanceMatrix.needsUpdate=true;
+  if(edifMesh.instanceColor)edifMesh.instanceColor.needsUpdate=true;
+}
+scene.add(edifMesh);
+const COL_AFECTADO=new THREE.Color(0xd9472b);
+
+/* --- tanques petroquímicos (margen este del río) --- */
+{
+  const r=mulberry32(31);
+  const tanqueGeo=new THREE.CylinderGeometry(1,1,1,20);
+  const tanqueMat=new THREE.MeshPhongMaterial({color:0xd6dcd8,shininess:30});
+  const tanques=new THREE.InstancedMesh(tanqueGeo,tanqueMat,10);
+  let n=0;
+  while(n<10){
+    const x=riverX(0)+340+r()*1000, z=-200+r()*1200;
+    const h=terrainHeight(x,z);
+    if(h<1.2||h>6)continue;
+    const rad=26+r()*20, alt=12+r()*6;
+    _p.set(x,h+alt/2,z);_s.set(rad,alt,rad);_q.identity();
+    _m4.compose(_p,_q,_s);tanques.setMatrixAt(n,_m4);n++;
+  }
+  tanques.instanceMatrix.needsUpdate=true;
+  scene.add(tanques);
+}
+
+/* --- agua --- */
+const GW=141, WDOM=4600, WSTEP=WDOM/(GW-1), WHALF=WDOM/2;
+const aguaGeo=new THREE.BufferGeometry();
+const aguaTerr=new Float32Array(GW*GW);
+{
+  const pos=new Float32Array(GW*GW*3);
+  const idx=new Uint32Array((GW-1)*(GW-1)*6);
+  for(let j=0;j<GW;j++)for(let i=0;i<GW;i++){
+    const k=j*GW+i, x=i*WSTEP-WHALF, z=j*WSTEP-WHALF;
+    pos[k*3]=x;pos[k*3+1]=0;pos[k*3+2]=z;
+    aguaTerr[k]=terrainHeight(x,z);
+  }
+  let p=0;
+  for(let j=0;j<GW-1;j++)for(let i=0;i<GW-1;i++){
+    const a=j*GW+i,b=a+1,c=a+GW,d=c+1;
+    idx[p++]=a;idx[p++]=c;idx[p++]=b; idx[p++]=b;idx[p++]=c;idx[p++]=d;
+  }
+  aguaGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  aguaGeo.setIndex(new THREE.BufferAttribute(idx,1));
+  aguaGeo.computeVertexNormals();
+}
+const aguaMat=new THREE.MeshPhongMaterial({color:0x10566e,transparent:true,opacity:0.86,shininess:95,specular:0x9fd4e0,side:THREE.DoubleSide});
+scene.add(new THREE.Mesh(aguaGeo,aguaMat));
+const OLAS=[
+  {l:130,th:0.15,f:0.50},
+  {l:78, th:-0.22,f:0.30},
+  {l:41, th:0.38,f:0.16},
+].map(o=>{const k=2*Math.PI/o.l;return {kx:k*Math.sin(o.th),kz:k*Math.cos(o.th),w:Math.sqrt(GRAV*k),f:o.f};});
+
+/* --- lluvia --- */
+const N_LLUVIA=1600;
+const lluviaGeo=new THREE.BufferGeometry();
+const lluviaPos=new Float32Array(N_LLUVIA*3), lluviaVel=new Float32Array(N_LLUVIA);
+{
+  for(let n=0;n<N_LLUVIA;n++){
+    lluviaPos[n*3]=(rng()-0.5)*3200;
+    lluviaPos[n*3+1]=rng()*900;
+    lluviaPos[n*3+2]=(rng()-0.5)*3200;
+    lluviaVel[n]=420+rng()*260;
+  }
+  lluviaGeo.setAttribute('position',new THREE.BufferAttribute(lluviaPos,3));
+}
+const lluviaMat=new THREE.PointsMaterial({color:0xa9d4e6,size:6,transparent:true,opacity:0,sizeAttenuation:true,depthWrite:false});
+scene.add(new THREE.Points(lluviaGeo,lluviaMat));
+
+/* ---------- gráficas 2D ---------- */
+function prepCanvas(c){const ctx=c.getContext('2d');return ctx;}
+const fmt1=v=>v.toFixed(1), fmt2=v=>v.toFixed(2);
+
+function dibujarGumbel(){
+  const c=document.getElementById('gfGumbel'),ctx=prepCanvas(c);
+  const W=c.width,Hh=c.height,l=36,r=10,t=12,b=22;
+  ctx.clearRect(0,0,W,Hh);
+  const Tmin=1.5,Tmax=300,zmin=0.3,zmax=3.3;
+  const X=T=>l+(Math.log10(T)-Math.log10(Tmin))/(Math.log10(Tmax)-Math.log10(Tmin))*(W-l-r);
+  const Y=z=>Hh-b-(z-zmin)/(zmax-zmin)*(Hh-t-b);
+  ctx.font='8.5px IBM Plex Mono, monospace';
+  ctx.strokeStyle='rgba(127,163,166,.18)';ctx.fillStyle='#7fa3a6';ctx.lineWidth=1;
+  for(const T of [2,5,10,25,50,100,250]){
+    ctx.beginPath();ctx.moveTo(X(T),t);ctx.lineTo(X(T),Hh-b);ctx.stroke();
+    ctx.textAlign='center';ctx.fillText(T,X(T),Hh-b+11);
+  }
+  for(let z=0.5;z<=3.01;z+=0.5){
+    ctx.beginPath();ctx.moveTo(l,Y(z));ctx.lineTo(W-r,Y(z));ctx.stroke();
+    ctx.textAlign='right';ctx.fillText(z.toFixed(1),l-4,Y(z)+3);
+  }
+  ctx.fillStyle='#7fa3a6';ctx.textAlign='center';
+  ctx.fillText('periodo de retorno T (años)',l+(W-l-r)/2,Hh-2);
+  ctx.save();ctx.translate(9,t+(Hh-t-b)/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText('nivel z (m)',0,0);ctx.restore();
+  /* nivel crítico */
+  ctx.strokeStyle='#ff5249';ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(l,Y(Z_CRIT));ctx.lineTo(W-r,Y(Z_CRIT));ctx.stroke();
+  ctx.beginPath();ctx.moveTo(X(T_RETORNO),t);ctx.lineTo(X(T_RETORNO),Hh-b);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#ff5249';ctx.textAlign='left';
+  ctx.fillText('z crítico '+fmt2(Z_CRIT)+' m',l+4,Y(Z_CRIT)-4);
+  /* curva ajustada */
+  ctx.strokeStyle='#3fd9c9';ctx.lineWidth=1.6;ctx.beginPath();
+  for(let q=0;q<=80;q++){
+    const T=Math.pow(10,Math.log10(Tmin)+(Math.log10(Tmax)-Math.log10(Tmin))*q/80);
+    const z=zRetorno(T);
+    if(q===0)ctx.moveTo(X(T),Y(clamp(z,zmin,zmax)));else ctx.lineTo(X(T),Y(clamp(z,zmin,zmax)));
+  }
+  ctx.stroke();
+  /* puntos empíricos (Gringorten) */
+  ctx.fillStyle='#e7c987';
+  for(let i=0;i<N_OBS;i++){
+    const p=(i+1-0.44)/(N_OBS+0.12), T=1/(1-p);
+    if(T<Tmin||T>Tmax)continue;
+    ctx.beginPath();ctx.arc(X(T),Y(obs[i]),1.8,0,7);ctx.fill();
+  }
+  /* etiqueta T crítico */
+  ctx.fillStyle='#ff8c80';ctx.textAlign='center';
+  ctx.fillText('T≈'+fmt1(T_RETORNO)+' a',clamp(X(T_RETORNO),l+24,W-36),t+8);
+}
+
+function dibujarMC(){
+  const c=document.getElementById('gfMC'),ctx=prepCanvas(c);
+  const W=c.width,Hh=c.height,l=30,r=8,t=14,b=20;
+  ctx.clearRect(0,0,W,Hh);
+  const binW=2,nB=Math.ceil(MC_HOR/binW);
+  const hist=new Array(nB).fill(0);
+  for(const y of mcAnios)hist[Math.min(nB-1,Math.floor((y-1)/binW))]++;
+  const hMax=Math.max(...hist);
+  const X=y=>l+(y/MC_HOR)*(W-l-r);
+  ctx.font='8.5px IBM Plex Mono, monospace';ctx.fillStyle='#7fa3a6';ctx.textAlign='center';
+  ctx.fillText('histograma Monte Carlo · año de la 1.ª inundación crítica',W/2,9);
+  for(let k=0;k<nB;k++){
+    const h=(hist[k]/hMax)*(Hh-t-b);
+    ctx.fillStyle='rgba(63,217,201,.65)';
+    ctx.fillRect(X(k*binW),Hh-b-h,(W-l-r)/nB-1,h);
+  }
+  ctx.fillStyle='#7fa3a6';
+  for(const y of [0,20,40,60,80]){
+    ctx.fillText(ANO_BASE+y,X(y),Hh-b+11);
+  }
+  /* mediana */
+  ctx.strokeStyle='#ffb454';ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(X(MC_P50),t+2);ctx.lineTo(X(MC_P50),Hh-b);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#ffb454';ctx.textAlign='left';
+  ctx.fillText('mediana '+(ANO_BASE+MC_P50),clamp(X(MC_P50)+3,l,W-86),t+10);
+}
+
+/* línea de tiempo del evento (estática + cursor) */
+const lineaCv=document.getElementById('gfLinea');
+let lineaStatic=null;
+const LM={l:42,r:12,t:10,b:20};
+let lineaEsc={ymin:-0.5,ymax:3.4};
+function dibujarLineaStatic(){
+  const W=lineaCv.width,Hh=lineaCv.height;
+  const off=document.createElement('canvas');off.width=W;off.height=Hh;
+  const ctx=off.getContext('2d');
+  lineaEsc.ymax=Math.max(2.2,lineaT.pico+0.45);
+  const X=t=>LM.l+(t/lineaT.dur)*(W-LM.l-LM.r);
+  const Y=z=>Hh-LM.b-(z-lineaEsc.ymin)/(lineaEsc.ymax-lineaEsc.ymin)*(Hh-LM.t-LM.b);
+  ctx.font='8.5px IBM Plex Mono, monospace';
+  ctx.strokeStyle='rgba(127,163,166,.18)';ctx.fillStyle='#7fa3a6';ctx.lineWidth=1;
+  for(let t=0;t<=lineaT.dur;t+=12){
+    ctx.beginPath();ctx.moveTo(X(t),LM.t);ctx.lineTo(X(t),Hh-LM.b);ctx.stroke();
+    ctx.textAlign='center';ctx.fillText('t+'+t+'h',X(t),Hh-LM.b+11);
+  }
+  for(let z=0;z<=lineaEsc.ymax;z+=1){
+    ctx.beginPath();ctx.moveTo(LM.l,Y(z));ctx.lineTo(W-LM.r,Y(z));ctx.stroke();
+    ctx.textAlign='right';ctx.fillText(z+' m',LM.l-4,Y(z)+3);
+  }
+  /* umbrales */
+  ctx.setLineDash([4,3]);
+  ctx.strokeStyle='#ffb454';
+  ctx.beginPath();ctx.moveTo(LM.l,Y(Z_MENOR));ctx.lineTo(W-LM.r,Y(Z_MENOR));ctx.stroke();
+  ctx.strokeStyle='#ff5249';
+  ctx.beginPath();ctx.moveTo(LM.l,Y(Z_CRIT));ctx.lineTo(W-LM.r,Y(Z_CRIT));ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#ffb454';ctx.textAlign='left';ctx.fillText('menor (5 %)',LM.l+4,Y(Z_MENOR)-3);
+  ctx.fillStyle='#ff5249';ctx.fillText('CRÍTICO (15 %) '+fmt2(Z_CRIT)+' m',LM.l+4,Y(Z_CRIT)-3);
+  /* marea sola */
+  ctx.strokeStyle='rgba(63,217,201,.45)';ctx.lineWidth=1;ctx.beginPath();
+  lineaT.pts.forEach((p,i)=>{i===0?ctx.moveTo(X(p.t),Y(p.m)):ctx.lineTo(X(p.t),Y(p.m));});
+  ctx.stroke();
+  /* TWL */
+  const grad=ctx.createLinearGradient(0,Y(lineaEsc.ymax),0,Y(lineaEsc.ymin));
+  grad.addColorStop(0,'rgba(255,82,73,.25)');grad.addColorStop(1,'rgba(63,217,201,.05)');
+  ctx.fillStyle=grad;ctx.beginPath();
+  ctx.moveTo(X(0),Y(Math.max(lineaEsc.ymin,0)));
+  lineaT.pts.forEach(p=>ctx.lineTo(X(p.t),Y(p.twl)));
+  ctx.lineTo(X(lineaT.dur),Y(Math.max(lineaEsc.ymin,0)));ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#eef9f7';ctx.lineWidth=1.7;ctx.beginPath();
+  lineaT.pts.forEach((p,i)=>{i===0?ctx.moveTo(X(p.t),Y(p.twl)):ctx.lineTo(X(p.t),Y(p.twl));});
+  ctx.stroke();
+  /* cruce crítico */
+  if(lineaT.tCrit!==null){
+    ctx.fillStyle='#ff5249';
+    ctx.beginPath();ctx.arc(X(lineaT.tCrit),Y(Z_CRIT),3.5,0,7);ctx.fill();
+  }
+  lineaStatic=off;
+}
+function dibujarLineaCursor(tH,twl){
+  const ctx=lineaCv.getContext('2d');
+  const W=lineaCv.width,Hh=lineaCv.height;
+  ctx.clearRect(0,0,W,Hh);
+  if(lineaStatic)ctx.drawImage(lineaStatic,0,0);
+  const X=t=>LM.l+(t/lineaT.dur)*(W-LM.l-LM.r);
+  const Y=z=>Hh-LM.b-(z-lineaEsc.ymin)/(lineaEsc.ymax-lineaEsc.ymin)*(Hh-LM.t-LM.b);
+  ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(X(tH),LM.t);ctx.lineTo(X(tH),Hh-LM.b);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(X(tH),Y(twl),3,0,7);ctx.fill();
+}
+
+/* ---------- HUD / estado de la simulación ---------- */
+const $=id=>document.getElementById(id);
+let simT=0, velocidad=240, corriendo=true, cruzado=false, lastBfsNivel=-99, fracActual=0, edifAfect=0;
+const relojReal=new THREE.Clock();
+
+function formateaHora(tH){
+  const dia=Math.floor(tH/24)+1;
+  const hh=Math.floor(tH%24), mm=Math.floor((tH*60)%60);
+  return 'DÍA '+dia+' · '+String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+
+function setEscenario(clave){
+  escClave=clave;ESC=ESCENARIOS[clave];
+  lineaT=calcularLineaTiempo(ESC);
+  dibujarLineaStatic();
+  simT=0;cruzado=false;lastBfsNivel=-99;
+  $('banner').classList.remove('visible');
+  $('btnSalto').disabled=(lineaT.tCrit===null);
+  const Tesc=1/Math.max(1e-6,1-Fgum(lineaT.pico));
+  let txt='<b>'+ESC.nombre+'</b><br>'+
+    'Pico: '+fmt2(lineaT.pico)+' m en t+'+fmt1(lineaT.tPico)+' h · evento tipo T≈'+
+    (Tesc>400?'>400':fmt1(Tesc))+' a<br>';
+  if(lineaT.tCrit!==null){
+    txt+='<span class="crit">Cruce crítico: t+'+fmt1(lineaT.tCrit)+' h — '+formateaHora(lineaT.tCrit)+'</span><br>'+
+         'Inundación máx: '+(lineaT.fracPico*100).toFixed(1)+' % del terreno';
+  }else{
+    txt+='No alcanza el nivel crítico ('+fmt2(Z_CRIT)+' m). Inundación máx: '+(lineaT.fracPico*100).toFixed(1)+' %';
+  }
+  $('evtTexto').innerHTML=txt;
+}
+
+function escribirStats(){
+  $('statNums').innerHTML=
+    'Ajuste Gumbel (n=58): μ̂='+fmt2(MU_HAT)+' m · β̂='+fmt2(BETA_HAT)+' m<br>'+
+    'Nivel crítico (inunda ≥15 %): <span class="res">z<sub>c</sub> = '+fmt2(Z_CRIT)+' m</span><br>'+
+    'Prob. anual de excederlo hoy: <span class="res">'+(pAnualCrit*100).toFixed(1)+' %</span>'+
+    ' → <b>T ≈ '+fmt1(T_RETORNO)+' años</b><br>'+
+    'P(≥1 inundación crítica en 10 años): <span class="res">'+(P_10ANIOS*100).toFixed(0)+' %</span><br>'+
+    'Monte Carlo ('+(MC_N/1000)+'k sims, ANM 3.6 mm/a): 1.ª crítica<br>'+
+    '&nbsp;&nbsp;mediana <b>'+(ANO_BASE+MC_P50)+'</b> · P10 '+(ANO_BASE+MC_P10)+' · P90 '+
+    (MC_P90>MC_HOR?'>'+(ANO_BASE+MC_HOR):ANO_BASE+MC_P90);
+}
+
+/* actualización del terreno/edificios al cambiar el nivel */
+function actualizarInundacion(nivel){
+  fracActual=bfsInundacion(nivel);
+  const colAttr=terrGeo.getAttribute('color');
+  const arr=colAttr.array;
+  for(let k=0;k<G*G;k++){
+    if(visited[k]&&H[k]>0){
+      arr[k*3]  =colorBase[k*3]*0.30+0.03;
+      arr[k*3+1]=colorBase[k*3+1]*0.30+0.10;
+      arr[k*3+2]=colorBase[k*3+2]*0.30+0.13;
+    }else{
+      arr[k*3]=colorBase[k*3];arr[k*3+1]=colorBase[k*3+1];arr[k*3+2]=colorBase[k*3+2];
+    }
+  }
+  colAttr.needsUpdate=true;
+  edifAfect=0;
+  for(let n=0;n<edificios.length;n++){
+    const e=edificios[n];
+    const af=visited[e.cell]&&e.base<nivel;
+    if(af)edifAfect++;
+    edifMesh.setColorAt(n,af?COL_AFECTADO:colNormalEdif[n]);
+  }
+  if(edifMesh.instanceColor)edifMesh.instanceColor.needsUpdate=true;
+  lastBfsNivel=nivel;
+}
+
+/* ---------- bucle principal ---------- */
+let acumHud=0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(relojReal.getDelta(),0.1);
+  const tReal=relojReal.elapsedTime;
+  if(corriendo){
+    simT+=dt*velocidad;
+    if(simT>=ESC.dur*3600){simT=ESC.dur*3600;corriendo=false;$('btnPlay').textContent='▶';}
+  }
+  const tH=simT/3600;
+  const c=componentes(tH,ESC);
+
+  /* agua */
+  const posA=aguaGeo.getAttribute('position').array;
+  const a1=c.Hs/2*OLAS[0].f, a2=c.Hs/2*OLAS[1].f, a3=c.Hs/2*OLAS[2].f;
+  for(let k=0;k<GW*GW;k++){
+    const x=posA[k*3], z=posA[k*3+2];
+    const prof=c.twl-aguaTerr[k];
+    const f=clamp(prof/3,0,1);
+    let y=c.twl;
+    if(f>0){
+      y+=f*(a1*Math.sin(OLAS[0].kx*x+OLAS[0].kz*z-OLAS[0].w*tReal)
+           +a2*Math.sin(OLAS[1].kx*x+OLAS[1].kz*z-OLAS[1].w*tReal)
+           +a3*Math.sin(OLAS[2].kx*x+OLAS[2].kz*z-OLAS[2].w*tReal)
+           +0.06*c.Hs*Math.sin(0.045*x+0.07*z-1.35*tReal));
+    }
+    posA[k*3+1]=y;
+  }
+  aguaGeo.getAttribute('position').needsUpdate=true;
+  aguaGeo.computeVertexNormals();
+
+  /* cielo / tormenta */
+  const s=clamp((c.W-8)/(ESC.Wmax-8+1e-6),0,1);
+  scene.background.copy(CIELO_CLARO).lerp(CIELO_TORMENTA,s);
+  scene.fog.color.copy(scene.background);
+  scene.fog.density=0.00012+0.00014*s;
+  sol.intensity=1.15-0.7*s;
+  hemi.intensity=0.75-0.3*s;
+
+  /* lluvia */
+  lluviaMat.opacity=smoothstep(14,24,c.W)*0.4;
+  if(lluviaMat.opacity>0.01){
+    for(let n=0;n<N_LLUVIA;n++){
+      lluviaPos[n*3+1]-=lluviaVel[n]*dt;
+      lluviaPos[n*3]-=c.W*6*dt;
+      if(lluviaPos[n*3+1]<0){lluviaPos[n*3+1]+=900;}
+      if(lluviaPos[n*3]<-1600)lluviaPos[n*3]+=3200;
+    }
+    lluviaGeo.getAttribute('position').needsUpdate=true;
+  }
+
+  /* inundación (recalcular sólo si el nivel cambió lo suficiente) */
+  if(Math.abs(c.twl-lastBfsNivel)>0.02)actualizarInundacion(c.twl);
+
+  /* cruce crítico */
+  if(!cruzado&&c.twl>=Z_CRIT){
+    cruzado=true;
+    $('bannerTxt').textContent=formateaHora(tH)+' (t+'+fmt1(tH)+' h) · nivel '+fmt2(c.twl)+
+      ' m · '+(fracActual*100).toFixed(0)+' % del terreno inundado · escenario: '+ESC.nombre;
+    $('banner').classList.add('visible');
+    setTimeout(()=>$('banner').classList.remove('visible'),12000);
+  }
+
+  /* HUD (throttle) */
+  acumHud+=dt;
+  if(acumHud>0.15){
+    acumHud=0;
+    $('horaSim').textContent=formateaHora(tH);
+    $('horaSub').textContent='t+'+fmt1(tH)+' h · ×'+velocidad+(corriendo?'':' · FIN DEL EVENTO');
+    $('twlGrande').innerHTML=(c.twl>=0?'+':'')+fmt2(c.twl)+' <small>m s.n.m.m.</small>';
+    $('vMarea').textContent=(c.m>=0?'+':'')+fmt2(c.m)+' m';
+    $('vViento').textContent='+'+fmt2(c.setupV)+' m';
+    $('vPresion').textContent='+'+fmt2(c.ib)+' m';
+    $('vOleaje').textContent='+'+fmt2(c.setupO)+' m';
+    $('bMarea').style.width=clamp(Math.abs(c.m)/1.6*100,0,100)+'%';
+    $('bViento').style.width=clamp(c.setupV/1.6*100,0,100)+'%';
+    $('bPresion').style.width=clamp(c.ib/1.6*100,0,100)+'%';
+    $('bOleaje').style.width=clamp(c.setupO/1.6*100,0,100)+'%';
+    $('cViento').textContent=fmt1(c.W)+' m/s ('+fmt1(c.W*3.6)+' km/h)';
+    $('cPresion').textContent='−'+fmt1(c.dP)+' hPa';
+    $('cHs').textContent=fmt1(c.Hs)+' m · Tp '+fmt1(c.Tp)+' s';
+    $('cRunup').textContent='+'+fmt2(c.runup)+' m (playa)';
+    const pct=fracActual*100;
+    $('iFrac').textContent=pct.toFixed(1)+' %';
+    $('iFrac').className=pct>=15?'alertVal':'';
+    $('iArea').textContent=(fracActual*AREA_LAND_KM2).toFixed(2)+' km²';
+    $('iEdif').textContent=edifAfect+' / '+edificios.length;
+    $('iEdif').className=edifAfect>0?'alertVal':'';
+    const chip=$('chipEstado');
+    if(pct>=15){chip.textContent='■ INUNDACIÓN CRÍTICA';chip.className='panel critica';}
+    else if(pct>=5){chip.textContent='■ INUNDACIÓN MENOR';chip.className='panel menor';}
+    else if(pct>=1){chip.textContent='■ VIGILANCIA';chip.className='panel vigilancia';}
+    else{chip.textContent='■ NORMAL';chip.className='panel normal';}
+    dibujarLineaCursor(tH,c.twl);
+  }
+
+  /* brújula: norte = −z */
+  $('flechaN').style.transform='rotate('+(-controls.getAzimuthalAngle())+'rad)';
+
+  controls.update();
+  renderer.render(scene,camera);
+}
+
+/* ---------- interfaz ---------- */
+for(const [k,v] of Object.entries(ESCENARIOS)){
+  const o=document.createElement('option');o.value=k;o.textContent=v.nombre;
+  if(k===escClave)o.selected=true;
+  $('selEsc').appendChild(o);
+}
+$('selEsc').addEventListener('change',e=>{setEscenario(e.target.value);corriendo=true;$('btnPlay').textContent='⏸';});
+$('btnPlay').addEventListener('click',()=>{corriendo=!corriendo;$('btnPlay').textContent=corriendo?'⏸':'▶';});
+document.querySelectorAll('.velBtn').forEach(b=>b.addEventListener('click',()=>{
+  velocidad=+b.dataset.v;
+  document.querySelectorAll('.velBtn').forEach(x=>x.classList.toggle('activo',x===b));
+}));
+$('btnSalto').addEventListener('click',()=>{
+  if(lineaT.tCrit!==null){simT=Math.max(0,(lineaT.tCrit-1.5))*3600;cruzado=false;corriendo=true;$('btnPlay').textContent='⏸';}
+});
+$('btnReset').addEventListener('click',()=>{simT=0;cruzado=false;corriendo=true;$('btnPlay').textContent='⏸';$('banner').classList.remove('visible');});
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  ajustarLinea();
+});
+function ajustarLinea(){
+  const w=clamp(innerWidth-620,420,860);
+  lineaCv.width=w; lineaCv.height=118;
+  if(lineaT)dibujarLineaStatic();
+}
+
+/* ---------- arranque ---------- */
+ajustarLinea();
+setEscenario(escClave);
+escribirStats();
+dibujarGumbel();
+dibujarMC();
+actualizarInundacion(componentes(0,ESC).twl);
+animate();
+
+/* expone resultados para inspección */
+window.__resultados={
+  zCritico:Z_CRIT, zMenor:Z_MENOR, T_retorno:T_RETORNO, pAnual:pAnualCrit,
+  P10anios:P_10ANIOS, mcMediana:ANO_BASE+MC_P50, mcP10:ANO_BASE+MC_P10, mcP90:ANO_BASE+MC_P90,
+  muHat:MU_HAT, betaHat:BETA_HAT, areaLandKm2:AREA_LAND_KM2,
+  escenarios:Object.fromEntries(Object.entries(ESCENARIOS).map(([k,v])=>{
+    const lt=calcularLineaTiempo(v);
+    return [k,{pico:+lt.pico.toFixed(3),tPico:+lt.tPico.toFixed(2),tCrit:lt.tCrit===null?null:+lt.tCrit.toFixed(2),fracPico:+lt.fracPico.toFixed(4)}];
+  })),
+  curva:[0.5,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0].map(z=>({z,f:+bfsInundacion(z).toFixed(4)}))
+};
+console.log('COATZA·MAR listo',window.__resultados);
+</script>
+</body>
+</html>

@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Derby Demolición</title>
+<style>
+  /* ===== Estilos generales ===== */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #0a0a0c;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    color: #fff; user-select: none; touch-action: none;
+  }
+  #game { display: block; position: fixed; inset: 0; }
+
+  /* ===== HUD (marcadores en pantalla) ===== */
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 14px; z-index: 5;
+  }
+  #hud.hidden { display: none; }
+
+  .panel {
+    background: rgba(8,10,16,0.55);
+    border: 2px solid rgba(255,255,255,0.18);
+    border-radius: 12px;
+    padding: 10px 12px;
+    backdrop-filter: blur(4px);
+  }
+
+  .bar-label {
+    font-size: 12px; letter-spacing: 2px; font-weight: bold;
+    color: #ffd166; margin-bottom: 6px; text-shadow: 0 1px 2px #000;
+  }
+  .bar {
+    width: 200px; height: 18px; border-radius: 9px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.25);
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg,#2dd36f,#7bed9f);
+    transition: width 0.12s linear;
+  }
+  #rivals {
+    font-size: 16px; font-weight: bold; letter-spacing: 1px;
+    text-shadow: 0 2px 4px #000; text-align: right;
+  }
+  #rivals small { display:block; font-size:11px; color:#9aa; letter-spacing:2px; font-weight:normal; }
+
+  #mute {
+    pointer-events: auto; margin-top: 8px; cursor: pointer;
+    background: rgba(8,10,16,0.6); color:#fff;
+    border: 2px solid rgba(255,255,255,0.2); border-radius: 10px;
+    font-size: 18px; padding: 4px 10px;
+  }
+
+  /* ===== Pantallas (menú / victoria / derrota) ===== */
+  #overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; padding: 24px;
+    background: radial-gradient(circle at 50% 40%, rgba(20,22,30,0.55), rgba(5,5,8,0.92));
+  }
+  #overlay.hidden { display: none; }
+  #overlay h1 {
+    font-size: clamp(34px, 8vw, 78px); margin: 0 0 6px;
+    letter-spacing: 3px; font-weight: 900;
+    color: #ff5a3c;
+    text-shadow: 0 0 18px rgba(255,90,60,0.6), 4px 4px 0 #7a1d12;
+    transform: rotate(-2deg);
+  }
+  #overlay h2 { font-size: clamp(22px,5vw,44px); margin:0 0 10px; letter-spacing:2px; }
+  #overlay p { max-width: 460px; line-height: 1.6; color: #cdd3e0; font-size: 15px; }
+  #overlay .keys { margin: 14px 0 4px; color:#9aa3b5; font-size: 14px; }
+  #overlay .keys b { color:#ffd166; }
+  #overlay button {
+    margin-top: 22px; cursor: pointer;
+    font: inherit; font-size: 22px; font-weight: bold; letter-spacing: 2px;
+    color: #0a0a0c; background: linear-gradient(180deg,#ffd166,#ffb703);
+    border: none; border-radius: 14px; padding: 14px 38px;
+    box-shadow: 0 6px 0 #b9810a, 0 10px 20px rgba(0,0,0,0.5);
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  #overlay button:active { transform: translateY(4px); box-shadow: 0 2px 0 #b9810a, 0 4px 10px rgba(0,0,0,0.5); }
+
+  /* ===== Controles táctiles ===== */
+  #touch { position: fixed; inset: 0; z-index: 6; pointer-events: none; display: none; }
+  #touch.show { display: block; }
+  .pad { position: absolute; bottom: 22px; display: flex; gap: 14px; }
+  .pad.left { left: 22px; }
+  .pad.right { right: 22px; }
+  .pad button {
+    pointer-events: auto; width: 76px; height: 76px; border-radius: 50%;
+    font-size: 30px; color: #fff;
+    background: rgba(20,24,40,0.5); border: 3px solid rgba(255,255,255,0.25);
+  }
+  .pad button:active { background: rgba(255,209,102,0.5); }
+</style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- Marcadores en pantalla -->
+  <div id="hud" class="hidden">
+    <div class="panel">
+      <div class="bar-label">DAÑO DE TU AUTO</div>
+      <div class="bar"><div id="hpfill" class="bar-fill"></div></div>
+    </div>
+    <div>
+      <div class="panel">
+        <div id="rivals">RIVALES: 5<small>EN PIE</small></div>
+      </div>
+      <button id="mute" title="Silenciar">🔊</button>
+    </div>
+  </div>
+
+  <!-- Pantalla de menú / fin de partida -->
+  <div id="overlay">
+    <h1>DERBY DEMOLICIÓN</h1>
+    <p>Estás en una arena de chatarra. Embiste a los demás autos para destruirlos
+       antes de que ellos destruyan el tuyo. ¡El último que quede en pie gana!</p>
+    <div class="keys">
+      Conduce con <b>↑ ↓ ← →</b> o <b>W A S D</b> &nbsp;·&nbsp; en móvil usa los botones
+    </div>
+    <button id="startBtn">JUGAR</button>
+  </div>
+
+  <!-- Controles táctiles (solo móvil) -->
+  <div id="touch">
+    <div class="pad left">
+      <button data-k="left">◀</button>
+      <button data-k="right">▶</button>
+    </div>
+    <div class="pad right">
+      <button data-k="down">▼</button>
+      <button data-k="up">▲</button>
+    </div>
+  </div>
+
+<script>
+"use strict";
+/* =====================================================================
+   DERBY DEMOLICIÓN — juego de choques con vista superior
+   Hecho con Canvas 2D. Todo el juego vive en este archivo.
+   Lee los comentarios: están pensados para aprender cómo funciona.
+   ===================================================================== */
+
+// --- Referencias al DOM ---
+const canvas  = document.getElementById('game');
+const ctx     = canvas.getContext('2d');
+const hudEl   = document.getElementById('hud');
+const hpFill  = document.getElementById('hpfill');
+const rivalsEl= document.getElementById('rivals');
+const overlay = document.getElementById('overlay');
+const startBtn= document.getElementById('startBtn');
+const muteBtn = document.getElementById('mute');
+const touchEl = document.getElementById('touch');
+
+// --- Utilidades matemáticas ---
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+const rand  = (a, b) => a + Math.random() * (b - a);
+// Diferencia de ángulos normalizada al rango [-PI, PI]
+function angDiff(a, b){ let d = a - b; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; }
+
+// --- Tamaño del lienzo (se adapta a la ventana, con soporte de pantallas retina) ---
+let W = 0, H = 0, dpr = 1;
+function resize(){
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width  = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* =====================================================================
+   LA ARENA
+   El mundo es más grande que la pantalla; una "cámara" sigue al jugador.
+   Dibujamos todo el suelo (tierra, muros, marcas de neumáticos) una sola
+   vez en un canvas oculto y luego lo pintamos como imagen de fondo.
+   ===================================================================== */
+const ARENA = { w: 1500, h: 1100, wall: 64 };
+
+const floor  = document.createElement('canvas');
+floor.width  = ARENA.w; floor.height = ARENA.h;
+const fctx   = floor.getContext('2d');
+
+function initFloor(){
+  // Tierra base
+  fctx.fillStyle = '#6e5238';
+  fctx.fillRect(0, 0, ARENA.w, ARENA.h);
+  // Manchas de tierra para dar textura
+  for (let i = 0; i < 1400; i++){
+    const x = rand(0, ARENA.w), y = rand(0, ARENA.h), r = rand(6, 34);
+    const shade = rand(-22, 18);
+    fctx.fillStyle = `rgba(${90+shade},${68+shade},${46+shade},0.35)`;
+    fctx.beginPath(); fctx.ellipse(x, y, r, r*rand(0.5,1), rand(0,TAU), 0, TAU); fctx.fill();
+  }
+  // Algunas manchas de aceite oscuras
+  for (let i = 0; i < 26; i++){
+    fctx.fillStyle = 'rgba(20,16,12,0.25)';
+    fctx.beginPath(); fctx.ellipse(rand(120,ARENA.w-120), rand(120,ARENA.h-120), rand(20,60), rand(14,40), rand(0,TAU), 0, TAU); fctx.fill();
+  }
+
+  // Muros de concreto en el borde
+  const w = ARENA.wall;
+  fctx.fillStyle = '#34343c';
+  fctx.fillRect(0, 0, ARENA.w, w);
+  fctx.fillRect(0, ARENA.h - w, ARENA.w, w);
+  fctx.fillRect(0, 0, w, ARENA.h);
+  fctx.fillRect(ARENA.w - w, 0, w, ARENA.h);
+  // Bloques de concreto (líneas) sobre los muros
+  fctx.strokeStyle = 'rgba(0,0,0,0.35)'; fctx.lineWidth = 2;
+  for (let x = 0; x < ARENA.w; x += 56){
+    fctx.beginPath(); fctx.moveTo(x, 0); fctx.lineTo(x, w); fctx.stroke();
+    fctx.beginPath(); fctx.moveTo(x, ARENA.h - w); fctx.lineTo(x, ARENA.h); fctx.stroke();
+  }
+  for (let y = 0; y < ARENA.h; y += 56){
+    fctx.beginPath(); fctx.moveTo(0, y); fctx.lineTo(w, y); fctx.stroke();
+    fctx.beginPath(); fctx.moveTo(ARENA.w - w, y); fctx.lineTo(ARENA.w, y); fctx.stroke();
+  }
+
+  // Bordillo de peligro (rayas amarillas y negras) en el borde interior
+  const step = 36;
+  for (let i = 0, x = w; x < ARENA.w - w; x += step, i++){
+    fctx.fillStyle = i % 2 ? '#1a1a1a' : '#f4c12a';
+    fctx.fillRect(x, w - 10, step, 10);
+    fctx.fillStyle = i % 2 ? '#f4c12a' : '#1a1a1a';
+    fctx.fillRect(x, ARENA.h - w, step, 10);
+  }
+  for (let i = 0, y = w; y < ARENA.h - w; y += step, i++){
+    fctx.fillStyle = i % 2 ? '#1a1a1a' : '#f4c12a';
+    fctx.fillRect(w - 10, y, 10, step);
+    fctx.fillStyle = i % 2 ? '#f4c12a' : '#1a1a1a';
+    fctx.fillRect(ARENA.w - w, y, 10, step);
+  }
+}
+initFloor();
+
+// Marca de neumático permanente sobre el suelo (cuando un auto derrapa)
+function skidMark(x, y, rx, ry, wid){
+  fctx.fillStyle = 'rgba(18,14,11,0.16)';
+  const ox = rx * wid * 0.42, oy = ry * wid * 0.42;
+  fctx.beginPath(); fctx.arc(x + ox, y + oy, 2.6, 0, TAU); fctx.fill();
+  fctx.beginPath(); fctx.arc(x - ox, y - oy, 2.6, 0, TAU); fctx.fill();
+}
+// Quemadura en el suelo (cuando un auto explota)
+function scorch(x, y){
+  fctx.fillStyle = 'rgba(10,8,6,0.5)';
+  fctx.beginPath(); fctx.arc(x, y, 34, 0, TAU); fctx.fill();
+  fctx.fillStyle = 'rgba(10,8,6,0.3)';
+  fctx.beginPath(); fctx.arc(x, y, 50, 0, TAU); fctx.fill();
+}
+
+// --- Cámara ---
+const cam = { x: 0, y: 0 };
+function updateCamera(){
+  cam.x = clamp(player.x - W / 2, 0, Math.max(0, ARENA.w - W));
+  cam.y = clamp(player.y - H / 2, 0, Math.max(0, ARENA.h - H));
+}
+
+/* =====================================================================
+   ENTRADA (teclado + botones táctiles)
+   ===================================================================== */
+const input = { up:false, down:false, left:false, right:false };
+const keyMap = {
+  ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down',
+  ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right'
+};
+window.addEventListener('keydown', e => {
+  if (keyMap[e.code]) { input[keyMap[e.code]] = true; e.preventDefault(); }
+});
+window.addEventListener('keyup', e => {
+  if (keyMap[e.code]) { input[keyMap[e.code]] = false; e.preventDefault(); }
+});
+// Botones táctiles
+touchEl.querySelectorAll('button').forEach(btn => {
+  const k = btn.dataset.k;
+  const on  = e => { input[k] = true;  e.preventDefault(); };
+  const off = e => { input[k] = false; e.preventDefault(); };
+  btn.addEventListener('pointerdown', on);
+  btn.addEventListener('pointerup', off);
+  btn.addEventListener('pointerleave', off);
+  btn.addEventListener('pointercancel', off);
+});
+if ('ontouchstart' in window) touchEl.classList.add('show');
+
+/* =====================================================================
+   AUDIO (motor + choques) con la Web Audio API
+   ===================================================================== */
+let actx = null, engOsc = null, engGain = null, engFilter = null, muted = false;
+function initAudio(){
+  if (actx) { actx.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  actx = new AC();
+  engOsc = actx.createOscillator(); engOsc.type = 'sawtooth'; engOsc.frequency.value = 55;
+  engFilter = actx.createBiquadFilter(); engFilter.type = 'lowpass'; engFilter.frequency.value = 500;
+  engGain = actx.createGain(); engGain.gain.value = 0;
+  engOsc.connect(engFilter).connect(engGain).connect(actx.destination);
+  engOsc.start();
+}
+function crashSound(intensity){
+  if (!actx || muted) return;
+  const dur = 0.28;
+  const buf = actx.createBuffer(1, Math.floor(actx.sampleRate * dur), actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 2);
+  const src = actx.createBufferSource(); src.buffer = buf;
+  const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 350 + intensity*700;
+  const g = actx.createGain(); g.gain.value = Math.min(0.5, 0.12 + intensity*0.4);
+  src.connect(f).connect(g).connect(actx.destination); src.start();
+}
+muteBtn.addEventListener('click', () => {
+  muted = !muted;
+  muteBtn.textContent = muted ? '🔇' : '🔊';
+  if (engGain) engGain.gain.value = 0;
+});
+
+/* =====================================================================
+   PARTÍCULAS (humo, chispas, fuego, escombros)
+   ===================================================================== */
+let particles = [];
+function spawnSmoke(c, fire){
+  particles.push({
+    x: c.x + rand(-7,7), y: c.y + rand(-7,7),
+    vx: rand(-12,12), vy: rand(-12,12) - 14,
+    life: 0, max: fire ? rand(0.4,0.7) : rand(0.9,1.5),
+    size: fire ? rand(5,9) : rand(7,12),
+    type: fire ? 'fire' : 'smoke'
+  });
+}
+function spawnSparks(x, y, n){
+  for (let i = 0; i < n; i++){
+    const a = rand(0, TAU), s = rand(60, 260);
+    particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life:0, max: rand(0.2,0.45), size: rand(1.5,3), type:'spark' });
+  }
+}
+function spawnExplosion(x, y){
+  for (let i = 0; i < 26; i++){ const a = rand(0,TAU), s = rand(40,200);
+    particles.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:0, max:rand(0.4,0.8), size:rand(6,14), type:'fire' }); }
+  for (let i = 0; i < 20; i++){ const a = rand(0,TAU), s = rand(80,320);
+    particles.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:0, max:rand(0.5,1.1), size:rand(2,5), type:'debris', color:'#222' }); }
+  for (let i = 0; i < 16; i++) spawnSmoke({x, y});
+}
+function updateParticles(dt){
+  for (let i = particles.length - 1; i >= 0; i--){
+    const p = particles[i];
+    p.life += dt;
+    if (p.life >= p.max){ particles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    const drag = Math.exp(-2.2 * dt);
+    p.vx *= drag; p.vy *= drag;
+    if (p.type === 'smoke' || p.type === 'fire') p.vy -= 14 * dt; // sube
+  }
+  if (particles.length > 600) particles.splice(0, particles.length - 600);
+}
+function drawParticles(){
+  for (const p of particles){
+    const t = p.life / p.max, a = 1 - t;
+    if (p.type === 'smoke'){
+      ctx.globalAlpha = a * 0.45;
+      ctx.fillStyle = '#777';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1 + t*1.6), 0, TAU); ctx.fill();
+    } else if (p.type === 'fire'){
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = a;
+      ctx.fillStyle = t < 0.5 ? '#ffe066' : '#ff5a1f';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1 - t*0.4), 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    } else if (p.type === 'spark'){
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#ffd54a';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    } else { // debris
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color || '#333';
+      ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* =====================================================================
+   SACUDIDA DE PANTALLA (al recibir golpes fuertes)
+   ===================================================================== */
+let shakeMag = 0;
+function addShake(m){ shakeMag = Math.min(28, Math.max(shakeMag, m)); }
+
+/* =====================================================================
+   EL AUTO
+   Física arcade de vista superior: avanza según su orientación, gira más
+   al ir rápido y "agarra" al suelo para no patinar demasiado.
+   ===================================================================== */
+const POWER = 920, REV = 480, TURN = 3.3, LAT_GRIP = 5.2, ROLL = 0.85, MAX_SPEED = 330;
+
+class Car {
+  constructor(x, y, angle, color, isPlayer){
+    this.x = x; this.y = y; this.angle = angle;
+    this.vx = 0; this.vy = 0;
+    this.color = color; this.isPlayer = !!isPlayer;
+    this.len = 42; this.wid = 24; this.r = 17;
+    this.maxhp = isPlayer ? 130 : 80;
+    this.hp = this.maxhp;
+    this.dead = false;
+    this.throttle = 0; this.steer = 0;
+    this.smokeT = 0; this.stuckT = 0; this.reverseT = 0;
+    this.invMass = 1;
+  }
+
+  // Cerebro de la IA: persigue al rival vivo más cercano y lo embiste.
+  ai(dt){
+    let target = null, best = Infinity;
+    for (const c of cars){
+      if (c === this || c.dead) continue;
+      const d = (c.x - this.x) ** 2 + (c.y - this.y) ** 2;
+      if (d < best){ best = d; target = c; }
+    }
+    if (!target){ this.throttle = 0; this.steer = 0; return; }
+    const desired = Math.atan2(target.y - this.y, target.x - this.x);
+    this.steer = clamp(angDiff(desired, this.angle) * 2.2, -1, 1);
+    this.throttle = 1;
+
+    // Si lleva mucho rato casi parado, da reversa para destrabarse.
+    const sp = Math.hypot(this.vx, this.vy);
+    if (sp < 35) this.stuckT += dt; else this.stuckT = 0;
+    if (this.stuckT > 1.1){ this.reverseT = 0.9; this.stuckT = 0; }
+    if (this.reverseT > 0){ this.reverseT -= dt; this.throttle = -1; this.steer = -this.steer; }
+  }
+
+  update(dt){
+    // 1) Decidir aceleración y giro (jugador o IA)
+    if (this.dead){
+      this.throttle = 0; this.steer = 0;
+    } else if (this.isPlayer){
+      this.throttle = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+      this.steer    = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+    } else {
+      this.ai(dt);
+    }
+
+    // 2) Motor: empuja en la dirección a la que apunta el auto
+    let hx = Math.cos(this.angle), hy = Math.sin(this.angle);
+    const eng = this.throttle > 0 ? this.throttle * POWER : this.throttle * REV;
+    this.vx += hx * eng * dt;
+    this.vy += hy * eng * dt;
+
+    // 3) Dirección: gira más cuanto más rápido va; invierte al ir en reversa
+    let speed = Math.hypot(this.vx, this.vy);
+    const fwd = this.vx * hx + this.vy * hy;
+    const dir = fwd >= 0 ? 1 : -1;
+    this.angle += this.steer * TURN * dt * Math.min(speed / 90, 1) * dir;
+
+    // 4) Agarre de neumáticos: matamos casi toda la velocidad lateral
+    hx = Math.cos(this.angle); hy = Math.sin(this.angle);
+    const rx = -hy, ry = hx;               // vector "derecha" del auto
+    let f = this.vx * hx + this.vy * hy;   // componente hacia adelante
+    let l = this.vx * rx + this.vy * ry;   // componente lateral (derrape)
+    f *= Math.exp(-ROLL * dt);
+    l *= Math.exp(-LAT_GRIP * dt);
+    this.vx = f * hx + l * rx;
+    this.vy = f * hy + l * ry;
+
+    if (this.dead){ this.vx *= Math.exp(-3*dt); this.vy *= Math.exp(-3*dt); }
+
+    // 5) Límite de velocidad
+    speed = Math.hypot(this.vx, this.vy);
+    if (speed > MAX_SPEED){ const k = MAX_SPEED / speed; this.vx *= k; this.vy *= k; }
+
+    // 6) Mover y chocar con los muros
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    this.hitWalls();
+
+    // 7) Marcas de neumático al derrapar
+    if (!this.dead && Math.abs(l) > 70 && speed > 45){
+      const bx = this.x - hx * this.len * 0.28, by = this.y - hy * this.len * 0.28;
+      skidMark(bx, by, rx, ry, this.wid);
+    }
+
+    // 8) Humo si está dañado, fuego+humo si está destruido
+    if (!this.dead && this.hp < this.maxhp * 0.5){
+      this.smokeT -= dt; if (this.smokeT <= 0){ this.smokeT = rand(0.05,0.12); spawnSmoke(this); }
+    } else if (this.dead){
+      this.smokeT -= dt; if (this.smokeT <= 0){ this.smokeT = 0.05; spawnSmoke(this, Math.random() < 0.6); }
+    }
+  }
+
+  hitWalls(){
+    const m = ARENA.wall + this.r;
+    let hit = 0;
+    if (this.x < m){ this.x = m; if (this.vx < 0){ hit = Math.abs(this.vx); this.vx = -this.vx * 0.35; } }
+    if (this.x > ARENA.w - m){ this.x = ARENA.w - m; if (this.vx > 0){ hit = Math.max(hit, Math.abs(this.vx)); this.vx = -this.vx * 0.35; } }
+    if (this.y < m){ this.y = m; if (this.vy < 0){ hit = Math.max(hit, Math.abs(this.vy)); this.vy = -this.vy * 0.35; } }
+    if (this.y > ARENA.h - m){ this.y = ARENA.h - m; if (this.vy > 0){ hit = Math.max(hit, Math.abs(this.vy)); this.vy = -this.vy * 0.35; } }
+    if (hit > 130 && !this.dead){
+      this.damage(hit * 0.03);
+      spawnSparks(this.x, this.y, 4);
+      if (this.isPlayer) addShake(hit * 0.03);
+    }
+  }
+
+  damage(d){
+    if (this.dead) return;
+    this.hp -= d;
+    if (this.hp <= 0){ this.hp = 0; this.die(); }
+  }
+
+  die(){
+    this.dead = true;
+    this.invMass = 0.35; // los restos pesan más: no salen volando
+    spawnExplosion(this.x, this.y);
+    scorch(this.x, this.y);
+    crashSound(1);
+    addShake(this.isPlayer ? 22 : 10);
+  }
+
+  draw(){
+    const c = this;
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.angle);
+    const L = c.len, Wd = c.wid;
+
+    // Sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.30)';
+    roundRect(-L/2 + 3, -Wd/2 + 5, L, Wd, 7); ctx.fill();
+
+    // Ruedas
+    ctx.fillStyle = '#141414';
+    const wx = L*0.30, wy = Wd*0.5;
+    for (const sx of [-1,1]) for (const sy of [-1,1])
+      ctx.fillRect(sx*wx - 5, sy*wy - 4, 11, 7);
+
+    // Carrocería
+    ctx.fillStyle = c.dead ? '#39393d' : c.color;
+    roundRect(-L/2, -Wd/2, L, Wd, 7); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke();
+
+    // Cabina (techo)
+    ctx.fillStyle = c.dead ? '#2a2a2d' : 'rgba(0,0,0,0.30)';
+    roundRect(-L*0.12, -Wd*0.34, L*0.4, Wd*0.68, 4); ctx.fill();
+
+    // Parabrisas (al frente, lado +x)
+    if (!c.dead){
+      ctx.fillStyle = 'rgba(170,215,255,0.75)';
+      roundRect(L*0.18, -Wd*0.30, L*0.12, Wd*0.6, 2); ctx.fill();
+    }
+    // Defensa delantera (marca la dirección)
+    ctx.fillStyle = c.dead ? '#555' : 'rgba(255,255,255,0.55)';
+    ctx.fillRect(L*0.42, -Wd*0.42, 4, Wd*0.84);
+
+    ctx.restore();
+
+    // Barra de vida flotante sobre el auto (excepto el jugador, que ya tiene HUD)
+    if (!c.dead && !c.isPlayer){
+      const bw = 30, bh = 4, ratio = c.hp / c.maxhp;
+      const bx = c.x - bw/2, by = c.y - c.r - 12;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(bx-1, by-1, bw+2, bh+2);
+      ctx.fillStyle = ratio > 0.5 ? '#2dd36f' : ratio > 0.25 ? '#ffb703' : '#ef3b3b';
+      ctx.fillRect(bx, by, bw * ratio, bh);
+    }
+  }
+}
+
+// Helper: rectángulo redondeado (con respaldo si el navegador no trae roundRect)
+function roundRect(x, y, w, h, r){
+  ctx.beginPath();
+  if (ctx.roundRect) { ctx.roundRect(x, y, w, h, r); return; }
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+
+/* =====================================================================
+   COLISIONES ENTRE AUTOS
+   Tratamos cada auto como un círculo. Si dos se solapan, los separamos,
+   intercambiamos impulso (rebote) y aplicamos daño según la fuerza.
+   ===================================================================== */
+function collisions(){
+  for (let i = 0; i < cars.length; i++){
+    for (let j = i + 1; j < cars.length; j++){
+      const a = cars[i], b = cars[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let dist = Math.hypot(dx, dy);
+      const minD = a.r + b.r;
+      if (dist >= minD || dist === 0) continue;
+
+      const nx = dx / dist, ny = dy / dist;     // normal del choque
+      const overlap = minD - dist;
+
+      // Separar según la masa (los restos se mueven menos)
+      const im = a.invMass + b.invMass;
+      a.x -= nx * overlap * (a.invMass / im);
+      a.y -= ny * overlap * (a.invMass / im);
+      b.x += nx * overlap * (b.invMass / im);
+      b.y += ny * overlap * (b.invMass / im);
+
+      // Velocidad relativa proyectada sobre la normal
+      const reln = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+      if (reln < 0){ // se están acercando
+        const e = 0.35; // rebote
+        const jImp = -(1 + e) * reln / im;
+        a.vx -= jImp * nx * a.invMass; a.vy -= jImp * ny * a.invMass;
+        b.vx += jImp * nx * b.invMass; b.vy += jImp * ny * b.invMass;
+
+        // Daño según la fuerza del impacto
+        const impact = Math.abs(reln);
+        if (impact > 55){
+          const dmg = (impact - 55) * 0.11;
+          a.damage(dmg); b.damage(dmg);
+          const mx = (a.x + b.x)/2, my = (a.y + b.y)/2;
+          spawnSparks(mx, my, Math.min(14, 3 + impact*0.04));
+          crashSound(clamp(impact / 300, 0.1, 1));
+          if (a.isPlayer || b.isPlayer) addShake(impact * 0.045);
+        }
+      }
+    }
+  }
+}
+
+/* =====================================================================
+   ESTADO DEL JUEGO
+   ===================================================================== */
+let cars = [], player = null;
+let state = 'menu';           // 'menu' | 'playing' | 'won' | 'lost'
+let winTimer = 0, loseTimer = 0;
+
+function aliveEnemies(){ let n = 0; for (const c of cars) if (!c.isPlayer && !c.dead) n++; return n; }
+
+function startGame(){
+  initAudio();
+  cars = []; particles = []; shakeMag = 0; winTimer = 0; loseTimer = 0;
+
+  const cx = ARENA.w/2, cy = ARENA.h/2;
+  // El jugador arranca abajo, mirando hacia arriba
+  player = new Car(cx, ARENA.h - 230, -Math.PI/2, '#19c3e6', true);
+  cars.push(player);
+
+  // Rivales repartidos en círculo, mirando al centro
+  const colors = ['#e63946', '#52b788', '#f4a261', '#9b5de5', '#ffd166'];
+  for (let i = 0; i < colors.length; i++){
+    const t = (i / colors.length) * TAU;
+    const ex = cx + Math.cos(t) * 360;
+    const ey = cy + Math.sin(t) * 300 - 50;
+    cars.push(new Car(ex, ey, t + Math.PI, colors[i], false));
+  }
+
+  state = 'playing';
+  overlay.classList.add('hidden');
+  hudEl.classList.remove('hidden');
+}
+
+function endGame(win){
+  state = win ? 'won' : 'lost';
+  if (engGain) engGain.gain.value = 0;
+  hudEl.classList.add('hidden');
+  overlay.innerHTML = win
+    ? `<h1 style="color:#2dd36f;text-shadow:0 0 18px rgba(45,211,111,.6),4px 4px 0 #145a30">¡GANASTE!</h1>
+       <h2>Último auto en pie 🏆</h2>
+       <p>Destruiste a todos tus rivales en la arena de chatarra.</p>
+       <button id="startBtn">JUGAR DE NUEVO</button>`
+    : `<h1>DESTRUIDO</h1>
+       <h2>Tu auto quedó hecho chatarra 💥</h2>
+       <p>Los rivales acabaron contigo. ¿Revancha?</p>
+       <button id="startBtn">REINTENTAR</button>`;
+  overlay.classList.remove('hidden');
+  document.getElementById('startBtn').addEventListener('click', startGame);
+}
+
+function updateHUD(){
+  const ratio = player.hp / player.maxhp;
+  hpFill.style.width = (ratio * 100) + '%';
+  hpFill.style.background = ratio > 0.5
+    ? 'linear-gradient(90deg,#2dd36f,#7bed9f)'
+    : ratio > 0.25
+      ? 'linear-gradient(90deg,#ffb703,#ffd166)'
+      : 'linear-gradient(90deg,#c1121f,#ef3b3b)';
+  rivalsEl.innerHTML = 'RIVALES: ' + aliveEnemies() + '<small>EN PIE</small>';
+}
+
+/* =====================================================================
+   BUCLE PRINCIPAL
+   ===================================================================== */
+function update(dt){
+  for (const c of cars) c.update(dt);
+  collisions();
+  updateParticles(dt);
+  updateCamera();
+  updateHUD();
+
+  // Sonido del motor según la velocidad del jugador
+  if (actx && !muted && engGain){
+    if (!player.dead){
+      const sp = Math.hypot(player.vx, player.vy);
+      engOsc.frequency.value = 55 + sp * 0.55;
+      engGain.gain.value = 0.025 + Math.min(sp / MAX_SPEED, 1) * 0.045;
+    } else engGain.gain.value = 0;
+  }
+
+  // ¿Fin de la partida?
+  if (player.dead){ loseTimer += dt; if (loseTimer > 1.4) endGame(false); }
+  else if (aliveEnemies() === 0){ winTimer += dt; if (winTimer > 0.9) endGame(true); }
+}
+
+function render(){
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0a0c'; ctx.fillRect(0, 0, W, H);
+
+  // Sacudida de cámara
+  let sx = 0, sy = 0;
+  if (shakeMag > 0.3){ sx = rand(-1,1) * shakeMag; sy = rand(-1,1) * shakeMag; shakeMag *= 0.88; }
+  else shakeMag = 0;
+
+  ctx.save();
+  ctx.translate(-cam.x + sx, -cam.y + sy);
+
+  ctx.drawImage(floor, 0, 0);            // suelo + muros + marcas
+  // Dibuja primero los restos (debajo) y luego los autos vivos
+  for (const c of cars) if (c.dead) c.draw();
+  for (const c of cars) if (!c.dead) c.draw();
+  drawParticles();
+
+  ctx.restore();
+}
+
+let last = performance.now();
+function frame(now){
+  let dt = (now - last) / 1000; last = now;
+  if (dt > 1/30) dt = 1/30;              // evita saltos si baja el fps
+  if (state === 'playing') update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+
+startBtn.addEventListener('click', startGame);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

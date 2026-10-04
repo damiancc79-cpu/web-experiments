@@ -1,0 +1,2312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Coupled Rolling Dynamics</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:736px;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Coupled Rolling Dynamics" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Coupled Rolling Dynamics&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(--background) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: light-dark(rgb(255 255 255), rgb(24 24 24));
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 12.5px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--viz-font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;coupled-rolling-dynamics&quot; class=&quot;crd-lab&quot;&gt;
+  &lt;div class=&quot;viz-row crd-toolbar&quot;&gt;
+    &lt;div class=&quot;viz-row&quot;&gt;
+      &lt;button type=&quot;button&quot; class=&quot;btn btn-primary&quot; id=&quot;crd-play&quot; aria-pressed=&quot;true&quot;&gt;Pause&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;btn&quot; id=&quot;crd-release&quot;&gt;Re-release&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;btn btn-ghost&quot; id=&quot;crd-step&quot;&gt;Step&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;crd-preset&quot;&gt;
+      Experiment
+      &lt;select class=&quot;form-select&quot; id=&quot;crd-preset&quot;&gt;
+        &lt;option value=&quot;exchange&quot;&gt;Energy exchange&lt;/option&gt;
+        &lt;option value=&quot;damped&quot;&gt;Damped settling&lt;/option&gt;
+        &lt;option value=&quot;heavy&quot;&gt;Heavy inner rotor&lt;/option&gt;
+        &lt;option value=&quot;reverse&quot;&gt;Crossed transmission&lt;/option&gt;
+        &lt;option value=&quot;traction&quot;&gt;Traction limit&lt;/option&gt;
+      &lt;/select&gt;
+    &lt;/label&gt;
+    &lt;span class=&quot;viz-badge&quot; id=&quot;crd-clock&quot;&gt;t = 0.00 s&lt;/span&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;crd-stage&quot; id=&quot;crd-stage&quot;&gt;
+    &lt;canvas id=&quot;crd-canvas&quot; role=&quot;img&quot; aria-label=&quot;Live WebGL view of an annulus and a coupled disk rolling on a parabolic track&quot;&gt;&lt;/canvas&gt;
+    &lt;div class=&quot;crd-webgl-error text-destructive&quot; id=&quot;crd-error&quot; hidden&gt;WebGL is unavailable in this browser.&lt;/div&gt;
+    &lt;div class=&quot;crd-status viz-badge&quot; id=&quot;crd-contact&quot;&gt;IDEAL ROLLING&lt;/div&gt;
+    &lt;div class=&quot;crd-energy-key text-small&quot; id=&quot;crd-energy-key&quot; aria-hidden=&quot;true&quot;&gt;
+      &lt;span&gt;&lt;i class=&quot;crd-swatch crd-swatch-energy&quot;&gt;&lt;/i&gt;mechanical energy&lt;/span&gt;
+      &lt;span&gt;&lt;i class=&quot;crd-swatch crd-swatch-balance&quot;&gt;&lt;/i&gt;energy + losses&lt;/span&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;crd-body-label text-small&quot; id=&quot;crd-label-a&quot;&gt;A · annulus&lt;/div&gt;
+    &lt;div class=&quot;crd-body-label text-small&quot; id=&quot;crd-label-r&quot;&gt;R · inner rotor&lt;/div&gt;
+    &lt;div class=&quot;crd-body-label text-small&quot; id=&quot;crd-label-b&quot;&gt;B · rolling disk&lt;/div&gt;
+    &lt;div class=&quot;crd-drive-label text-small text-muted&quot; id=&quot;crd-drive-label&quot;&gt;elastic transmission&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;viz-grid&quot;&gt;
+    &lt;div class=&quot;card viz-stat&quot;&gt;
+      &lt;div class=&quot;text-muted&quot;&gt;Energy balance drift&lt;/div&gt;
+      &lt;div class=&quot;viz-stat-value&quot; id=&quot;crd-energy&quot;&gt;0.000%&lt;/div&gt;
+      &lt;div class=&quot;text-small text-muted&quot; id=&quot;crd-energy-detail&quot;&gt;E + losses = 0.00 J&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;card viz-stat&quot;&gt;
+      &lt;div class=&quot;text-muted&quot;&gt;Coupling torque&lt;/div&gt;
+      &lt;div class=&quot;viz-stat-value&quot; id=&quot;crd-torque&quot;&gt;0.00 N·m&lt;/div&gt;
+      &lt;div class=&quot;text-small text-muted&quot; id=&quot;crd-torque-detail&quot;&gt;bearing 0.00 · drive 0.00&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;card viz-stat&quot;&gt;
+      &lt;div class=&quot;text-muted&quot;&gt;Traction utilization&lt;/div&gt;
+      &lt;div class=&quot;viz-stat-value&quot; id=&quot;crd-traction&quot;&gt;0%&lt;/div&gt;
+      &lt;div class=&quot;text-small text-muted&quot; id=&quot;crd-traction-detail&quot;&gt;A 0% · B 0%&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;viz-controls&quot;&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;crd-curvature&quot;&gt;
+      Parabola curvature &lt;output id=&quot;crd-curvature-value&quot;&gt;0.18 m⁻¹&lt;/output&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;crd-curvature&quot; type=&quot;range&quot; min=&quot;0.08&quot; max=&quot;0.32&quot; step=&quot;0.01&quot; value=&quot;0.18&quot;&gt;
+    &lt;/label&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;crd-stiffness&quot;&gt;
+      Transmission stiffness &lt;output id=&quot;crd-stiffness-value&quot;&gt;1.40 N·m/rad&lt;/output&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;crd-stiffness&quot; type=&quot;range&quot; min=&quot;0.20&quot; max=&quot;4.00&quot; step=&quot;0.05&quot; value=&quot;1.40&quot;&gt;
+    &lt;/label&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;crd-damping&quot;&gt;
+      Torsional damping &lt;output id=&quot;crd-damping-value&quot;&gt;0.08 N·m·s/rad&lt;/output&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;crd-damping&quot; type=&quot;range&quot; min=&quot;0.00&quot; max=&quot;0.65&quot; step=&quot;0.01&quot; value=&quot;0.08&quot;&gt;
+    &lt;/label&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;crd-friction&quot;&gt;
+      Static friction &lt;output id=&quot;crd-friction-value&quot;&gt;μ = 0.65&lt;/output&gt;
+      &lt;input class=&quot;form-range&quot; id=&quot;crd-friction&quot; type=&quot;range&quot; min=&quot;0.08&quot; max=&quot;1.00&quot; step=&quot;0.01&quot; value=&quot;0.65&quot;&gt;
+    &lt;/label&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;sr-only&quot; id=&quot;crd-live&quot; aria-live=&quot;polite&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;style&gt;
+  #coupled-rolling-dynamics {
+    width: 100%;
+    color: var(--foreground);
+    display: grid;
+    gap: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #coupled-rolling-dynamics .crd-toolbar {
+    justify-content: space-between;
+    align-items: end;
+  }
+
+  #coupled-rolling-dynamics .crd-stage {
+    position: relative;
+    width: 100%;
+    height: 430px;
+    min-height: 330px;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  #coupled-rolling-dynamics canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+
+  #coupled-rolling-dynamics canvas:active {
+    cursor: grabbing;
+  }
+
+  #coupled-rolling-dynamics .crd-status,
+  #coupled-rolling-dynamics .crd-energy-key,
+  #coupled-rolling-dynamics .crd-body-label,
+  #coupled-rolling-dynamics .crd-drive-label,
+  #coupled-rolling-dynamics .crd-webgl-error {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  #coupled-rolling-dynamics .crd-status {
+    top: 10px;
+    left: 10px;
+  }
+
+  #coupled-rolling-dynamics .crd-energy-key {
+    top: 10px;
+    right: 12px;
+    display: flex;
+    gap: 12px;
+    color: var(--muted-foreground);
+  }
+
+  #coupled-rolling-dynamics .crd-energy-key span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  #coupled-rolling-dynamics .crd-swatch {
+    width: 16px;
+    height: 3px;
+    display: inline-block;
+  }
+
+  #coupled-rolling-dynamics .crd-swatch-energy {
+    background: var(--viz-series-5);
+  }
+
+  #coupled-rolling-dynamics .crd-swatch-balance {
+    background: var(--viz-series-6);
+  }
+
+  #coupled-rolling-dynamics .crd-body-label,
+  #coupled-rolling-dynamics .crd-drive-label {
+    top: 0;
+    left: 0;
+    white-space: nowrap;
+  }
+
+  #coupled-rolling-dynamics .crd-body-label {
+    color: var(--foreground);
+  }
+
+  #coupled-rolling-dynamics .crd-webgl-error {
+    inset: 45% auto auto 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  #coupled-rolling-dynamics .crd-stage.is-infeasible .crd-status {
+    color: var(--destructive);
+  }
+
+  @media (max-width: 560px) {
+    #coupled-rolling-dynamics .crd-stage {
+      height: 360px;
+    }
+
+    #coupled-rolling-dynamics .crd-energy-key,
+    #coupled-rolling-dynamics .crd-drive-label {
+      display: none;
+    }
+  }
+&lt;/style&gt;
+
+&lt;script&gt;
+(() =&gt; {
+  const root = document.getElementById(&#x27;coupled-rolling-dynamics&#x27;);
+  if (!root || root.dataset.initialized === &#x27;true&#x27;) return;
+  root.dataset.initialized = &#x27;true&#x27;;
+
+  const canvas = document.getElementById(&#x27;crd-canvas&#x27;);
+  const stage = document.getElementById(&#x27;crd-stage&#x27;);
+  const error = document.getElementById(&#x27;crd-error&#x27;);
+  const playButton = document.getElementById(&#x27;crd-play&#x27;);
+  const releaseButton = document.getElementById(&#x27;crd-release&#x27;);
+  const stepButton = document.getElementById(&#x27;crd-step&#x27;);
+  const presetSelect = document.getElementById(&#x27;crd-preset&#x27;);
+  const clockOutput = document.getElementById(&#x27;crd-clock&#x27;);
+  const contactOutput = document.getElementById(&#x27;crd-contact&#x27;);
+  const liveOutput = document.getElementById(&#x27;crd-live&#x27;);
+  const energyOutput = document.getElementById(&#x27;crd-energy&#x27;);
+  const energyDetail = document.getElementById(&#x27;crd-energy-detail&#x27;);
+  const torqueOutput = document.getElementById(&#x27;crd-torque&#x27;);
+  const torqueDetail = document.getElementById(&#x27;crd-torque-detail&#x27;);
+  const tractionOutput = document.getElementById(&#x27;crd-traction&#x27;);
+  const tractionDetail = document.getElementById(&#x27;crd-traction-detail&#x27;);
+  const energyKey = document.getElementById(&#x27;crd-energy-key&#x27;);
+  const labelA = document.getElementById(&#x27;crd-label-a&#x27;);
+  const labelR = document.getElementById(&#x27;crd-label-r&#x27;);
+  const labelB = document.getElementById(&#x27;crd-label-b&#x27;);
+  const driveLabel = document.getElementById(&#x27;crd-drive-label&#x27;);
+
+  const controls = {
+    curvature: document.getElementById(&#x27;crd-curvature&#x27;),
+    stiffness: document.getElementById(&#x27;crd-stiffness&#x27;),
+    damping: document.getElementById(&#x27;crd-damping&#x27;),
+    friction: document.getElementById(&#x27;crd-friction&#x27;)
+  };
+  const controlValues = {
+    curvature: document.getElementById(&#x27;crd-curvature-value&#x27;),
+    stiffness: document.getElementById(&#x27;crd-stiffness-value&#x27;),
+    damping: document.getElementById(&#x27;crd-damping-value&#x27;),
+    friction: document.getElementById(&#x27;crd-friction-value&#x27;)
+  };
+
+  const gl = canvas.getContext(&#x27;webgl&#x27;, {
+    antialias: true,
+    alpha: true,
+    premultipliedAlpha: false
+  });
+
+  if (!gl) {
+    canvas.hidden = true;
+    error.hidden = false;
+    return;
+  }
+
+  const vertexSource = `
+    attribute vec2 a_position;
+    attribute vec4 a_color;
+    varying vec4 v_color;
+    void main() {
+      gl_Position = vec4(a_position, 0.0, 1.0);
+      v_color = a_color;
+    }
+  `;
+
+  const fragmentSource = `
+    precision mediump float;
+    varying vec4 v_color;
+    void main() {
+      gl_FragColor = v_color;
+    }
+  `;
+
+  function compileShader(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      const message = gl.getShaderInfoLog(shader);
+      gl.deleteShader(shader);
+      throw new Error(message || &#x27;Shader compilation failed&#x27;);
+    }
+    return shader;
+  }
+
+  function createProgram() {
+    const program = gl.createProgram();
+    gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vertexSource));
+    gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fragmentSource));
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      throw new Error(gl.getProgramInfoLog(program) || &#x27;WebGL program link failed&#x27;);
+    }
+    return program;
+  }
+
+  let program;
+  try {
+    program = createProgram();
+  } catch (shaderError) {
+    canvas.hidden = true;
+    error.hidden = false;
+    error.textContent = &#x27;The WebGL renderer could not start.&#x27;;
+    return;
+  }
+
+  gl.useProgram(program);
+  const positionLocation = gl.getAttribLocation(program, &#x27;a_position&#x27;);
+  const colorLocation = gl.getAttribLocation(program, &#x27;a_color&#x27;);
+  const positionBuffer = gl.createBuffer();
+  const colorBuffer = gl.createBuffer();
+  gl.enableVertexAttribArray(positionLocation);
+  gl.enableVertexAttribArray(colorLocation);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  const g0 = 9.81;
+  const fixedDt = 1 / 240;
+  const impactRestitution = 0.06;
+  const maxHistorySeconds = 8;
+  const scenarioData = {
+    exchange: {
+      a: 0.18, k: 1.40, c: 0.08, mu: 0.65, ratio: 1,
+      mA: 4.5, rAOuter: 0.55, rAInner: 0.36,
+      mRotor: 1.2, rRotor: 0.23, mB: 2.8, rB: 0.42,
+      xA: -1.55, xB: 1.72, vA: 0, vB: 0, psi: 0, omega: 0
+    },
+    damped: {
+      a: 0.20, k: 2.20, c: 0.48, mu: 0.72, ratio: 1,
+      mA: 4.5, rAOuter: 0.55, rAInner: 0.36,
+      mRotor: 1.2, rRotor: 0.23, mB: 2.8, rB: 0.42,
+      xA: -1.62, xB: 1.78, vA: 0, vB: 0, psi: 0, omega: 0
+    },
+    heavy: {
+      a: 0.16, k: 1.80, c: 0.12, mu: 0.68, ratio: 1,
+      mA: 4.5, rAOuter: 0.55, rAInner: 0.37,
+      mRotor: 3.3, rRotor: 0.27, mB: 2.8, rB: 0.42,
+      xA: -1.68, xB: 1.60, vA: 0, vB: 0, psi: 0, omega: 0
+    },
+    reverse: {
+      a: 0.18, k: 1.65, c: 0.10, mu: 0.70, ratio: -1,
+      mA: 4.5, rAOuter: 0.55, rAInner: 0.36,
+      mRotor: 1.2, rRotor: 0.23, mB: 2.8, rB: 0.42,
+      xA: -1.48, xB: 1.76, vA: 0, vB: 0, psi: 0, omega: 0
+    },
+    traction: {
+      a: 0.25, k: 3.10, c: 0.13, mu: 0.18, ratio: 1,
+      mA: 4.5, rAOuter: 0.55, rAInner: 0.36,
+      mRotor: 1.2, rRotor: 0.23, mB: 2.8, rB: 0.42,
+      xA: -1.62, xB: 1.82, vA: 0, vB: 0, psi: 0.35, omega: -1.4
+    }
+  };
+
+  let params = { ...scenarioData.exchange };
+  let state = new Float64Array(7);
+  let anchors = { xA: params.xA, xB: params.xB, deltaA: 0, deltaB: 0 };
+  let playing = !window.matchMedia(&#x27;(prefers-reduced-motion: reduce)&#x27;).matches;
+  let simulationTime = 0;
+  let accumulator = 0;
+  let lastFrameTime = performance.now();
+  let lastUiUpdate = -1;
+  let energyReference = 1;
+  let collisionFlash = 0;
+  let history = [];
+  let nextHistoryTime = 0;
+  let dragTarget = null;
+  let worldView = { width: 1, height: 1, scale: 100, baseline: 1 };
+  let palette = null;
+
+  function thetaPrimitive(x, radius) {
+    const a = params.a;
+    if (Math.abs(a) &lt; 1e-8) return -x / radius;
+    const u = 2 * a * x;
+    const h = Math.sqrt(1 + u * u);
+    const arc = 0.5 * x * h + Math.asinh(u) / (4 * a);
+    return Math.atan(u) - arc / radius;
+  }
+
+  function rollingAngle(x, radius, anchorX) {
+    return thetaPrimitive(x, radius) - thetaPrimitive(anchorX, radius);
+  }
+
+  function rollingGeometry(x, radius, massFactor) {
+    const a = params.a;
+    const u = 2 * a * x;
+    const h2 = 1 + u * u;
+    const h = Math.sqrt(h2);
+    const kappa = 2 * a / (h2 * h);
+    const lambda = 1 - radius * kappa;
+    const lambdaPrime = 12 * a * a * radius * u / (h2 * h2 * h);
+    const d = 2 * a / h2 - h / radius;
+    const dPrime = -2 * a * u / (radius * h) - 8 * a * a * u / (h2 * h2);
+    const H = massFactor * lambda * lambda * h2;
+    const HPrime = massFactor * (
+      4 * a * u * lambda * lambda + 2 * h2 * lambda * lambdaPrime
+    );
+    return {
+      x,
+      contactX: x,
+      contactY: a * x * x,
+      centerX: x - radius * u / h,
+      centerY: a * x * x + radius / h,
+      tx: 1 / h,
+      ty: u / h,
+      nx: -u / h,
+      ny: 1 / h,
+      u,
+      h,
+      h2,
+      kappa,
+      lambda,
+      d,
+      dPrime,
+      H,
+      HPrime
+    };
+  }
+
+  function systemTerms(sourceState) {
+    const xA = sourceState[0];
+    const vA = sourceState[1];
+    const xB = sourceState[2];
+    const vB = sourceState[3];
+    const psi = sourceState[4];
+    const omega = sourceState[5];
+    const outerInertia = 0.5 * params.mA * (
+      params.rAOuter * params.rAOuter + params.rAInner * params.rAInner
+    );
+    const rotorInertia = 0.5 * params.mRotor * params.rRotor * params.rRotor;
+    const diskInertia = 0.5 * params.mB * params.rB * params.rB;
+    const translatingMassA = params.mA + params.mRotor;
+    const factorA = translatingMassA + outerInertia / (params.rAOuter * params.rAOuter);
+    const factorB = params.mB + diskInertia / (params.rB * params.rB);
+    const geomA = rollingGeometry(xA, params.rAOuter, factorA);
+    const geomB = rollingGeometry(xB, params.rB, factorB);
+    const thetaA = rollingAngle(xA, params.rAOuter, anchors.xA);
+    const thetaB = rollingAngle(xB, params.rB, anchors.xB);
+    const thetaDotA = geomA.d * vA;
+    const thetaDotB = geomB.d * vB;
+    const errorA = psi - thetaA - anchors.deltaA;
+    const errorB = psi - params.ratio * thetaB - anchors.deltaB;
+    const errorRateA = omega - thetaDotA;
+    const errorRateB = omega - params.ratio * thetaDotB;
+    const kA = params.k * 1.35;
+    const kB = params.k;
+    const cA = params.c * 1.15;
+    const cB = params.c;
+    const torqueA = kA * errorA + cA * errorRateA;
+    const torqueB = kB * errorB + cB * errorRateB;
+    return {
+      xA, vA, xB, vB, psi, omega,
+      outerInertia, rotorInertia, diskInertia, translatingMassA,
+      geomA, geomB, thetaA, thetaB, thetaDotA, thetaDotB,
+      errorA, errorB, errorRateA, errorRateB,
+      kA, kB, cA, cB, torqueA, torqueB
+    };
+  }
+
+  function derivative(sourceState) {
+    const terms = systemTerms(sourceState);
+    const { geomA, geomB } = terms;
+    const accelerationA = (
+      geomA.d * terms.torqueA
+      - 0.5 * geomA.HPrime * terms.vA * terms.vA
+      - terms.translatingMassA * g0 * geomA.lambda * geomA.u
+    ) / geomA.H;
+    const accelerationB = (
+      params.ratio * geomB.d * terms.torqueB
+      - 0.5 * geomB.HPrime * terms.vB * terms.vB
+      - params.mB * g0 * geomB.lambda * geomB.u
+    ) / geomB.H;
+    const rotorAcceleration = (-terms.torqueA - terms.torqueB) / terms.rotorInertia;
+    const dissipationRate = terms.cA * terms.errorRateA * terms.errorRateA
+      + terms.cB * terms.errorRateB * terms.errorRateB;
+    return new Float64Array([
+      terms.vA,
+      accelerationA,
+      terms.vB,
+      accelerationB,
+      terms.omega,
+      rotorAcceleration,
+      dissipationRate
+    ]);
+  }
+
+  function combine(base, increments, scale) {
+    const result = new Float64Array(base.length);
+    for (let i = 0; i &lt; base.length; i += 1) {
+      result[i] = base[i] + increments[i] * scale;
+    }
+    return result;
+  }
+
+  function rk4Step(sourceState, dt) {
+    const k1 = derivative(sourceState);
+    const k2 = derivative(combine(sourceState, k1, dt * 0.5));
+    const k3 = derivative(combine(sourceState, k2, dt * 0.5));
+    const k4 = derivative(combine(sourceState, k3, dt));
+    const next = new Float64Array(sourceState.length);
+    for (let i = 0; i &lt; sourceState.length; i += 1) {
+      next[i] = sourceState[i] + dt * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]) / 6;
+    }
+    return next;
+  }
+
+  function centerVelocity(geometry, speed) {
+    return {
+      x: geometry.lambda * speed,
+      y: geometry.lambda * geometry.u * speed
+    };
+  }
+
+  function resolveBodyCollision() {
+    for (let pass = 0; pass &lt; 2; pass += 1) {
+      const terms = systemTerms(state);
+      const dx = terms.geomB.centerX - terms.geomA.centerX;
+      const dy = terms.geomB.centerY - terms.geomA.centerY;
+      const distance = Math.max(1e-8, Math.hypot(dx, dy));
+      const minimumDistance = params.rAOuter + params.rB;
+      if (distance &gt;= minimumDistance) return;
+      const lx = dx / distance;
+      const ly = dy / distance;
+      const centerDerivativeAX = terms.geomA.lambda;
+      const centerDerivativeAY = terms.geomA.lambda * terms.geomA.u;
+      const centerDerivativeBX = terms.geomB.lambda;
+      const centerDerivativeBY = terms.geomB.lambda * terms.geomB.u;
+      const jacobianA = -(lx * centerDerivativeAX + ly * centerDerivativeAY);
+      const jacobianB = lx * centerDerivativeBX + ly * centerDerivativeBY;
+      const inverseMass = jacobianA * jacobianA / terms.geomA.H
+        + jacobianB * jacobianB / terms.geomB.H;
+      if (inverseMass &lt; 1e-10) return;
+      const relativeSpeed = jacobianA * state[1] + jacobianB * state[3];
+      if (relativeSpeed &lt; 0) {
+        const impulse = -(1 + impactRestitution) * relativeSpeed / inverseMass;
+        const loss = 0.5 * (1 - impactRestitution * impactRestitution)
+          * relativeSpeed * relativeSpeed / inverseMass;
+        state[1] += impulse * jacobianA / terms.geomA.H;
+        state[3] += impulse * jacobianB / terms.geomB.H;
+        state[6] += Math.max(0, loss);
+        collisionFlash = 1;
+      }
+      const overlap = minimumDistance - distance;
+      const correction = Math.min(overlap + 1e-5, 0.08);
+      state[0] += correction * jacobianA / terms.geomA.H / inverseMass;
+      state[2] += correction * jacobianB / terms.geomB.H / inverseMass;
+    }
+  }
+
+  function mechanicalEnergy(sourceState) {
+    const terms = systemTerms(sourceState);
+    const kinetic = 0.5 * terms.geomA.H * terms.vA * terms.vA
+      + 0.5 * terms.geomB.H * terms.vB * terms.vB
+      + 0.5 * terms.rotorInertia * terms.omega * terms.omega;
+    const gravity = terms.translatingMassA * g0 * terms.geomA.centerY
+      + params.mB * g0 * terms.geomB.centerY;
+    const elastic = 0.5 * terms.kA * terms.errorA * terms.errorA
+      + 0.5 * terms.kB * terms.errorB * terms.errorB;
+    return kinetic + gravity + elastic;
+  }
+
+  function diagnostics() {
+    const terms = systemTerms(state);
+    const rates = derivative(state);
+    const angularAccelerationA = terms.geomA.d * rates[1]
+      + terms.geomA.dPrime * terms.vA * terms.vA;
+    const angularAccelerationB = terms.geomB.d * rates[3]
+      + terms.geomB.dPrime * terms.vB * terms.vB;
+    const normalA = terms.translatingMassA * (
+      g0 / terms.geomA.h
+      + terms.geomA.lambda * terms.geomA.kappa * terms.geomA.h2 * terms.vA * terms.vA
+    );
+    const normalB = params.mB * (
+      g0 / terms.geomB.h
+      + terms.geomB.lambda * terms.geomB.kappa * terms.geomB.h2 * terms.vB * terms.vB
+    );
+    const frictionA = (terms.outerInertia * angularAccelerationA - terms.torqueA)
+      / params.rAOuter;
+    const frictionB = (terms.diskInertia * angularAccelerationB - params.ratio * terms.torqueB)
+      / params.rB;
+    const utilizationA = Math.abs(frictionA) / Math.max(1e-8, params.mu * normalA);
+    const utilizationB = Math.abs(frictionB) / Math.max(1e-8, params.mu * normalB);
+    return {
+      ...terms,
+      accelerationA: rates[1],
+      accelerationB: rates[3],
+      rotorAcceleration: rates[5],
+      normalA,
+      normalB,
+      frictionA,
+      frictionB,
+      utilizationA,
+      utilizationB,
+      mechanical: mechanicalEnergy(state),
+      balance: mechanicalEnergy(state) + state[6]
+    };
+  }
+
+  function advanceOneStep() {
+    state = rk4Step(state, fixedDt);
+    resolveBodyCollision();
+    simulationTime += fixedDt;
+    if (simulationTime &gt;= nextHistoryTime) {
+      const currentMechanical = mechanicalEnergy(state);
+      history.push({
+        t: simulationTime,
+        mechanical: currentMechanical,
+        balance: currentMechanical + state[6]
+      });
+      nextHistoryTime += 1 / 30;
+      const oldest = simulationTime - maxHistorySeconds;
+      while (history.length &gt; 2 &amp;&amp; history[0].t &lt; oldest) history.shift();
+    }
+  }
+
+  function syncControls() {
+    controls.curvature.value = params.a.toFixed(2);
+    controls.stiffness.value = params.k.toFixed(2);
+    controls.damping.value = params.c.toFixed(2);
+    controls.friction.value = params.mu.toFixed(2);
+    controlValues.curvature.textContent = `${params.a.toFixed(2)} m⁻¹`;
+    controlValues.stiffness.textContent = `${params.k.toFixed(2)} N·m/rad`;
+    controlValues.damping.textContent = `${params.c.toFixed(2)} N·m·s/rad`;
+    controlValues.friction.textContent = `μ = ${params.mu.toFixed(2)}`;
+  }
+
+  function updatePlayButton() {
+    playButton.textContent = playing ? &#x27;Pause&#x27; : &#x27;Resume&#x27;;
+    playButton.setAttribute(&#x27;aria-pressed&#x27;, playing ? &#x27;true&#x27; : &#x27;false&#x27;);
+  }
+
+  function resetExperiment() {
+    state = new Float64Array([
+      params.xA,
+      params.vA,
+      params.xB,
+      params.vB,
+      params.psi,
+      params.omega,
+      0
+    ]);
+    anchors = {
+      xA: params.xA,
+      xB: params.xB,
+      deltaA: params.psi,
+      deltaB: params.psi
+    };
+    simulationTime = 0;
+    accumulator = 0;
+    nextHistoryTime = 0;
+    history = [];
+    collisionFlash = 0;
+    energyReference = mechanicalEnergy(state);
+    const initialMechanical = mechanicalEnergy(state);
+    history.push({ t: 0, mechanical: initialMechanical, balance: initialMechanical });
+    syncControls();
+    updateOutputs(true);
+  }
+
+  function applyScenario(name) {
+    params = { ...scenarioData[name] };
+    resetExperiment();
+  }
+
+  function rebaselineEnergy() {
+    state[6] = 0;
+    energyReference = mechanicalEnergy(state);
+    history = [{ t: simulationTime, mechanical: energyReference, balance: energyReference }];
+    nextHistoryTime = simulationTime + 1 / 30;
+  }
+
+  function formatPercent(value, digits = 0) {
+    if (!Number.isFinite(value)) return &#x27;—&#x27;;
+    return `${(value * 100).toFixed(digits)}%`;
+  }
+
+  function updateOutputs(force = false) {
+    if (!force &amp;&amp; simulationTime - lastUiUpdate &lt; 1 / 20) return;
+    lastUiUpdate = simulationTime;
+    const d = diagnostics();
+    const drift = (d.balance - energyReference) / Math.max(1, Math.abs(energyReference));
+    const peakTorque = Math.max(Math.abs(d.torqueA), Math.abs(d.torqueB));
+    const peakTraction = Math.max(d.utilizationA, d.utilizationB);
+    const contactLost = d.normalA &lt;= 0 || d.normalB &lt;= 0;
+    const infeasible = contactLost || peakTraction &gt; 1;
+    let status = &#x27;IDEAL ROLLING&#x27;;
+    if (contactLost) status = &#x27;LIFT-OFF PREDICTED&#x27;;
+    else if (peakTraction &gt; 1) status = &#x27;NO-SLIP INFEASIBLE&#x27;;
+    else if (collisionFlash &gt; 0.35) status = &#x27;BODY IMPACT&#x27;;
+    contactOutput.textContent = status;
+    stage.classList.toggle(&#x27;is-infeasible&#x27;, infeasible);
+    energyOutput.textContent = `${Math.abs(drift * 100).toFixed(3)}%`;
+    energyDetail.textContent = `E + losses = ${d.balance.toFixed(2)} J`;
+    torqueOutput.textContent = `${peakTorque.toFixed(2)} N·m`;
+    torqueDetail.textContent = `bearing ${d.torqueA.toFixed(2)} · drive ${d.torqueB.toFixed(2)}`;
+    tractionOutput.textContent = formatPercent(peakTraction);
+    tractionDetail.textContent = `A ${formatPercent(d.utilizationA)} · B ${formatPercent(d.utilizationB)}`;
+    clockOutput.textContent = `t = ${simulationTime.toFixed(2)} s`;
+    canvas.setAttribute(
+      &#x27;aria-label&#x27;,
+      `WebGL simulation at ${simulationTime.toFixed(1)} seconds. ${status.toLowerCase()}. `
+      + `Annulus position ${state[0].toFixed(2)} meters, disk position ${state[2].toFixed(2)} meters.`
+    );
+    if (force || status !== liveOutput.dataset.status) {
+      liveOutput.textContent = `${status}. Traction utilization ${formatPercent(peakTraction)}.`;
+      liveOutput.dataset.status = status;
+    }
+  }
+
+  function colorFromVariable(variableName) {
+    const probe = document.createElement(&#x27;span&#x27;);
+    probe.style.position = &#x27;absolute&#x27;;
+    probe.style.pointerEvents = &#x27;none&#x27;;
+    probe.style.opacity = &#x27;0&#x27;;
+    probe.style.color = `var(${variableName})`;
+    root.appendChild(probe);
+    const resolved = getComputedStyle(probe).color;
+    probe.remove();
+    const sampleCanvas = document.createElement(&#x27;canvas&#x27;);
+    sampleCanvas.width = 1;
+    sampleCanvas.height = 1;
+    const sampleContext = sampleCanvas.getContext(&#x27;2d&#x27;, { willReadFrequently: true });
+    sampleContext.clearRect(0, 0, 1, 1);
+    sampleContext.fillStyle = resolved;
+    sampleContext.fillRect(0, 0, 1, 1);
+    const data = sampleContext.getImageData(0, 0, 1, 1).data;
+    return [data[0] / 255, data[1] / 255, data[2] / 255, data[3] / 255];
+  }
+
+  function withAlpha(color, alpha) {
+    return [color[0], color[1], color[2], alpha];
+  }
+
+  function refreshPalette() {
+    palette = {
+      background: colorFromVariable(&#x27;--background&#x27;),
+      foreground: colorFromVariable(&#x27;--foreground&#x27;),
+      muted: colorFromVariable(&#x27;--muted&#x27;),
+      mutedForeground: colorFromVariable(&#x27;--muted-foreground&#x27;),
+      border: colorFromVariable(&#x27;--border&#x27;),
+      destructive: colorFromVariable(&#x27;--destructive&#x27;),
+      annulus: colorFromVariable(&#x27;--viz-series-1&#x27;),
+      rotor: colorFromVariable(&#x27;--viz-series-2&#x27;),
+      disk: colorFromVariable(&#x27;--viz-series-3&#x27;),
+      track: colorFromVariable(&#x27;--viz-series-4&#x27;),
+      energy: colorFromVariable(&#x27;--viz-series-5&#x27;),
+      balance: colorFromVariable(&#x27;--viz-series-6&#x27;)
+    };
+  }
+
+  refreshPalette();
+
+  const themeObserver = new MutationObserver(() =&gt; refreshPalette());
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: [&#x27;class&#x27;, &#x27;style&#x27;, &#x27;data-theme&#x27;]
+  });
+
+  let trianglePositions = [];
+  let triangleColors = [];
+
+  function pushVertexPx(x, y, color) {
+    trianglePositions.push(
+      2 * x / worldView.width - 1,
+      1 - 2 * y / worldView.height
+    );
+    triangleColors.push(color[0], color[1], color[2], color[3]);
+  }
+
+  function addTrianglePx(a, b, c, color) {
+    pushVertexPx(a.x, a.y, color);
+    pushVertexPx(b.x, b.y, color);
+    pushVertexPx(c.x, c.y, color);
+  }
+
+  function addQuadPx(a, b, c, d, color) {
+    addTrianglePx(a, b, c, color);
+    addTrianglePx(a, c, d, color);
+  }
+
+  function addLinePx(a, b, width, color) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const length = Math.hypot(dx, dy);
+    if (length &lt; 1e-5) return;
+    const nx = -dy / length * width * 0.5;
+    const ny = dx / length * width * 0.5;
+    addQuadPx(
+      { x: a.x + nx, y: a.y + ny },
+      { x: b.x + nx, y: b.y + ny },
+      { x: b.x - nx, y: b.y - ny },
+      { x: a.x - nx, y: a.y - ny },
+      color
+    );
+  }
+
+  function addPolylinePx(points, width, color) {
+    for (let i = 1; i &lt; points.length; i += 1) {
+      addLinePx(points[i - 1], points[i], width, color);
+    }
+  }
+
+  function addCirclePx(center, radius, color, segments = 48) {
+    for (let i = 0; i &lt; segments; i += 1) {
+      const a0 = i / segments * Math.PI * 2;
+      const a1 = (i + 1) / segments * Math.PI * 2;
+      addTrianglePx(
+        center,
+        { x: center.x + Math.cos(a0) * radius, y: center.y + Math.sin(a0) * radius },
+        { x: center.x + Math.cos(a1) * radius, y: center.y + Math.sin(a1) * radius },
+        color
+      );
+    }
+  }
+
+  function addRingPx(center, innerRadius, outerRadius, color, segments = 64) {
+    for (let i = 0; i &lt; segments; i += 1) {
+      const a0 = i / segments * Math.PI * 2;
+      const a1 = (i + 1) / segments * Math.PI * 2;
+      const c0 = Math.cos(a0);
+      const s0 = Math.sin(a0);
+      const c1 = Math.cos(a1);
+      const s1 = Math.sin(a1);
+      addQuadPx(
+        { x: center.x + c0 * innerRadius, y: center.y + s0 * innerRadius },
+        { x: center.x + c0 * outerRadius, y: center.y + s0 * outerRadius },
+        { x: center.x + c1 * outerRadius, y: center.y + s1 * outerRadius },
+        { x: center.x + c1 * innerRadius, y: center.y + s1 * innerRadius },
+        color
+      );
+    }
+  }
+
+  function addArrowPx(start, end, width, color) {
+    addLinePx(start, end, width, color);
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const length = Math.hypot(dx, dy);
+    if (length &lt; 4) return;
+    const ux = dx / length;
+    const uy = dy / length;
+    const px = -uy;
+    const py = ux;
+    const head = Math.min(10, Math.max(6, width * 3.2));
+    addTrianglePx(
+      end,
+      { x: end.x - ux * head + px * head * 0.45, y: end.y - uy * head + py * head * 0.45 },
+      { x: end.x - ux * head - px * head * 0.45, y: end.y - uy * head - py * head * 0.45 },
+      color
+    );
+  }
+
+  function worldToScreen(x, y) {
+    return {
+      x: worldView.width * 0.5 + x * worldView.scale,
+      y: worldView.baseline - y * worldView.scale
+    };
+  }
+
+  function screenToWorld(x, y) {
+    return {
+      x: (x - worldView.width * 0.5) / worldView.scale,
+      y: (worldView.baseline - y) / worldView.scale
+    };
+  }
+
+  function addWorldLine(a, b, width, color) {
+    addLinePx(worldToScreen(a.x, a.y), worldToScreen(b.x, b.y), width, color);
+  }
+
+  function addWorldArrow(start, vector, width, color) {
+    addArrowPx(
+      worldToScreen(start.x, start.y),
+      worldToScreen(start.x + vector.x, start.y + vector.y),
+      width,
+      color
+    );
+  }
+
+  function setOverlayPosition(element, point, offsetX, offsetY, center = true) {
+    const x = point.x + offsetX;
+    const y = point.y + offsetY;
+    element.style.transform = center
+      ? `translate(${x}px, ${y}px) translate(-50%, -50%)`
+      : `translate(${x}px, ${y}px)`;
+  }
+
+  function drawGrid() {
+    const topWorld = screenToWorld(0, 0).y;
+    const bottomWorld = screenToWorld(0, worldView.height).y;
+    const leftWorld = screenToWorld(0, 0).x;
+    const rightWorld = screenToWorld(worldView.width, 0).x;
+    const step = 0.5;
+    const gridColor = withAlpha(palette.border, 0.28);
+    const axisColor = withAlpha(palette.mutedForeground, 0.42);
+    for (let x = Math.ceil(leftWorld / step) * step; x &lt;= rightWorld; x += step) {
+      addWorldLine(
+        { x, y: bottomWorld },
+        { x, y: topWorld },
+        Math.abs(x) &lt; 1e-6 ? 1.25 : 0.65,
+        Math.abs(x) &lt; 1e-6 ? axisColor : gridColor
+      );
+    }
+    for (let y = Math.ceil(bottomWorld / step) * step; y &lt;= topWorld; y += step) {
+      addWorldLine(
+        { x: leftWorld, y },
+        { x: rightWorld, y },
+        Math.abs(y) &lt; 1e-6 ? 1.25 : 0.65,
+        Math.abs(y) &lt; 1e-6 ? axisColor : gridColor
+      );
+    }
+  }
+
+  function drawTrack() {
+    const leftWorld = screenToWorld(-10, 0).x;
+    const rightWorld = screenToWorld(worldView.width + 10, 0).x;
+    const points = [];
+    const samples = 130;
+    for (let i = 0; i &lt;= samples; i += 1) {
+      const x = leftWorld + (rightWorld - leftWorld) * i / samples;
+      points.push(worldToScreen(x, params.a * x * x));
+    }
+    const ground = withAlpha(palette.muted, 0.24);
+    for (let i = 1; i &lt; points.length; i += 1) {
+      const p0 = points[i - 1];
+      const p1 = points[i];
+      addQuadPx(
+        p0,
+        p1,
+        { x: p1.x, y: worldView.height + 1 },
+        { x: p0.x, y: worldView.height + 1 },
+        ground
+      );
+    }
+    addPolylinePx(points, 3.2, withAlpha(palette.track, 0.95));
+  }
+
+  function drawBelt(terms) {
+    const centerA = worldToScreen(terms.geomA.centerX, terms.geomA.centerY);
+    const centerB = worldToScreen(terms.geomB.centerX, terms.geomB.centerY);
+    const dx = centerB.x - centerA.x;
+    const dy = centerB.y - centerA.y;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    const ux = dx / distance;
+    const uy = dy / distance;
+    const px = -uy;
+    const py = ux;
+    const rotorRadius = params.rRotor * worldView.scale;
+    const diskRadius = params.rB * worldView.scale;
+    const beltColor = withAlpha(
+      Math.max(terms.utilizationA || 0, terms.utilizationB || 0) &gt; 1
+        ? palette.destructive
+        : palette.foreground,
+      0.48
+    );
+    const topA = { x: centerA.x + px * rotorRadius, y: centerA.y + py * rotorRadius };
+    const topB = { x: centerB.x + px * diskRadius, y: centerB.y + py * diskRadius };
+    const bottomA = { x: centerA.x - px * rotorRadius, y: centerA.y - py * rotorRadius };
+    const bottomB = { x: centerB.x - px * diskRadius, y: centerB.y - py * diskRadius };
+    addLinePx(topA, topB, 1.5, beltColor);
+    addLinePx(bottomA, bottomB, 1.5, beltColor);
+    const markerPhase = ((terms.psi * params.rRotor * worldView.scale) % 34 + 34) % 34;
+    for (let distanceAlong = markerPhase; distanceAlong &lt; distance; distanceAlong += 34) {
+      const t = distanceAlong / distance;
+      const x = topA.x + (topB.x - topA.x) * t;
+      const y = topA.y + (topB.y - topA.y) * t;
+      addLinePx(
+        { x: x - px * 3, y: y - py * 3 },
+        { x: x + px * 3, y: y + py * 3 },
+        1.1,
+        beltColor
+      );
+    }
+    setOverlayPosition(
+      driveLabel,
+      { x: (centerA.x + centerB.x) * 0.5, y: (centerA.y + centerB.y) * 0.5 },
+      0,
+      -13
+    );
+  }
+
+  function drawWheel(centerWorld, outerRadius, angle, fillColor, solid = true) {
+    const center = worldToScreen(centerWorld.x, centerWorld.y);
+    const outerPx = outerRadius * worldView.scale;
+    if (solid) addCirclePx(center, outerPx, withAlpha(fillColor, 0.70), 58);
+    addRingPx(center, Math.max(0, outerPx - 2.2), outerPx, withAlpha(fillColor, 0.98), 58);
+    const spokeColor = withAlpha(palette.foreground, 0.72);
+    for (let offset = 0; offset &lt; Math.PI * 2; offset += Math.PI / 2) {
+      const a = angle + offset;
+      addLinePx(
+        center,
+        { x: center.x + Math.cos(a) * outerPx * 0.82, y: center.y - Math.sin(a) * outerPx * 0.82 },
+        1.5,
+        spokeColor
+      );
+    }
+    addCirclePx(center, Math.max(2.2, outerPx * 0.08), withAlpha(palette.foreground, 0.85), 18);
+  }
+
+  function drawAnnulus(terms) {
+    const center = worldToScreen(terms.geomA.centerX, terms.geomA.centerY);
+    const outerPx = params.rAOuter * worldView.scale;
+    const innerPx = params.rAInner * worldView.scale;
+    addRingPx(center, innerPx, outerPx, withAlpha(palette.annulus, 0.78), 72);
+    addRingPx(center, Math.max(0, outerPx - 2.2), outerPx, withAlpha(palette.annulus, 0.98), 72);
+    addRingPx(center, innerPx, innerPx + 1.6, withAlpha(palette.foreground, 0.58), 72);
+    const spokeAngle = terms.thetaA;
+    const spokeColor = withAlpha(palette.foreground, 0.80);
+    for (const offset of [0, Math.PI]) {
+      const a = spokeAngle + offset;
+      addLinePx(
+        {
+          x: center.x + Math.cos(a) * innerPx,
+          y: center.y - Math.sin(a) * innerPx
+        },
+        {
+          x: center.x + Math.cos(a) * outerPx,
+          y: center.y - Math.sin(a) * outerPx
+        },
+        2,
+        spokeColor
+      );
+    }
+    drawWheel(
+      { x: terms.geomA.centerX, y: terms.geomA.centerY },
+      params.rRotor,
+      terms.psi,
+      palette.rotor,
+      true
+    );
+  }
+
+  function drawContactAndVectors(geometry, velocity, normal, friction, mass, radius, bodyColor) {
+    const contact = { x: geometry.contactX, y: geometry.contactY };
+    const contactScreen = worldToScreen(contact.x, contact.y);
+    addCirclePx(contactScreen, 4.1, withAlpha(palette.foreground, 0.90), 18);
+    addWorldLine(
+      {
+        x: contact.x - geometry.tx * radius * 0.18,
+        y: contact.y - geometry.ty * radius * 0.18
+      },
+      {
+        x: contact.x + geometry.tx * radius * 0.18,
+        y: contact.y + geometry.ty * radius * 0.18
+      },
+      2.5,
+      withAlpha(palette.foreground, 0.66)
+    );
+    const normalLength = Math.min(0.72, Math.max(0, normal) / (mass * g0) * 0.29);
+    addWorldArrow(
+      contact,
+      { x: geometry.nx * normalLength, y: geometry.ny * normalLength },
+      1.7,
+      withAlpha(palette.foreground, 0.72)
+    );
+    const frictionLength = Math.min(0.55, Math.abs(friction) / (mass * g0) * 0.65);
+    if (frictionLength &gt; 0.015) {
+      const sign = Math.sign(friction);
+      addWorldArrow(
+        contact,
+        { x: geometry.tx * frictionLength * sign, y: geometry.ty * frictionLength * sign },
+        1.7,
+        withAlpha(palette.mutedForeground, 0.88)
+      );
+    }
+    const centerVelocityVector = centerVelocity(geometry, velocity);
+    const speed = Math.hypot(centerVelocityVector.x, centerVelocityVector.y);
+    if (speed &gt; 0.025) {
+      const velocityScale = Math.min(0.9 / speed, 0.18);
+      addWorldArrow(
+        { x: geometry.centerX, y: geometry.centerY },
+        {
+          x: centerVelocityVector.x * velocityScale,
+          y: centerVelocityVector.y * velocityScale
+        },
+        2,
+        withAlpha(bodyColor, 0.94)
+      );
+    }
+  }
+
+  function drawEnergyHistory() {
+    if (worldView.width &lt; 520 || history.length &lt; 2) {
+      energyKey.hidden = true;
+      return;
+    }
+    energyKey.hidden = false;
+    const plotWidth = Math.min(250, worldView.width * 0.36);
+    const plotHeight = 62;
+    const x0 = worldView.width - plotWidth - 12;
+    const y0 = 32;
+    const recent = history;
+    let minValue = Infinity;
+    let maxValue = -Infinity;
+    for (const point of recent) {
+      minValue = Math.min(minValue, point.mechanical, point.balance);
+      maxValue = Math.max(maxValue, point.mechanical, point.balance);
+    }
+    const span = Math.max(0.15, maxValue - minValue);
+    minValue -= span * 0.12;
+    maxValue += span * 0.12;
+    const firstTime = recent[0].t;
+    const lastTime = Math.max(firstTime + 0.1, recent[recent.length - 1].t);
+    const mechanicalPoints = [];
+    const balancePoints = [];
+    for (const point of recent) {
+      const x = x0 + (point.t - firstTime) / (lastTime - firstTime) * plotWidth;
+      mechanicalPoints.push({
+        x,
+        y: y0 + plotHeight - (point.mechanical - minValue) / (maxValue - minValue) * plotHeight
+      });
+      balancePoints.push({
+        x,
+        y: y0 + plotHeight - (point.balance - minValue) / (maxValue - minValue) * plotHeight
+      });
+    }
+    addLinePx(
+      { x: x0, y: y0 + plotHeight },
+      { x: x0 + plotWidth, y: y0 + plotHeight },
+      0.8,
+      withAlpha(palette.border, 0.45)
+    );
+    addPolylinePx(mechanicalPoints, 1.8, withAlpha(palette.energy, 0.94));
+    addPolylinePx(balancePoints, 1.8, withAlpha(palette.balance, 0.94));
+  }
+
+  function uploadAndDraw() {
+    if (trianglePositions.length === 0) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(trianglePositions), gl.DYNAMIC_DRAW);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangleColors), gl.DYNAMIC_DRAW);
+    gl.vertexAttribPointer(colorLocation, 4, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, trianglePositions.length / 2);
+  }
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const displayWidth = Math.max(1, Math.round(rect.width * dpr));
+    const displayHeight = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
+    }
+    gl.viewport(0, 0, displayWidth, displayHeight);
+    worldView.width = rect.width;
+    worldView.height = rect.height;
+    const visibleWorldWidth = rect.width &lt; 480 ? 4.5 : 6.7;
+    worldView.scale = Math.min(rect.width / visibleWorldWidth, rect.height / 3.55);
+    worldView.baseline = rect.height * 0.79;
+  }
+
+  function render() {
+    resizeCanvas();
+    if (!palette) refreshPalette();
+    trianglePositions = [];
+    triangleColors = [];
+    gl.clearColor(palette.background[0], palette.background[1], palette.background[2], 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    const d = diagnostics();
+    drawGrid();
+    drawTrack();
+    drawBelt(d);
+    drawContactAndVectors(
+      d.geomA,
+      d.vA,
+      d.normalA,
+      d.frictionA,
+      d.translatingMassA,
+      params.rAOuter,
+      palette.annulus
+    );
+    drawContactAndVectors(
+      d.geomB,
+      d.vB,
+      d.normalB,
+      d.frictionB,
+      params.mB,
+      params.rB,
+      palette.disk
+    );
+    drawAnnulus(d);
+    drawWheel(
+      { x: d.geomB.centerX, y: d.geomB.centerY },
+      params.rB,
+      d.thetaB,
+      palette.disk,
+      true
+    );
+    if (collisionFlash &gt; 0) {
+      const centerA = worldToScreen(d.geomA.centerX, d.geomA.centerY);
+      const centerB = worldToScreen(d.geomB.centerX, d.geomB.centerY);
+      const impactPoint = {
+        x: (centerA.x + centerB.x) * 0.5,
+        y: (centerA.y + centerB.y) * 0.5
+      };
+      addRingPx(
+        impactPoint,
+        8 + (1 - collisionFlash) * 14,
+        10 + (1 - collisionFlash) * 14,
+        withAlpha(palette.destructive, collisionFlash * 0.72),
+        28
+      );
+    }
+    drawEnergyHistory();
+    uploadAndDraw();
+    const pointA = worldToScreen(d.geomA.centerX, d.geomA.centerY);
+    const pointB = worldToScreen(d.geomB.centerX, d.geomB.centerY);
+    setOverlayPosition(labelA, pointA, 0, -params.rAOuter * worldView.scale - 14);
+    setOverlayPosition(labelR, pointA, 0, 4);
+    setOverlayPosition(labelB, pointB, 0, -params.rB * worldView.scale - 14);
+  }
+
+  function frame(now) {
+    const elapsed = Math.min(0.05, Math.max(0, (now - lastFrameTime) / 1000));
+    lastFrameTime = now;
+    if (playing &amp;&amp; !dragTarget) {
+      accumulator += elapsed;
+      let steps = 0;
+      while (accumulator &gt;= fixedDt &amp;&amp; steps &lt; 18) {
+        advanceOneStep();
+        accumulator -= fixedDt;
+        steps += 1;
+      }
+      if (steps === 18) accumulator = 0;
+    }
+    collisionFlash = Math.max(0, collisionFlash - elapsed * 2.8);
+    updateOutputs();
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  playButton.addEventListener(&#x27;click&#x27;, () =&gt; {
+    playing = !playing;
+    accumulator = 0;
+    updatePlayButton();
+  });
+
+  releaseButton.addEventListener(&#x27;click&#x27;, () =&gt; {
+    resetExperiment();
+  });
+
+  stepButton.addEventListener(&#x27;click&#x27;, () =&gt; {
+    playing = false;
+    updatePlayButton();
+    advanceOneStep();
+    updateOutputs(true);
+  });
+
+  presetSelect.addEventListener(&#x27;change&#x27;, () =&gt; {
+    applyScenario(presetSelect.value);
+  });
+
+  controls.curvature.addEventListener(&#x27;input&#x27;, () =&gt; {
+    params.a = Number(controls.curvature.value);
+    controlValues.curvature.textContent = `${params.a.toFixed(2)} m⁻¹`;
+    rebaselineEnergy();
+  });
+
+  controls.stiffness.addEventListener(&#x27;input&#x27;, () =&gt; {
+    params.k = Number(controls.stiffness.value);
+    controlValues.stiffness.textContent = `${params.k.toFixed(2)} N·m/rad`;
+    rebaselineEnergy();
+  });
+
+  controls.damping.addEventListener(&#x27;input&#x27;, () =&gt; {
+    params.c = Number(controls.damping.value);
+    controlValues.damping.textContent = `${params.c.toFixed(2)} N·m·s/rad`;
+    rebaselineEnergy();
+  });
+
+  controls.friction.addEventListener(&#x27;input&#x27;, () =&gt; {
+    params.mu = Number(controls.friction.value);
+    controlValues.friction.textContent = `μ = ${params.mu.toFixed(2)}`;
+    updateOutputs(true);
+  });
+
+  function pointerPosition(event) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+
+  canvas.addEventListener(&#x27;pointerdown&#x27;, (event) =&gt; {
+    const pointer = pointerPosition(event);
+    const d = diagnostics();
+    const centerA = worldToScreen(d.geomA.centerX, d.geomA.centerY);
+    const centerB = worldToScreen(d.geomB.centerX, d.geomB.centerY);
+    const distanceA = Math.hypot(pointer.x - centerA.x, pointer.y - centerA.y);
+    const distanceB = Math.hypot(pointer.x - centerB.x, pointer.y - centerB.y);
+    if (distanceA &lt;= params.rAOuter * worldView.scale + 12) dragTarget = &#x27;A&#x27;;
+    else if (distanceB &lt;= params.rB * worldView.scale + 12) dragTarget = &#x27;B&#x27;;
+    if (!dragTarget) return;
+    playing = false;
+    updatePlayButton();
+    canvas.setPointerCapture(event.pointerId);
+  });
+
+  canvas.addEventListener(&#x27;pointermove&#x27;, (event) =&gt; {
+    if (!dragTarget) return;
+    const pointer = pointerPosition(event);
+    const world = screenToWorld(pointer.x, pointer.y);
+    const radius = dragTarget === &#x27;A&#x27; ? params.rAOuter : params.rB;
+    let x = dragTarget === &#x27;A&#x27; ? state[0] : state[2];
+    for (let iteration = 0; iteration &lt; 5; iteration += 1) {
+      const geometry = rollingGeometry(x, radius, 1);
+      x -= (geometry.centerX - world.x) / Math.max(0.18, geometry.lambda);
+    }
+    x = Math.max(-2.8, Math.min(2.8, x));
+    if (dragTarget === &#x27;A&#x27;) {
+      state[0] = x;
+      state[1] = 0;
+    } else {
+      state[2] = x;
+      state[3] = 0;
+    }
+    resolveBodyCollision();
+    rebaselineEnergy();
+    updateOutputs(true);
+  });
+
+  function endDrag(event) {
+    if (!dragTarget) return;
+    dragTarget = null;
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  }
+
+  canvas.addEventListener(&#x27;pointerup&#x27;, endDrag);
+  canvas.addEventListener(&#x27;pointercancel&#x27;, endDrag);
+
+  const resizeObserver = new ResizeObserver(() =&gt; render());
+  resizeObserver.observe(stage);
+
+  resetExperiment();
+  updatePlayButton();
+  requestAnimationFrame(frame);
+})();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

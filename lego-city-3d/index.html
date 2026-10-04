@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Brick City — 3D LEGO-style City</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0b1020;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+  #app{position:fixed;inset:0;}
+  canvas{display:block;}
+  #ui{position:fixed;left:14px;top:14px;z-index:10;display:flex;flex-direction:column;gap:10px;
+    max-width:230px;}
+  .panel{background:rgba(16,20,34,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:12px 13px;color:#e8ecf7;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  h1{margin:0 0 2px;font-size:15px;letter-spacing:.02em;}
+  .sub{margin:0;font-size:11px;line-height:1.45;color:#9aa6c4;}
+  .row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;}
+  button{appearance:none;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);
+    color:#e8ecf7;font-size:11.5px;font-weight:600;padding:7px 10px;border-radius:9px;cursor:pointer;
+    transition:.15s;font-family:inherit;}
+  button:hover{background:rgba(255,255,255,.16);transform:translateY(-1px);}
+  button:active{transform:translateY(0);}
+  button.on{background:#ffd23f;border-color:#ffd23f;color:#20160a;}
+  .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#7f8bab;margin:10px 0 5px;}
+  input[type=range]{width:100%;accent-color:#ffd23f;}
+  #stats{position:fixed;right:14px;bottom:14px;z-index:10;font-size:10.5px;color:#7f8bab;
+    background:rgba(16,20,34,.6);padding:6px 10px;border-radius:8px;
+    border:1px solid rgba(255,255,255,.08);font-variant-numeric:tabular-nums;}
+  #hint{position:fixed;left:0;right:0;bottom:14px;text-align:center;z-index:9;font-size:11px;
+    color:rgba(255,255,255,.45);pointer-events:none;}
+  @media (max-width:640px){#ui{max-width:170px;left:8px;top:8px;} #hint{display:none;}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="ui">
+  <div class="panel">
+    <h1>🧱 Brick City</h1>
+    <p class="sub">A procedurally built city, one stud at a time.</p>
+    <div class="row">
+      <button id="regen">↻ New City</button>
+      <button id="night">🌙 Night</button>
+    </div>
+    <div class="row">
+      <button id="spin" class="on">◉ Auto-spin</button>
+      <button id="explode">↕ Explode</button>
+    </div>
+    <div class="lbl">City density</div>
+    <input id="density" type="range" min="0" max="100" value="62">
+  </div>
+</div>
+
+<div id="stats">–</div>
+<div id="hint">drag to orbit · scroll to zoom · right-drag or two-finger to pan</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ─────────────────────────  LEGO metrics (real ratios)  ───────────────────────── */
+const STUD  = 1.0;            // 8.0 mm  — one stud pitch
+const BRICK = 1.2;            // 9.6 mm  — brick height
+const PLATE = 0.4;            // 3.2 mm  — plate height
+const GAP   = 0.03;           // seam inset so bricks read individually
+const SR    = 0.30;           // stud radius (4.8mm)
+const SH    = 0.22;           // stud height (1.8mm)
+const N     = 48;             // baseplate size in studs
+
+/* ─────────────────────────  Palette (classic LEGO colours)  ───────────────────── */
+const C = {
+  red:0xC4281B, brightRed:0xE3000B, orange:0xF57C20, yellow:0xF6CD1E,
+  brightYellow:0xFFD500, green:0x237841, brightGreen:0x4B9F4A, lime:0xA5CA18,
+  blue:0x0055BF, medBlue:0x5A93DB, lightBlue:0xB4D2E3, azure:0x078BC9,
+  tan:0xE4CD9E, darkTan:0xB09C7B, brown:0x582A12, redBrown:0x7C503A,
+  white:0xF4F4F4, lightGray:0xA0A5A9, darkGray:0x6C6E68,
+  blueGray:0x9BA19D, darkBlueGray:0x595D60, black:0x212121,
+  sand:0xD9BB7B, purple:0x81007B, magenta:0xC870A0, teal:0x008F9B,
+};
+const BODY_COLORS = [C.brightRed,C.blue,C.tan,C.white,C.darkTan,C.sand,C.brightYellow,
+                     C.medBlue,C.orange,C.lightGray,C.teal,C.green,C.purple];
+const ROOF_COLORS = [C.darkBlueGray,C.darkGray,C.blueGray,C.redBrown,C.black,C.brightRed];
+
+/* ─────────────────────────  Seeded RNG  ───────────────────────── */
+let _s = 1;
+function seed(v){ _s = v>>>0 || 1; }
+function rnd(){ _s ^= _s<<13; _s>>>=0; _s ^= _s>>17; _s ^= _s<<5; _s>>>=0; return _s/4294967296; }
+const ri = (a,b)=>a+Math.floor(rnd()*(b-a+1));
+const pick = a => a[Math.floor(rnd()*a.length)];
+const chance = p => rnd() < p;
+
+/* ─────────────────────────  Renderer / scene  ───────────────────────── */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.5, 600);
+
+const DAY   = {bg:0x9fd4f0, fog:0xbfe3f5, hemiS:0xbfe3f5, hemiG:0x6b8a5a, hemiI:0.62,
+               sun:0xfff6e0, sunI:1.5, amb:0.22};
+const NIGHT = {bg:0x0a1024, fog:0x121a34, hemiS:0x2a3f6e, hemiG:0x101820, hemiI:0.42,
+               sun:0x9fb6ff, sunI:0.42, amb:0.16};
+
+const hemi = new THREE.HemisphereLight(DAY.hemiS, DAY.hemiG, DAY.hemiI);
+scene.add(hemi);
+const amb = new THREE.AmbientLight(0xffffff, DAY.amb);
+scene.add(amb);
+const sun = new THREE.DirectionalLight(DAY.sun, DAY.sunI);
+sun.position.set(34, 52, 26);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+const d = 42;
+Object.assign(sun.shadow.camera, {left:-d, right:d, top:d, bottom:-d, near:1, far:190});
+sun.shadow.camera.updateProjectionMatrix();
+sun.shadow.bias = -0.0012;
+sun.shadow.normalBias = 0.045;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.18);
+fill.position.set(-30, 20, -24);
+scene.add(fill);
+
+/* ─────────────────────────  Shared geometry  ─────────────────────────
+   Unit primitives, scaled per-instance. Studs carry the LEGO read.        */
+const GEO = {
+  box:  new THREE.BoxGeometry(1,1,1),
+  cyl:  new THREE.CylinderGeometry(1,1,1,14,1),
+  cylS: new THREE.CylinderGeometry(1,1,1,10,1),
+  cone: new THREE.ConeGeometry(1,1,9,1),
+  sph:  new THREE.SphereGeometry(1,10,7),
+};
+
+/* ─────────────────────────  Build buffers  ───────────────────────── */
+let B = [];        // boxes  {p:[x,y,z], s:[w,h,d], c, ry}
+let Y = [];        // studs & cylinders {p, s:[r,h,r], c, rot}
+let K = [];        // cones {p, s, c}
+let S = [];        // spheres {p, s, c}
+let WINDOWS = [];  // indices into B that are windows (for night glow)
+let LAMPS = [];    // world positions of lamp lights
+
+const wx = sx => sx - N/2;
+
+function box(x,y,z,w,h,dp,c,tag){
+  B.push({p:[x,y,z], s:[w,h,dp], c:c});
+  if(tag==='win') WINDOWS.push(B.length-1);
+  return B.length-1;
+}
+/* place a brick using stud coordinates: sx,sz = min corner, w,dp in studs */
+function brick(sx,sz,w,dp,y,h,c,opt){
+  opt = opt||{};
+  box(wx(sx)+w/2, y+h/2, wx(sz)+dp/2, w-GAP*2, h, dp-GAP*2, c);
+  if(opt.studs){
+    for(let i=0;i<w;i++) for(let j=0;j<dp;j++)
+      Y.push({p:[wx(sx)+i+0.5, y+h+SH/2, wx(sz)+j+0.5], s:[SR,SH,SR], c:c});
+  }
+}
+function studsOn(sx,sz,w,dp,y,c,skip){
+  for(let i=0;i<w;i++) for(let j=0;j<dp;j++){
+    if(skip && skip(sx+i,sz+j)) continue;
+    Y.push({p:[wx(sx)+i+0.5, y+SH/2, wx(sz)+j+0.5], s:[SR,SH,SR], c:c});
+  }
+}
+function cyl(x,y,z,r,h,c,rot,smooth){
+  Y.push({p:[x,y,z], s:[r,h,r], c:c, rot:rot});
+}
+function cone(x,y,z,r,h,c){ K.push({p:[x,y,z], s:[r,h,r], c:c}); }
+function sph(x,y,z,r,c){ S.push({p:[x,y,z], s:[r,r,r], c:c}); }
+
+/* ─────────────────────────  City layout  ───────────────────────── */
+const BX = [0,17,37], BW = [12,15,11];          // block starts / sizes (x and z)
+const ROADS = [[12,5],[32,5]];                   // [start, width]
+let occupied;                                    // occupancy for lamp/car placement
+
+function buildCity(density){
+  B=[]; Y=[]; K=[]; S=[]; WINDOWS=[]; LAMPS=[];
+  occupied = Array.from({length:N},()=>new Array(N).fill(0));
+
+  /* — baseplate — */
+  brick(-1,-1,N+2,N+2, -PLATE, PLATE, C.brightGreen);
+
+  /* — roads (smooth, no studs) — */
+  const roadY = 0;
+  for(const [rs,rw] of ROADS){
+    brick(-1, rs, N+2, rw, roadY, PLATE, C.darkBlueGray);
+    brick(rs, -1, rw, N+2, roadY, PLATE, C.darkBlueGray);
+  }
+  // lane dashes
+  for(const [rs,rw] of ROADS){
+    const c = rs + Math.floor(rw/2);
+    for(let t=0;t<N;t+=3){
+      if(!insideRoadX(t)) box(wx(t)+1, roadY+PLATE+0.03, wx(c)+0.5, 1.6, 0.06, 0.22, C.white);
+      if(!insideRoadZ(t)) box(wx(c)+0.5, roadY+PLATE+0.03, wx(t)+1, 0.22, 0.06, 1.6, C.white);
+    }
+  }
+
+  /* — blocks — */
+  const parkI = ri(0,2), parkJ = ri(0,2);
+  for(let bi=0;bi<3;bi++) for(let bj=0;bj<3;bj++){
+    const sx=BX[bi], sz=BX[bj], w=BW[bi], dp=BW[bj];
+    const downtown = (bi===1 && bj===1);
+    const isPark = (bi===parkI && bj===parkJ) && !downtown;
+
+    // sidewalk / lawn plate for the whole block
+    const baseC = isPark ? C.brightGreen : C.blueGray;
+    brick(sx,sz,w,dp, roadY, PLATE, baseC);
+    studsOn(sx,sz,w,dp, roadY+PLATE, baseC, (gx,gz)=>occupied[gx] && occupied[gx][gz]===2);
+
+    if(isPark) buildPark(sx,sz,w,dp, roadY+PLATE);
+    else       buildLots(sx,sz,w,dp, roadY+PLATE, downtown, density);
+  }
+
+  /* — street furniture — */
+  streetLife(roadY+PLATE);
+}
+
+function insideRoadX(t){ return ROADS.some(([s,w])=> t>=s-1 && t<s+w+1); }
+const insideRoadZ = insideRoadX;
+
+/* ── lots: pack buildings into a block ── */
+function buildLots(sx,sz,w,dp,y,downtown,density){
+  const maxLot = downtown ? 7 : 6;
+  let z = 1;
+  while (z <= dp-4){
+    const ld = Math.min(ri(4,maxLot), dp-1-z);
+    if(ld < 3) break;
+    let x = 1;
+    while (x <= w-4){
+      let lw = Math.min(ri(4,maxLot), w-1-x);
+      if(lw < 3) break;
+      const r = rnd()*100;
+      if(r < density){
+        buildTower(sx+x, sz+z, lw, ld, y, downtown);
+      } else if (r < density + (100-density)*0.55){
+        buildSmall(sx+x, sz+z, lw, ld, y);
+      } else {
+        buildYard(sx+x, sz+z, lw, ld, y);
+      }
+      x += lw + 1;
+    }
+    z += ld + 1;
+  }
+}
+
+function markFootprint(sx,sz,w,dp){
+  for(let i=0;i<w;i++) for(let j=0;j<dp;j++){
+    const gx=sx+i, gz=sz+j;
+    if(gx>=0&&gx<N&&gz>=0&&gz<N) occupied[gx][gz]=2;
+  }
+}
+
+/* ── a stacked-brick tower ── */
+function buildTower(sx,sz,w,dp,y,downtown){
+  markFootprint(sx,sz,w,dp);
+  const layers = downtown ? ri(7,15) : ri(2,6);
+  const bodyC  = pick(BODY_COLORS);
+  const accentC= pick(BODY_COLORS);
+  const winC   = chance(.55) ? C.lightBlue : (chance(.5)? C.azure : C.white);
+  const setback = downtown && layers>9 && chance(.7);
+
+  let cw=w, cd=dp, cx=sx, cz=sz, top=y;
+  const tiers = setback ? 2 : 1;
+  let remaining = layers;
+
+  for(let t=0;t<tiers;t++){
+    const tl = (t===tiers-1) ? remaining : Math.ceil(remaining*0.62);
+    remaining -= tl;
+    for(let L=0;L<tl;L++){
+      const c = (L>0 && L%4===3) ? accentC : bodyC;
+      brick(cx,cz,cw,cd, top, BRICK, c);
+      // window band on every other layer above ground floor
+      if(L>0 || t>0){
+        if(chance(.92)) windowBand(cx,cz,cw,cd, top, winC);
+      } else {
+        groundFloor(cx,cz,cw,cd, top);
+      }
+      top += BRICK;
+    }
+    if(t<tiers-1){
+      // setback ledge
+      brick(cx,cz,cw,cd, top, PLATE, pick(ROOF_COLORS)); top += PLATE;
+      const shrink = 1;
+      cx+=shrink; cz+=shrink; cw-=shrink*2; cd-=shrink*2;
+      if(cw<3||cd<3){ cw=Math.max(3,cw); cd=Math.max(3,cd); }
+    }
+  }
+
+  // roof plate with slight overhang + studs
+  const roofC = pick(ROOF_COLORS);
+  box(wx(cx)+cw/2, top+PLATE/2, wx(cz)+cd/2, cw+0.14, PLATE, cd+0.14, roofC);
+  top += PLATE;
+  studsOn(cx,cz,cw,cd, top, roofC);
+
+  // roof details
+  if(chance(.5)){ // water tank / AC unit
+    const ux=cx+ri(0,Math.max(0,cw-2)), uz=cz+ri(0,Math.max(0,cd-2));
+    brick(ux,uz,2,2, top, PLATE*2, C.lightGray, {studs:true});
+  }
+  if(downtown && chance(.7)){ // antenna + beacon
+    const ax=wx(cx)+cw/2, az=wx(cz)+cd/2;
+    cyl(ax, top+1.6, az, 0.11, 3.2, C.lightGray);
+    sph(ax, top+3.3, az, 0.22, C.brightRed);
+    LAMPS.push([ax, top+3.3, az, 0xff3b30, 0.55]);
+  }
+  if(chance(.35)){ // corner flag
+    cyl(wx(cx)+0.5, top+1.1, wx(cz)+0.5, 0.07, 2.2, C.white);
+    box(wx(cx)+1.05, top+1.85, wx(cz)+0.5, 1.0, 0.6, 0.07, pick([C.brightRed,C.blue,C.brightYellow]));
+  }
+}
+
+function windowBand(sx,sz,w,dp,yBase,winC){
+  const y = yBase + BRICK*0.5;
+  const h = 0.62, th = 0.18;
+  const x0 = wx(sx), z0 = wx(sz);
+  if(w>=4){
+    box(x0+w/2, y, z0+GAP,      w-1.6, h, th, winC, 'win');
+    box(x0+w/2, y, z0+dp-GAP,   w-1.6, h, th, winC, 'win');
+  }
+  if(dp>=4){
+    box(x0+GAP,    y, z0+dp/2,  th, h, dp-1.6, winC, 'win');
+    box(x0+w-GAP,  y, z0+dp/2,  th, h, dp-1.6, winC, 'win');
+  }
+}
+
+function groundFloor(sx,sz,w,dp,yBase){
+  const y = yBase + BRICK*0.48;
+  const x0 = wx(sx), z0 = wx(sz);
+  // door on the +z face
+  box(x0+w/2, yBase+BRICK*0.42, z0+dp-GAP, 1.1, BRICK*0.84, 0.18, C.redBrown);
+  // shop windows either side
+  if(w>=5){
+    box(x0+w/2-1.6, y, z0+dp-GAP, w-4.2>0?w-4.2:0.8, 0.6, 0.16, C.lightBlue, 'win');
+  }
+  // awning
+  if(chance(.5)) box(x0+w/2, yBase+BRICK*0.88, z0+dp+0.18, w-1.0, 0.16, 0.7,
+                     pick([C.brightRed,C.brightGreen,C.orange,C.white]));
+}
+
+/* ── small house with a sloped-looking roof ── */
+function buildSmall(sx,sz,w,dp,y){
+  markFootprint(sx,sz,w,dp);
+  const bodyC = pick([C.white,C.tan,C.sand,C.lightBlue,C.brightYellow,C.lime,C.medBlue]);
+  const roofC = pick([C.brightRed,C.darkGray,C.redBrown,C.blue,C.darkBlueGray]);
+  const layers = ri(2,3);
+  let top = y;
+  for(let L=0;L<layers;L++){
+    brick(sx,sz,w,dp, top, BRICK, bodyC);
+    if(L===0) groundFloor(sx,sz,w,dp, top);
+    else windowBand(sx,sz,w,dp, top, C.lightBlue);
+    top += BRICK;
+  }
+  // stepped "slope" roof — classic brick-built gable
+  const steps = Math.min(3, Math.floor(Math.min(w,dp)/2));
+  let cw=w, cd=dp, cx=sx, cz=sz;
+  box(wx(cx)+cw/2, top+PLATE/2, wx(cz)+cd/2, cw+0.2, PLATE, cd+0.2, roofC);
+  top += PLATE;
+  for(let s=0;s<steps;s++){
+    if(cw>2){cx+=1;cw-=2;} if(cd>2){cz+=1;cd-=2;}
+    if(cw<1||cd<1) break;
+    brick(cx,cz,cw,cd, top, PLATE*1.6, roofC);
+    top += PLATE*1.6;
+  }
+  studsOn(cx,cz,Math.max(1,cw),Math.max(1,cd), top, roofC);
+  // chimney
+  if(chance(.6)) brick(sx+1, sz+1, 1,1, top-PLATE, BRICK*1.2, C.redBrown, {studs:true});
+}
+
+/* ── open lot: trees, benches, a parked car ── */
+function buildYard(sx,sz,w,dp,y){
+  for(let i=0;i<ri(1,3);i++){
+    tree(sx+ri(0,w-1)+0.5, sz+ri(0,dp-1)+0.5, y);
+  }
+  if(chance(.5)) bench(wx(sx)+w/2, y, wx(sz)+dp/2, chance(.5)?0:Math.PI/2);
+}
+
+function tree(sxc,szc,y){
+  const x=wx(sxc), z=wx(szc);
+  cyl(x, y+BRICK*0.8, z, 0.26, BRICK*1.6, C.redBrown);
+  const g = pick([C.green,C.brightGreen,C.lime]);
+  const base = y+BRICK*1.4;
+  cone(x, base+0.95, z, 1.15, 1.9, g);
+  cone(x, base+2.05, z, 0.85, 1.5, g);
+  if(chance(.5)) cone(x, base+3.0, z, 0.55, 1.1, g);
+}
+
+function bench(x,y,z,ry){
+  const s=Math.sin(ry), c=Math.cos(ry);
+  const bw=1.9, bd=0.7;
+  box(x, y+0.42, z, ry?bd:bw, PLATE, ry?bw:bd, C.redBrown);
+  box(x + (ry? 0.3*1:0), y+0.75, z + (ry?0:0.3), ry?0.18:bw, 0.62, ry?bw:0.18, C.redBrown);
+}
+
+/* ── park ── */
+function buildPark(sx,sz,w,dp,y){
+  // winding path of tan plates
+  const cx = sx + Math.floor(w/2);
+  brick(sx+1, sz+Math.floor(dp/2)-1, w-2, 2, y, PLATE*0.6, C.darkTan);
+  brick(cx-1, sz+1, 2, dp-2, y, PLATE*0.6, C.darkTan);
+  // pond
+  const px = sx+1, pz = sz+1;
+  brick(px, pz, 4, 3, y, PLATE*0.5, C.azure);
+  // trees around
+  for(let i=0;i<10;i++){
+    const tx = sx+ri(0,w-1), tz = sz+ri(0,dp-1);
+    if(Math.abs(tx-cx)<2) continue;
+    if(tx<px+4 && tz<pz+3) continue;
+    tree(tx+0.5, tz+0.5, y);
+  }
+  // benches
+  bench(wx(sx)+w/2+2.5, y, wx(sz)+dp/2+2.0, 0);
+  bench(wx(sx)+w/2-2.5, y, wx(sz)+dp/2-2.0, 0);
+  // playground swing frame
+  const gx=wx(sx)+w-3.5, gz=wx(sz)+dp-3.5;
+  cyl(gx-1.2, y+1.4, gz, 0.12, 2.8, C.brightRed);
+  cyl(gx+1.2, y+1.4, gz, 0.12, 2.8, C.brightRed);
+  box(gx, y+2.8, gz, 2.9, 0.22, 0.22, C.brightYellow);
+  // statue
+  const stx = wx(sx)+w/2, stz = wx(sz)+dp/2;
+  brick(sx+Math.floor(w/2)-1, sz+Math.floor(dp/2)-1, 2,2, y, PLATE*2, C.lightGray);
+  cyl(stx, y+PLATE*2+0.9, stz, 0.3, 1.8, C.darkTan);
+  sph(stx, y+PLATE*2+2.0, stz, 0.42, C.brightYellow);
+}
+
+/* ── cars, lamps, traffic lights along the roads ── */
+function streetLife(y){
+  const roadY = 0 + PLATE;
+  // cars driving on each road, along both directions
+  for(const [rs,rw] of ROADS){
+    const laneA = rs + 1, laneB = rs + rw - 3;
+    for(let t=2;t<N-6;t+=ri(7,13)){
+      if(insideRoadX(t)) continue;
+      if(chance(.62)) car(laneA, t, 'z', roadY);          // travelling along z
+      if(chance(.5))  car(t, laneB, 'x', roadY);          // travelling along x
+    }
+  }
+  // street lamps on block corners facing roads
+  for(const [rs,rw] of ROADS){
+    for(let t=3;t<N;t+=8){
+      if(insideRoadX(t)) continue;
+      lamp(wx(rs)-0.4, y, wx(t)+0.5);
+      lamp(wx(rs+rw)+0.4, y, wx(t)+0.5);
+      lamp(wx(t)+0.5, y, wx(rs)-0.4);
+      lamp(wx(t)+0.5, y, wx(rs+rw)+0.4);
+    }
+  }
+  // traffic lights at intersections
+  for(const [rsx,rwx] of ROADS) for(const [rsz,rwz] of ROADS){
+    trafficLight(wx(rsx)-0.5, y, wx(rsz)-0.5);
+    trafficLight(wx(rsx+rwx)+0.5, y, wx(rsz+rwz)+0.5);
+  }
+}
+
+function car(sx,sz,dir,y){
+  const c = pick([C.brightRed,C.blue,C.brightYellow,C.white,C.black,C.orange,C.lime,C.teal,C.magenta]);
+  const alongZ = dir==='z';
+  const w = alongZ?2:4, dp = alongZ?4:2;
+  const x0 = wx(sx), z0 = wx(sz);
+  const cxw = x0 + w/2, czw = z0 + dp/2;
+  // chassis
+  box(cxw, y+0.36, czw, w-0.25, PLATE, dp-0.25, C.darkGray);
+  // body
+  box(cxw, y+0.36+PLATE/2+BRICK/2, czw, w-0.12, BRICK, dp-0.12, c);
+  // cabin
+  box(cxw + (alongZ?0:-0.5), y+0.36+PLATE/2+BRICK+PLATE*0.8, czw + (alongZ?-0.5:0),
+      1.85, PLATE*1.6, 1.85, C.lightBlue);
+  // wheels
+  const wy = y+0.32;
+  const rotZ = [0,0,Math.PI/2];
+  const rotX = [Math.PI/2,0,0];
+  if(alongZ){
+    for(const dz of [-1.1,1.1]) for(const dx of [-1,1])
+      Y.push({p:[cxw+dx*0.98, wy, czw+dz], s:[0.34,0.28,0.34], c:C.black, rot:rotZ});
+  } else {
+    for(const dx of [-1.1,1.1]) for(const dz of [-1,1])
+      Y.push({p:[cxw+dx, wy, czw+dz*0.98], s:[0.34,0.28,0.34], c:C.black, rot:rotX});
+  }
+  // headlights glow at night
+  LAMPS.push([cxw + (alongZ?0:1.9), y+0.9, czw + (alongZ?1.9:0), 0xfff0c0, 0.35]);
+}
+
+function lamp(x,y,z){
+  cyl(x, y+2.0, z, 0.11, 4.0, C.darkGray);
+  box(x, y+4.05, z, 0.75, 0.22, 0.32, C.darkGray);
+  box(x, y+3.92, z, 0.55, 0.14, 0.24, C.brightYellow, 'win');
+  LAMPS.push([x, y+3.85, z, 0xffd98a, 0.9]);
+}
+
+function trafficLight(x,y,z){
+  cyl(x, y+1.6, z, 0.12, 3.2, C.darkGray);
+  box(x, y+3.5, z, 0.5, 1.35, 0.5, C.black);
+  sph(x, y+3.92, z+0.26, 0.13, C.brightRed);
+  sph(x, y+3.52, z+0.26, 0.13, C.brightYellow);
+  sph(x, y+3.12, z+0.26, 0.13, C.brightGreen);
+}
+
+/* ─────────────────────────  Instanced mesh assembly  ───────────────────────── */
+let city = new THREE.Group();
+scene.add(city);
+let winMesh = null, winIdx = [], pointLights = [];
+let meshRefs = [];
+let explodeT = 0, exploding = false;
+
+function buildMeshes(){
+  // shared unit geometries are reused, so only materials get disposed
+  city.traverse(o=>{ if(o.isMesh && o.material) o.material.dispose(); });
+  scene.remove(city);
+  city = new THREE.Group();
+  scene.add(city);
+  meshRefs = [];
+  pointLights.forEach(l=>scene.remove(l)); pointLights = [];
+
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(),
+        e = new THREE.Euler(), v = new THREE.Vector3(), col = new THREE.Color();
+
+  function inst(geo, list, useRot, roughness){
+    if(!list.length) return null;
+    const mat = new THREE.MeshStandardMaterial({roughness:roughness, metalness:0.02});
+    const mesh = new THREE.InstancedMesh(geo, mat, list.length);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    for(let i=0;i<list.length;i++){
+      const it = list[i];
+      if(useRot && it.rot){ e.set(it.rot[0],it.rot[1],it.rot[2]); q.setFromEuler(e); }
+      else q.set(0,0,0,1);
+      m4.compose(v.set(it.p[0],it.p[1],it.p[2]), q, new THREE.Vector3(it.s[0],it.s[1],it.s[2]));
+      mesh.setMatrixAt(i, m4);
+      mesh.setColorAt(i, col.setHex(it.c));
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if(mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    city.add(mesh);
+    meshRefs.push({mesh, list});
+    return mesh;
+  }
+
+  const boxMesh = inst(GEO.box, B, false, 0.44);
+  inst(GEO.cyl,  Y, true, 0.40);
+  inst(GEO.cone, K, false, 0.55);
+  inst(GEO.sph,  S, false, 0.34);
+
+  winMesh = boxMesh;
+  winIdx = WINDOWS.slice();
+
+  // baseline colors kept so we can restore on day
+  if(winMesh){
+    winMesh.userData.dayColors = winIdx.map(i=>B[i].c);
+  }
+}
+
+/* ─────────────────────────  Night glow  ───────────────────────── */
+let isNight = false;
+function applyTime(){
+  const T = isNight ? NIGHT : DAY;
+  scene.background = new THREE.Color(T.bg);
+  scene.fog = new THREE.Fog(T.fog, 95, 265);
+  hemi.color.setHex(T.hemiS); hemi.groundColor.setHex(T.hemiG); hemi.intensity = T.hemiI;
+  amb.intensity = T.amb;
+  sun.color.setHex(T.sun); sun.intensity = T.sunI;
+  sun.position.set(isNight? -30:34, isNight?46:52, isNight?-18:26);
+
+  // window emission
+  if(winMesh){
+    const col = new THREE.Color();
+    const day = winMesh.userData.dayColors || [];
+    for(let k=0;k<winIdx.length;k++){
+      const i = winIdx[k];
+      if(isNight){
+        // most windows lit warm, a few dark
+        const lit = ((i*2654435761)>>>0) % 100 > 22;
+        col.setHex(lit ? (((i*97)%3===0)? 0xffe08a : 0xfff3c4) : 0x1b2436);
+      } else col.setHex(day[k]);
+      winMesh.setColorAt(i, col);
+    }
+    if(winMesh.instanceColor) winMesh.instanceColor.needsUpdate = true;
+  }
+
+  // point lights for lamps (limited count for perf)
+  pointLights.forEach(l=>scene.remove(l)); pointLights = [];
+  if(isNight){
+    const chosen = LAMPS.slice(0, 999).filter((_,i)=> i%3===0).slice(0, 26);
+    for(const [x,y,z,c,i] of chosen){
+      const pl = new THREE.PointLight(c, i*1.5, 16, 2);
+      pl.position.set(x,y,z);
+      scene.add(pl); pointLights.push(pl);
+    }
+  }
+}
+
+/* ─────────────────────────  Explode (see the build)  ───────────────────────── */
+function toggleExplode(){
+  exploding = !exploding;
+  document.getElementById('explode').classList.toggle('on', exploding);
+}
+function applyExplode(t){
+  const m4=new THREE.Matrix4(), q=new THREE.Quaternion(), e=new THREE.Euler(), v=new THREE.Vector3();
+  for(const {mesh,list} of meshRefs){
+    for(let i=0;i<list.length;i++){
+      const it=list[i];
+      const lift = it.p[1] * 0.9 * t;
+      const spread = t * 0.5;
+      if(it.rot){ e.set(it.rot[0],it.rot[1],it.rot[2]); q.setFromEuler(e); } else q.set(0,0,0,1);
+      m4.compose(v.set(it.p[0]*(1+spread*0.12), it.p[1]+lift, it.p[2]*(1+spread*0.12)),
+                 q, new THREE.Vector3(it.s[0],it.s[1],it.s[2]));
+      mesh.setMatrixAt(i,m4);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
+/* ─────────────────────────  Orbit controls (hand-rolled)  ───────────────────────── */
+const cam = {tgt:new THREE.Vector3(0,4,0), r:78, theta:0.78, phi:0.98};
+let autoSpin = true;
+let drag=null;
+const dom = renderer.domElement;
+
+function updateCam(){
+  cam.phi = Math.max(0.12, Math.min(1.52, cam.phi));
+  cam.r   = Math.max(22, Math.min(210, cam.r));
+  const sp = Math.sin(cam.phi);
+  camera.position.set(
+    cam.tgt.x + cam.r*sp*Math.sin(cam.theta),
+    cam.tgt.y + cam.r*Math.cos(cam.phi),
+    cam.tgt.z + cam.r*sp*Math.cos(cam.theta)
+  );
+  camera.lookAt(cam.tgt);
+}
+dom.addEventListener('pointerdown', e=>{
+  dom.setPointerCapture(e.pointerId);
+  drag = {x:e.clientX, y:e.clientY, pan:(e.button===2||e.shiftKey)};
+  autoSpin = false; document.getElementById('spin').classList.remove('on');
+});
+dom.addEventListener('pointermove', e=>{
+  if(!drag) return;
+  const dx = e.clientX-drag.x, dy = e.clientY-drag.y;
+  drag.x=e.clientX; drag.y=e.clientY;
+  if(drag.pan){
+    const right = new THREE.Vector3().subVectors(camera.position, cam.tgt).cross(camera.up).normalize();
+    const fwd = new THREE.Vector3().subVectors(cam.tgt, camera.position).setY(0).normalize();
+    cam.tgt.addScaledVector(right, -dx*cam.r*0.0012);
+    cam.tgt.addScaledVector(fwd,   -dy*cam.r*0.0012);
+  } else {
+    cam.theta -= dx*0.006;
+    cam.phi   -= dy*0.005;
+  }
+  updateCam();
+});
+addEventListener('pointerup', ()=>{ drag=null; });
+dom.addEventListener('contextmenu', e=>e.preventDefault());
+dom.addEventListener('wheel', e=>{ e.preventDefault(); cam.r *= Math.pow(1.0016, e.deltaY); updateCam(); }, {passive:false});
+// pinch
+let pinch=null;
+dom.addEventListener('touchstart', e=>{ if(e.touches.length===2){
+  pinch = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+}}, {passive:true});
+dom.addEventListener('touchmove', e=>{ if(e.touches.length===2 && pinch){
+  const d2 = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+  cam.r *= pinch/d2; pinch=d2; updateCam();
+}}, {passive:true});
+dom.addEventListener('touchend', ()=>{ pinch=null; });
+
+/* ─────────────────────────  Wire up UI  ───────────────────────── */
+function regenerate(){
+  seed((Math.random()*1e9)|0);
+  const density = +document.getElementById('density').value;
+  buildCity(density);
+  buildMeshes();
+  applyTime();
+  const parts = B.length + Y.length + K.length + S.length;
+  document.getElementById('stats').textContent =
+    parts.toLocaleString() + ' bricks · ' + N + '×' + N + ' baseplate';
+}
+document.getElementById('regen').onclick = regenerate;
+document.getElementById('night').onclick = e=>{
+  isNight = !isNight; e.currentTarget.classList.toggle('on', isNight);
+  e.currentTarget.textContent = isNight ? '☀︎ Day' : '🌙 Night';
+  applyTime();
+};
+document.getElementById('spin').onclick = e=>{
+  autoSpin = !autoSpin; e.currentTarget.classList.toggle('on', autoSpin);
+};
+document.getElementById('explode').onclick = toggleExplode;
+let densTimer;
+document.getElementById('density').oninput = ()=>{
+  clearTimeout(densTimer); densTimer = setTimeout(regenerate, 220);
+};
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ─────────────────────────  Go  ───────────────────────── */
+regenerate();
+updateCam();
+
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.05, (now-last)/1000); last = now;
+  if(autoSpin && !drag){ cam.theta += dt*0.08; updateCam(); }
+  const target = exploding ? 1 : 0;
+  if(Math.abs(explodeT-target) > 0.001){
+    explodeT += (target-explodeT) * Math.min(1, dt*3.2);
+    applyExplode(explodeT);
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

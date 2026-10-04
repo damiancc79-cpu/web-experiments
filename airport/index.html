@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Skyport International — 3D Airport</title>
+<style>
+  :root{
+    --ui-bg: rgba(10,16,28,0.72);
+    --ui-border: rgba(120,170,230,0.28);
+    --ui-text: #e8eefc;
+    --ui-dim: #9fb2d4;
+    --accent: #6cc0ff;
+  }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; overflow:hidden; background:#0a0f1a; }
+  body { font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color:var(--ui-text); -webkit-font-smoothing:antialiased; }
+  #app { position:fixed; inset:0; }
+  canvas { display:block; }
+
+  /* Vignette + subtle film grain feel */
+  #vignette { position:fixed; inset:0; pointer-events:none; z-index:5;
+    box-shadow: inset 0 0 320px 60px rgba(0,0,0,0.55);
+    background: radial-gradient(120% 80% at 50% 12%, rgba(255,230,190,0.06), rgba(0,0,0,0) 55%);
+    mix-blend-mode: normal;
+  }
+
+  /* HUD panels */
+  .panel { position:fixed; z-index:10; background:var(--ui-bg); border:1px solid var(--ui-border);
+    border-radius:14px; padding:14px 16px; backdrop-filter: blur(9px) saturate(120%);
+    -webkit-backdrop-filter: blur(9px) saturate(120%); box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  }
+  #title { left:18px; top:16px; padding:14px 18px; }
+  #title h1 { margin:0; font-size:17px; letter-spacing:0.14em; font-weight:700; }
+  #title .sub { margin-top:4px; font-size:11px; letter-spacing:0.26em; color:var(--ui-dim); text-transform:uppercase; }
+  #title .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#37e08a;
+    box-shadow:0 0 10px #37e08a; margin-right:8px; vertical-align:middle; animation:blink 2.4s infinite; }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  #help { left:18px; bottom:18px; font-size:12.5px; line-height:1.5; max-width:280px; }
+  #help h2 { margin:0 0 8px; font-size:11px; letter-spacing:0.2em; color:var(--accent); text-transform:uppercase; }
+  #help .row { display:flex; align-items:center; gap:8px; margin:5px 0; color:var(--ui-dim); }
+  kbd { display:inline-block; min-width:20px; text-align:center; padding:2px 7px; border-radius:6px;
+    background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.16);
+    border-bottom-width:2px; font-family: ui-monospace, Menlo, monospace; font-size:11px; color:#fff; }
+  #help .row span { color:var(--ui-text); }
+
+  #views { right:18px; top:16px; font-size:12px; }
+  #views h2 { margin:0 0 8px; font-size:11px; letter-spacing:0.2em; color:var(--accent); text-transform:uppercase; }
+  #views button { display:block; width:100%; text-align:left; margin:5px 0; cursor:pointer;
+    background:rgba(255,255,255,0.05); color:var(--ui-text); border:1px solid var(--ui-border);
+    padding:7px 11px; border-radius:9px; font:inherit; font-size:12px; transition:.18s; }
+  #views button:hover { background:rgba(108,192,255,0.18); border-color:var(--accent); transform:translateX(-2px); }
+  #views button b { color:var(--accent); margin-right:8px; font-family: ui-monospace, monospace; }
+
+  #clock { right:18px; bottom:18px; font-size:12px; color:var(--ui-dim); text-align:right; }
+  #clock .big { font-size:22px; color:var(--ui-text); font-variant-numeric: tabular-nums; letter-spacing:0.04em; }
+
+  /* Center prompt + crosshair */
+  #prompt { position:fixed; z-index:11; left:50%; top:50%; transform:translate(-50%,-50%);
+    text-align:center; pointer-events:none; transition: opacity .5s; }
+  #prompt .pill { display:inline-block; background:var(--ui-bg); border:1px solid var(--ui-border);
+    padding:13px 22px; border-radius:999px; font-size:14px; letter-spacing:0.02em;
+    backdrop-filter: blur(8px); box-shadow:0 10px 40px rgba(0,0,0,0.4); }
+  #prompt .pill b { color:var(--accent); }
+  #crosshair { position:fixed; z-index:9; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.85);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.4), 0 0 8px rgba(255,255,255,0.5); opacity:0; transition:opacity .3s; }
+
+  /* Loading */
+  #loader { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; background:#070b14;
+    transition:opacity .8s; }
+  #loader .ring { width:46px; height:46px; border-radius:50%;
+    border:3px solid rgba(255,255,255,0.12); border-top-color:var(--accent); animation:spin 1s linear infinite; }
+  #loader .t { font-size:13px; letter-spacing:0.3em; color:var(--ui-dim); text-transform:uppercase; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  #err { position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; padding:30px; }
+  #err .box { max-width:520px; background:var(--ui-bg); border:1px solid var(--ui-border); border-radius:14px; padding:24px; }
+  #err h3 { margin:0 0 8px; color:#ff8585; }
+  #err code { color:var(--accent); }
+
+  @media (max-width: 720px){
+    #help, #views { display:none; }
+    #title { padding:10px 14px; }
+  }
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="vignette"></div>
+
+<div id="title" class="panel">
+  <h1><span class="dot"></span>SKYPORT INTERNATIONAL</h1>
+  <div class="sub">Terminal A &middot; Gates A1–A4 &middot; RWY 09/27</div>
+</div>
+
+<div id="views" class="panel">
+  <h2>Viewpoints</h2>
+  <button data-view="0"><b>1</b>Aerial overview</button>
+  <button data-view="1"><b>2</b>The gates</button>
+  <button data-view="2"><b>3</b>Runway 09</button>
+  <button data-view="3"><b>4</b>Control tower</button>
+  <button data-view="4"><b>5</b>Free roam reset</button>
+</div>
+
+<div id="help" class="panel">
+  <h2>Navigate</h2>
+  <div class="row"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Move</span></div>
+  <div class="row"><kbd>Mouse</kbd><span>Look around (click to capture)</span></div>
+  <div class="row"><kbd>Space</kbd><span>Rise &nbsp;/&nbsp; <kbd>Ctrl</kbd> Descend</span></div>
+  <div class="row"><kbd>Shift</kbd><span>Boost speed</span></div>
+  <div class="row"><kbd>1</kbd>–<kbd>5</kbd><span>Jump to viewpoints</span></div>
+  <div class="row"><kbd>Esc</kbd><span>Release mouse</span></div>
+</div>
+
+<div id="clock" class="panel">
+  <div class="big" id="clockTime">17:42</div>
+  <div>Local &middot; Golden hour</div>
+</div>
+
+<div id="crosshair"></div>
+<div id="prompt"><div class="pill">Click to look around &nbsp;·&nbsp; <b>WASD</b> to fly</div></div>
+
+<div id="loader">
+  <div class="ring"></div>
+  <div class="t">Boarding the renderer…</div>
+</div>
+
+<div id="err"><div class="box">
+  <h3>Could not start the 3D scene</h3>
+  <p>This scene needs WebGL and loads Three.js from a CDN. Make sure you're online and your browser supports WebGL.</p>
+  <p style="color:var(--ui-dim);font-size:13px">Details: <code id="errMsg"></code></p>
+</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================================
+   SKYPORT INTERNATIONAL — a detailed, navigable 3D airport
+   - Free-fly camera: WASD + mouse-look (pointer lock), Space/Ctrl up/down, Shift boost
+   - Number keys / buttons jump to cinematic viewpoints
+   All geometry is procedural. 1 unit = 1 meter. Golden-hour lighting.
+============================================================================ */
+
+const $ = (s) => document.querySelector(s);
+
+let renderer, scene, camera;
+const animated = [];          // objects with an update(t, dt) method
+const clock = new THREE.Clock();
+
+function showError(e){
+  console.error(e);
+  $('#loader').style.display = 'none';
+  $('#err').style.display = 'flex';
+  $('#errMsg').textContent = (e && e.message) ? e.message : String(e);
+}
+
+function init(){
+  // ---- Renderer ----
+  renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.06;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  $('#app').appendChild(renderer.domElement);
+
+  // ---- Scene & fog ----
+  scene = new THREE.Scene();
+  const fogColor = new THREE.Color(0xd9b98a);
+  scene.fog = new THREE.Fog(fogColor, 260, 1500);
+
+  // ---- Camera ----
+  camera = new THREE.PerspectiveCamera(62, window.innerWidth/window.innerHeight, 0.5, 6000);
+
+  // ---- Build the world ----
+  const sunDir = new THREE.Vector3(-0.62, 0.46, 0.64).normalize(); // low golden-hour sun
+  buildSky(sunDir);
+  buildLights(sunDir);
+  buildGroundAndMarkings();
+  buildTerminal();
+  buildControlTower();
+  buildAircraftFleet();
+  buildGroundVehicles();
+  buildJetBridges();
+  buildAirfieldLights();
+  buildPropsAndScenery();
+
+  // ---- Controls ----
+  setupControls();
+
+  // ---- Go ----
+  window.addEventListener('resize', onResize);
+  $('#loader').style.opacity = '0';
+  setTimeout(()=> $('#loader').style.display='none', 800);
+  renderer.setAnimationLoop(loop);
+}
+
+/* =========================================================================
+   MATERIALS (shared)
+========================================================================= */
+const MAT = {
+  tarmac:   new THREE.MeshStandardMaterial({ color:0x2b2f36, roughness:0.96, metalness:0.0 }),
+  apron:    new THREE.MeshStandardMaterial({ color:0x3a3f47, roughness:0.92 }),
+  concrete: new THREE.MeshStandardMaterial({ color:0x8a8c8f, roughness:0.9 }),
+  runway:   new THREE.MeshStandardMaterial({ color:0x4c5057, roughness:0.95 }),
+  grass:    new THREE.MeshStandardMaterial({ color:0x4a6b39, roughness:1.0 }),
+  grassDry: new THREE.MeshStandardMaterial({ color:0x6f7a3f, roughness:1.0 }),
+  white:    new THREE.MeshStandardMaterial({ color:0xf2f3f5, roughness:0.55, metalness:0.05 }),
+  paintW:   new THREE.MeshStandardMaterial({ color:0xf4f5f7, roughness:0.6, emissive:0x202020, emissiveIntensity:0.15 }),
+  paintY:   new THREE.MeshStandardMaterial({ color:0xf2c129, roughness:0.6, emissive:0x2a2000, emissiveIntensity:0.2 }),
+  paintR:   new THREE.MeshStandardMaterial({ color:0xd23b32, roughness:0.6 }),
+  glass:    new THREE.MeshStandardMaterial({ color:0x9fcdf0, roughness:0.08, metalness:0.35, transparent:true, opacity:0.42, envMapIntensity:1.2 }),
+  glassDark:new THREE.MeshStandardMaterial({ color:0x16222e, roughness:0.12, metalness:0.4, transparent:true, opacity:0.78 }),
+  steel:    new THREE.MeshStandardMaterial({ color:0xb7bcc4, roughness:0.4, metalness:0.85 }),
+  steelDk:  new THREE.MeshStandardMaterial({ color:0x6b7078, roughness:0.5, metalness:0.7 }),
+  rubber:   new THREE.MeshStandardMaterial({ color:0x121315, roughness:0.85 }),
+  body:     new THREE.MeshStandardMaterial({ color:0xeef1f4, roughness:0.32, metalness:0.45 }),
+  bodyGrey: new THREE.MeshStandardMaterial({ color:0xc9ccd2, roughness:0.3, metalness:0.55 }),
+  engine:   new THREE.MeshStandardMaterial({ color:0x3a3d42, roughness:0.45, metalness:0.6 }),
+  fan:      new THREE.MeshStandardMaterial({ color:0x202225, roughness:0.4, metalness:0.7 }),
+  win:      new THREE.MeshStandardMaterial({ color:0x223040, roughness:0.2, metalness:0.3, emissive:0xffd9a0, emissiveIntensity:0.45 }),
+  terminal: new THREE.MeshStandardMaterial({ color:0xd7dde6, roughness:0.7, metalness:0.1 }),
+  terminalDk:new THREE.MeshStandardMaterial({ color:0x42474f, roughness:0.7 }),
+  roof:     new THREE.MeshStandardMaterial({ color:0x9aa1ab, roughness:0.6, metalness:0.3 }),
+  hiviz:    new THREE.MeshStandardMaterial({ color:0xe8ec43, roughness:0.6, emissive:0x2a2c00, emissiveIntensity:0.3 }),
+  orange:   new THREE.MeshStandardMaterial({ color:0xe8842a, roughness:0.55 }),
+  darkMetal:new THREE.MeshStandardMaterial({ color:0x2a2d33, roughness:0.5, metalness:0.6 }),
+};
+
+// Emissive helpers for "lights"
+function lightMat(color, intensity=1){
+  return new THREE.MeshStandardMaterial({ color, emissive:color, emissiveIntensity:intensity, roughness:0.4 });
+}
+
+/* =========================================================================
+   SKY + SUN
+========================================================================= */
+function buildSky(sunDir){
+  const skyGeo = new THREE.SphereGeometry(3200, 40, 24);
+  const skyMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite:false, fog:false,
+    uniforms:{
+      top:    { value:new THREE.Color(0x1b3f72) },
+      mid:    { value:new THREE.Color(0x6f8fb8) },
+      bottom: { value:new THREE.Color(0xf6d2a0) },
+      sunDir: { value:sunDir.clone() },
+      sunCol: { value:new THREE.Color(0xfff0d0) }
+    },
+    vertexShader:`
+      varying vec3 vDir;
+      void main(){ vDir = normalize(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader:`
+      varying vec3 vDir; uniform vec3 top; uniform vec3 mid; uniform vec3 bottom;
+      uniform vec3 sunDir; uniform vec3 sunCol;
+      void main(){
+        float h = clamp(vDir.y*1.0, -0.2, 1.0);
+        vec3 col = (h < 0.18)
+          ? mix(bottom, mid, smoothstep(-0.05, 0.18, h))
+          : mix(mid, top, smoothstep(0.18, 0.7, h));
+        float s = max(dot(normalize(vDir), normalize(sunDir)), 0.0);
+        col += sunCol * pow(s, 8.0) * 0.45;      // warm halo
+        col += sunCol * pow(s, 220.0) * 2.2;     // sun disc glow
+        gl_FragColor = vec4(col, 1.0);
+      }`
+  });
+  const sky = new THREE.Mesh(skyGeo, skyMat);
+  sky.frustumCulled = false;
+  scene.add(sky);
+
+  // Visible sun disc
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(48, 24, 16),
+    new THREE.MeshBasicMaterial({ color:0xfff3da, fog:false }));
+  sun.position.copy(sunDir).multiplyScalar(2600);
+  scene.add(sun);
+
+  // Soft cloud billboards
+  const cloudTex = makeCloudTexture();
+  const cloudMat = new THREE.SpriteMaterial({ map:cloudTex, transparent:true, opacity:0.8, depthWrite:false, fog:false });
+  const clouds = new THREE.Group();
+  for (let i=0;i<16;i++){
+    const s = new THREE.Sprite(cloudMat.clone());
+    const ang = Math.random()*Math.PI*2;
+    const rad = 900 + Math.random()*1600;
+    s.position.set(Math.cos(ang)*rad, 280 + Math.random()*360, Math.sin(ang)*rad);
+    const sc = 380 + Math.random()*520;
+    s.scale.set(sc, sc*0.55, 1);
+    s.material.opacity = 0.45 + Math.random()*0.4;
+    s.userData.vx = (Math.random()-0.5)*2;
+    clouds.add(s);
+  }
+  scene.add(clouds);
+  animated.push({ update:(t,dt)=>{ clouds.children.forEach(c=> c.position.x += c.userData.vx*dt*1.5); } });
+}
+
+function makeCloudTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  for (let i=0;i<26;i++){
+    const x = 128 + (Math.random()-0.5)*150;
+    const y = 128 + (Math.random()-0.5)*70;
+    const r = 30 + Math.random()*60;
+    const grd = g.createRadialGradient(x,y,0,x,y,r);
+    grd.addColorStop(0, 'rgba(255,255,255,0.55)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
+  }
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; return tex;
+}
+
+/* =========================================================================
+   LIGHTING
+========================================================================= */
+function buildLights(sunDir){
+  const hemi = new THREE.HemisphereLight(0xbcd3f2, 0x4a4030, 0.7);
+  scene.add(hemi);
+
+  const amb = new THREE.AmbientLight(0xffe9cc, 0.18);
+  scene.add(amb);
+
+  const sunLight = new THREE.DirectionalLight(0xffe1b0, 2.4);
+  sunLight.position.copy(sunDir).multiplyScalar(420);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.set(2048, 2048);
+  const sc = sunLight.shadow.camera;
+  sc.near = 10; sc.far = 1200;
+  sc.left = -340; sc.right = 340; sc.top = 300; sc.bottom = -300;
+  sunLight.shadow.bias = -0.0004;
+  sunLight.shadow.normalBias = 0.6;
+  scene.add(sunLight);
+  scene.add(sunLight.target);
+  sunLight.target.position.set(0, 0, -10);
+
+  // warm fill from the opposite side, no shadow
+  const fill = new THREE.DirectionalLight(0xbcd0ff, 0.35);
+  fill.position.set(200, 120, -240);
+  scene.add(fill);
+}
+
+/* =========================================================================
+   GROUND, RUNWAY, TAXIWAY, MARKINGS
+========================================================================= */
+function buildGroundAndMarkings(){
+  // Big grass base
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), MAT.grass);
+  grass.rotation.x = -Math.PI/2; grass.position.y = -0.08; grass.receiveShadow = true;
+  scene.add(grass);
+
+  // patchy dry grass strips for texture
+  for (let i=0;i<5;i++){
+    const w = 600 + Math.random()*900, d = 200 + Math.random()*300;
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), MAT.grassDry);
+    p.rotation.x = -Math.PI/2;
+    p.position.set((Math.random()-0.5)*1600, -0.06, 300 + Math.random()*700);
+    p.receiveShadow = true; scene.add(p);
+  }
+
+  // --- Apron (main concrete parking area) ---
+  const apron = new THREE.Mesh(new THREE.PlaneGeometry(420, 200), MAT.apron);
+  apron.rotation.x = -Math.PI/2; apron.position.set(0, 0, -30); apron.receiveShadow = true;
+  scene.add(apron);
+
+  // expansion joint grid on apron (thin dark lines)
+  const joint = new THREE.MeshStandardMaterial({ color:0x2c3036, roughness:0.95 });
+  const jGroup = new THREE.Group();
+  for (let x=-200; x<=200; x+=20){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, 200), joint);
+    m.position.set(x, 0.015, -30); jGroup.add(m);
+  }
+  for (let z=-130; z<=70; z+=20){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(420, 0.02, 0.25), joint);
+    m.position.set(0, 0.015, z); jGroup.add(m);
+  }
+  scene.add(jGroup);
+
+  // --- Taxiway (links apron to runway) ---
+  const taxi = new THREE.Mesh(new THREE.PlaneGeometry(640, 26), MAT.tarmac);
+  taxi.rotation.x = -Math.PI/2; taxi.position.set(0, 0.005, 78); taxi.receiveShadow = true;
+  scene.add(taxi);
+  // taxiway centerline (yellow dashes)
+  stripeLine(-300, 300, 78, 'x', 0.35, MAT.paintY, 6, 4, 0.02);
+  // connector from apron to taxiway
+  const conn = new THREE.Mesh(new THREE.PlaneGeometry(70, 60), MAT.tarmac);
+  conn.rotation.x = -Math.PI/2; conn.position.set(0, 0.004, 50); conn.receiveShadow = true; scene.add(conn);
+
+  // --- Runway ---
+  const rw = new THREE.Mesh(new THREE.PlaneGeometry(660, 52), MAT.runway);
+  rw.rotation.x = -Math.PI/2; rw.position.set(0, 0.002, 150); rw.receiveShadow = true; scene.add(rw);
+  // shoulders
+  const shL = new THREE.Mesh(new THREE.PlaneGeometry(660, 10), MAT.concrete);
+  shL.rotation.x=-Math.PI/2; shL.position.set(0,0.001,150-31); shL.receiveShadow=true; scene.add(shL);
+  const shR = shL.clone(); shR.position.z = 150+31; scene.add(shR);
+
+  // centerline dashes
+  stripeLine(-300, 300, 150, 'x', 0.6, MAT.paintW, 14, 12, 0.02);
+  // side stripes (continuous)
+  const sideGeo = new THREE.BoxGeometry(640, 0.02, 0.8);
+  const sl = new THREE.Mesh(sideGeo, MAT.paintW); sl.position.set(0,0.02,150-23); scene.add(sl);
+  const sr = new THREE.Mesh(sideGeo, MAT.paintW); sr.position.set(0,0.02,150+23); scene.add(sr);
+
+  // threshold "piano keys" at both ends
+  pianoKeys(-318, 150);
+  pianoKeys( 318, 150);
+
+  // touchdown zone bars
+  for (const sx of [-250,250]){
+    for (let i=0;i<3;i++){
+      const off = i*7 - 7;
+      [-1,1].forEach(side=>{
+        const b = new THREE.Mesh(new THREE.BoxGeometry(20, 0.02, 1.4), MAT.paintW);
+        b.position.set(sx>0? sx-Math.abs(off): sx+Math.abs(off), 0.02, 150 + side*7);
+        scene.add(b);
+      });
+    }
+  }
+
+  // runway designators "09" / "27" via canvas textures
+  addRunwayNumber("09", -290, 150, Math.PI/2);
+  addRunwayNumber("27",  290, 150, -Math.PI/2);
+
+  // --- Gate lead-in lines + stand numbers on apron ---
+  const gateX = [-105, -35, 35, 105];
+  gateX.forEach((gx, i)=>{
+    // lead-in line from taxi area to the stand
+    const lead = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 70), MAT.paintY);
+    lead.position.set(gx, 0.02, -45); scene.add(lead);
+    // stop bar
+    const stop = new THREE.Mesh(new THREE.BoxGeometry(16, 0.02, 0.6), MAT.paintW);
+    stop.position.set(gx, 0.02, -78); scene.add(stop);
+    // safety box outline
+    [[-9,0,0.4,16],[9,0,0.4,16],[0,-8,18,0.4],[0,8,18,0.4]].forEach(([ox,oz,w,d])=>{
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w,0.02,d), MAT.paintR);
+      m.position.set(gx+ox, 0.019, -54+oz); scene.add(m);
+    });
+    addStandLabel("A"+(i+1), gx, -36);
+  });
+}
+
+// dashed line along an axis ('x' or 'z')
+function stripeLine(from, to, fixed, axis, halfW, mat, dash, gap, y){
+  const len = dash;
+  for (let p=from; p<=to; p+=dash+gap){
+    const geo = axis==='x' ? new THREE.BoxGeometry(len, 0.02, halfW*2) : new THREE.BoxGeometry(halfW*2, 0.02, len);
+    const m = new THREE.Mesh(geo, mat);
+    if (axis==='x') m.position.set(p, y, fixed); else m.position.set(fixed, y, p);
+    scene.add(m);
+  }
+}
+
+function pianoKeys(x, zc){
+  for (let i=-3;i<=3;i++){
+    if (i===0) continue;
+    const k = new THREE.Mesh(new THREE.BoxGeometry(22, 0.02, 2.2), MAT.paintW);
+    k.position.set(x, 0.021, zc + i*4);
+    scene.add(k);
+  }
+}
+
+function addRunwayNumber(txt, x, zc, rot){
+  const c = document.createElement('canvas'); c.width=256; c.height=256;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(0,0,0,0)'; g.fillRect(0,0,256,256);
+  g.fillStyle = '#f4f5f7'; g.font = 'bold 150px Arial'; g.textAlign='center'; g.textBaseline='middle';
+  g.fillText(txt, 128, 138);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(20, 20),
+    new THREE.MeshStandardMaterial({ map:tex, transparent:true, roughness:0.7 }));
+  m.rotation.x = -Math.PI/2; m.rotation.z = rot; m.position.set(x, 0.022, zc);
+  scene.add(m);
+}
+
+function addStandLabel(txt, x, z){
+  const c = document.createElement('canvas'); c.width=128; c.height=128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f2c129'; g.font='bold 92px Arial'; g.textAlign='center'; g.textBaseline='middle';
+  g.fillText(txt, 64, 70);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(7,7),
+    new THREE.MeshStandardMaterial({ map:tex, transparent:true, roughness:0.7 }));
+  m.rotation.x=-Math.PI/2; m.position.set(x, 0.022, z); scene.add(m);
+}
+
+/* =========================================================================
+   TERMINAL BUILDING
+========================================================================= */
+function buildTerminal(){
+  const g = new THREE.Group();
+  const LEN = 230, DEP = 34, H = 19;
+  const zc = -118;
+
+  // base / concourse slab
+  const base = new THREE.Mesh(new THREE.BoxGeometry(LEN, H, DEP), MAT.terminal);
+  base.position.set(0, H/2, zc); g.add(base);
+
+  // upper floor band (darker)
+  const band = new THREE.Mesh(new THREE.BoxGeometry(LEN+0.4, 1.2, DEP+0.4), MAT.terminalDk);
+  band.position.set(0, 11.5, zc); g.add(band);
+
+  // curved standing-seam roof (half cylinder)
+  const roof = new THREE.Mesh(
+    new THREE.CylinderGeometry(DEP*0.62, DEP*0.62, LEN, 28, 1, false, 0, Math.PI),
+    MAT.roof);
+  roof.rotation.z = Math.PI/2;       // axis along X
+  roof.position.set(0, H, zc);
+  g.add(roof);
+  // roof end caps (subtle)
+  // glazed front curtain wall facing the apron (+Z side)
+  const front = new THREE.Mesh(new THREE.BoxGeometry(LEN-6, H-2.5, 0.6), MAT.glass);
+  front.position.set(0, (H-1)/2, zc + DEP/2 + 0.1); g.add(front);
+
+  // vertical mullions on the front
+  const mull = MAT.steelDk;
+  for (let x=-LEN/2+6; x<=LEN/2-6; x+=6){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.35, H-2, 0.7), mull);
+    m.position.set(x, (H-1)/2, zc + DEP/2 + 0.2); g.add(m);
+  }
+  // horizontal transoms
+  for (const yy of [5.5, 11, 15.5]){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(LEN-5, 0.35, 0.7), mull);
+    m.position.set(0, yy, zc + DEP/2 + 0.2); g.add(m);
+  }
+
+  // interior floor + back wall so the glass reads as a real space (warm glow)
+  const intFloor = new THREE.Mesh(new THREE.BoxGeometry(LEN-8, 0.4, DEP-4),
+    new THREE.MeshStandardMaterial({ color:0xcfd6df, roughness:0.5, emissive:0x3a2f1e, emissiveIntensity:0.35 }));
+  intFloor.position.set(0, 0.3, zc); g.add(intFloor);
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(LEN-6, H-2, 0.6),
+    new THREE.MeshStandardMaterial({ color:0xe7d8bf, roughness:0.8, emissive:0x2a2012, emissiveIntensity:0.3 }));
+  backWall.position.set(0, (H-1)/2, zc - DEP/2 + 0.4); g.add(backWall);
+  // a few lit interior columns / counters
+  for (let x=-LEN/2+18; x<=LEN/2-18; x+=26){
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.6,H-2,10), MAT.terminal);
+    col.position.set(x, (H-2)/2, zc-4); g.add(col);
+  }
+
+  // jet-bridge rotunda anchors on the front (one per gate)
+  // (the bridges themselves are built in buildJetBridges)
+
+  // signage band over the entrance with backlit name
+  const signTex = makeSignTexture("SKYPORT  ✈  INTERNATIONAL");
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(60, 4.4),
+    new THREE.MeshStandardMaterial({ map:signTex, transparent:true, emissive:0xffffff, emissiveIntensity:0.55, roughness:0.5 }));
+  sign.position.set(0, 16.6, zc + DEP/2 + 0.45); g.add(sign);
+
+  // rooftop mechanical units
+  for (let i=0;i<6;i++){
+    const u = new THREE.Mesh(new THREE.BoxGeometry(6,2.4,5), MAT.steelDk);
+    u.position.set(-LEN/2+20 + i*38, H+ (DEP*0.62*0)+1.2, zc - 6); g.add(u);
+  }
+
+  // landside canopy (back side, drop-off)
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(LEN-20, 0.5, 12), MAT.roof);
+  canopy.position.set(0, 7.5, zc - DEP/2 - 6); g.add(canopy);
+  for (let x=-LEN/2+14; x<=LEN/2-14; x+=22){
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,7.5,8), MAT.steel);
+    p.position.set(x, 3.75, zc - DEP/2 - 11); g.add(p);
+  }
+
+  enableShadows(g, true, true);
+  front.castShadow = false; // glass shouldn't cast hard shadows
+  scene.add(g);
+}
+
+function makeSignTexture(text){
+  const c = document.createElement('canvas'); c.width=1024; c.height=128;
+  const g = c.getContext('2d');
+  g.clearRect(0,0,1024,128);
+  g.fillStyle = '#0d2a4a'; g.globalAlpha = 0.0; g.fillRect(0,0,1024,128); g.globalAlpha=1;
+  g.fillStyle = '#eaf3ff'; g.font='bold 64px Arial'; g.textAlign='center'; g.textBaseline='middle';
+  g.fillText(text, 512, 70);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; return tex;
+}
+
+/* =========================================================================
+   CONTROL TOWER
+========================================================================= */
+function buildControlTower(){
+  const g = new THREE.Group();
+  const pos = new THREE.Vector3(-150, 0, -150);
+
+  // shaft (slightly tapered)
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.4, 46, 18), MAT.terminal);
+  shaft.position.set(0, 23, 0); g.add(shaft);
+  // shaft vertical fluting
+  for (let i=0;i<18;i++){
+    const a = i/18*Math.PI*2;
+    const f = new THREE.Mesh(new THREE.BoxGeometry(0.3, 46, 0.6), MAT.terminalDk);
+    f.position.set(Math.cos(a)*3.9, 23, Math.sin(a)*3.9); f.lookAt(0,23,0); g.add(f);
+  }
+
+  // service ring below cab
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.2, 1.2, 20), MAT.steelDk);
+  ring.position.set(0, 45, 0); g.add(ring);
+
+  // glazed cab (frustum, angled glass)
+  const cab = new THREE.Mesh(new THREE.CylinderGeometry(6.6, 5.4, 6.5, 20), MAT.glassDark);
+  cab.position.set(0, 49.5, 0); g.add(cab);
+  // cab frame
+  const cabTopFrame = new THREE.Mesh(new THREE.CylinderGeometry(6.9, 6.9, 0.6, 20), MAT.steel);
+  cabTopFrame.position.set(0, 53, 0); g.add(cabTopFrame);
+  const cabBotFrame = new THREE.Mesh(new THREE.CylinderGeometry(5.6, 5.6, 0.6, 20), MAT.steel);
+  cabBotFrame.position.set(0, 46.4, 0); g.add(cabBotFrame);
+  for (let i=0;i<20;i++){
+    const a=i/20*Math.PI*2;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.25, 6.5, 0.25), MAT.steel);
+    m.position.set(Math.cos(a)*6.2, 49.5, Math.sin(a)*6.2); m.lookAt(0,49.5,0); g.add(m);
+  }
+
+  // roof cap
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(7.2, 2.2, 20), MAT.roof);
+  cap.position.set(0, 54.4, 0); g.add(cap);
+
+  // antenna mast
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,8,6), MAT.steel);
+  mast.position.set(0, 59, 0); g.add(mast);
+
+  // rotating radar dish on the service ring
+  const radar = new THREE.Group();
+  const dishArm = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,3.5), MAT.steel);
+  dishArm.position.set(0,0,1.6); radar.add(dishArm);
+  const dish = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 8, 0, Math.PI*2, 0, Math.PI/2.3), MAT.steel);
+  dish.rotation.x = Math.PI/2.2; dish.position.set(0,0,3.4); radar.add(dish);
+  radar.position.set(0, 56.5, 0); g.add(radar);
+
+  // rotating red beacon
+  const beaconMat = lightMat(0xff3322, 2.5);
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.5,12,8), beaconMat);
+  beacon.position.set(0, 60.6, 0); g.add(beacon);
+
+  g.position.copy(pos);
+  enableShadows(g, true, true);
+  cab.castShadow = false;
+  scene.add(g);
+
+  animated.push({ update:(t)=>{
+    radar.rotation.y = t*0.8;
+    beaconMat.emissiveIntensity = 1.5 + Math.sin(t*6)*1.4;
+  }});
+}
+
+/* =========================================================================
+   AIRCRAFT
+========================================================================= */
+function makeAirliner({ tail=0x1d4e89, accent=0xd23b32, body=MAT.body }={}){
+  const g = new THREE.Group();
+  const fr = 2.0;                 // fuselage radius
+  const FL = 34;                  // fuselage cylinder length
+
+  // Fuselage (axis along X, nose +X)
+  const fuse = new THREE.Mesh(new THREE.CylinderGeometry(fr, fr, FL, 28), body);
+  fuse.rotation.z = Math.PI/2; g.add(fuse);
+
+  // Nose cone
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(fr, 24, 18), body);
+  nose.scale.set(2.0, 1, 1); nose.position.x = FL/2; g.add(nose);
+  // round the nose tip a touch flatter
+  const noseCap = new THREE.Mesh(new THREE.SphereGeometry(fr*0.6,16,12), MAT.darkMetal);
+  noseCap.scale.set(1.4,1,1); noseCap.position.x = FL/2 + fr*1.3; g.add(noseCap);
+
+  // Tail cone (tapered, swept up)
+  const tailCone = new THREE.Mesh(new THREE.CylinderGeometry(fr, 0.35, 9, 24), body);
+  tailCone.rotation.z = Math.PI/2; tailCone.position.set(-FL/2 - 3.6, 1.1, 0);
+  g.add(tailCone);
+
+  // Cheatline (thin painted stripe on each side)
+  for (const sz of [fr+0.02, -fr-0.02]){
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(FL+5, 0.7, 0.06),
+      new THREE.MeshStandardMaterial({ color:accent, roughness:0.4, metalness:0.2 }));
+    stripe.position.set(0.5, 0.15, sz*0.0); // place tangent to side
+    stripe.position.z = sz; g.add(stripe);
+  }
+
+  // Cabin windows (instanced, both sides)
+  const winGeo = new THREE.BoxGeometry(0.22, 0.26, 0.06);
+  const nPer = 26;
+  const winMesh = new THREE.InstancedMesh(winGeo, MAT.win, nPer*2);
+  const m4 = new THREE.Matrix4(); let wi=0;
+  for (let s of [1,-1]){
+    for (let i=0;i<nPer;i++){
+      const x = -FL/2 + 4 + i*((FL-8)/(nPer-1));
+      m4.makeTranslation(x, 0.55, s*(fr+0.001));
+      winMesh.setMatrixAt(wi++, m4);
+    }
+  }
+  winMesh.instanceMatrix.needsUpdate = true; winMesh.castShadow=false; g.add(winMesh);
+
+  // Cockpit windows
+  const cockMat = MAT.glassDark;
+  for (let s of [1,-1]){
+    const cw = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.7, 0.05), cockMat);
+    cw.position.set(FL/2 + 1.1, 1.0, s*1.0); cw.rotation.y = s*0.5; g.add(cw);
+  }
+
+  // --- Wings (single full-span swept geometry) ---
+  const wingShape = new THREE.Shape();
+  wingShape.moveTo(-6.5, 17);   // R tip LE
+  wingShape.lineTo( 2.2, 0);    // root LE
+  wingShape.lineTo(-6.5, -17);  // L tip LE
+  wingShape.lineTo(-9.0, -17);  // L tip TE
+  wingShape.lineTo(-4.0, 0);    // root TE
+  wingShape.lineTo(-9.0, 17);   // R tip TE
+  wingShape.closePath();
+  const wingGeo = new THREE.ExtrudeGeometry(wingShape, { depth:0.4, bevelEnabled:false });
+  wingGeo.rotateX(-Math.PI/2);            // lay span into world Z, thickness vertical
+  wingGeo.translate(0, 0, 0);
+  const wings = new THREE.Mesh(wingGeo, body);
+  wings.position.set(-1, -0.5, 0); g.add(wings);
+  // winglets
+  for (let s of [1,-1]){
+    const wl = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.0, 0.25),
+      new THREE.MeshStandardMaterial({ color:tail, roughness:0.4, metalness:0.3 }));
+    wl.position.set(-8.4, 0.4, s*16.9); wl.rotation.x = s*0.18; g.add(wl);
+  }
+
+  // --- Vertical stabilizer (tail fin) ---
+  const finShape = new THREE.Shape();
+  finShape.moveTo(0, 0);
+  finShape.lineTo(-5.5, 0);
+  finShape.lineTo(-7.0, 8.2);
+  finShape.lineTo(-3.0, 8.2);
+  finShape.closePath();
+  const finGeo = new THREE.ExtrudeGeometry(finShape, { depth:0.4, bevelEnabled:false });
+  finGeo.translate(0,0,-0.2);
+  const fin = new THREE.Mesh(finGeo, new THREE.MeshStandardMaterial({ color:tail, roughness:0.4, metalness:0.25 }));
+  fin.position.set(-FL/2 - 1.5, 1.0, 0); g.add(fin);
+  // airline tail glyph
+  const glyph = new THREE.Mesh(new THREE.CircleGeometry(2.0, 24),
+    new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.5, side:THREE.DoubleSide }));
+  glyph.position.set(-FL/2 - 4.4, 4.4, 0.25); g.add(glyph);
+
+  // --- Horizontal stabilizers ---
+  const hShape = new THREE.Shape();
+  hShape.moveTo(-3.2, 9); hShape.lineTo(1.0,0); hShape.lineTo(-3.2,-9);
+  hShape.lineTo(-4.6,-9); hShape.lineTo(-1.6,0); hShape.lineTo(-4.6,9); hShape.closePath();
+  const hGeo = new THREE.ExtrudeGeometry(hShape, { depth:0.3, bevelEnabled:false });
+  hGeo.rotateX(-Math.PI/2);
+  const hStab = new THREE.Mesh(hGeo, body);
+  hStab.position.set(-FL/2 - 3.0, 1.4, 0); g.add(hStab);
+
+  // --- Engines (under wings) ---
+  for (let s of [1,-1]){
+    const eng = new THREE.Group();
+    const nac = new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.1,4.6,20), MAT.engine);
+    nac.rotation.z = Math.PI/2; eng.add(nac);
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(1.25,0.18,10,20), MAT.steel);
+    lip.position.x = 2.3; eng.add(lip);
+    const intake = new THREE.Mesh(new THREE.CircleGeometry(1.05,20), MAT.fan);
+    intake.position.x = 2.31; intake.rotation.y = Math.PI/2; eng.add(intake);
+    // spinner + fan blades hint
+    const spin = new THREE.Mesh(new THREE.ConeGeometry(0.3,0.6,10), MAT.steel);
+    spin.rotation.z = -Math.PI/2; spin.position.x = 2.4; eng.add(spin);
+    const fan = new THREE.Mesh(new THREE.CircleGeometry(1.0, 22), new THREE.MeshStandardMaterial({ color:0x15171a, roughness:0.3, metalness:0.7 }));
+    fan.position.x = 2.28; fan.rotation.y = Math.PI/2; eng.add(fan);
+    // pylon
+    const pylon = new THREE.Mesh(new THREE.BoxGeometry(2.4,1.6,0.4), MAT.bodyGrey);
+    pylon.position.set(-0.4, 1.3, 0); eng.add(pylon);
+    eng.position.set(2.5, -1.7, s*7.2);
+    g.add(eng);
+    animated.push({ update:(t)=>{ fan.rotation.x = t*4; } });
+  }
+
+  // --- Landing gear (down) ---
+  const wheel = (x,z)=>{
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,2.4,8), MAT.steel);
+    strut.position.set(x, -2.0, z); g.add(strut);
+    [-0.45,0.45].forEach(dz=>{
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.62,0.4,16), MAT.rubber);
+      w.rotation.x = Math.PI/2; w.position.set(x, -3.0, z+dz); g.add(w);
+    });
+  };
+  wheel(FL/2 - 2.5, 0);      // nose gear
+  wheel(-2.5, 3.0);          // main L
+  wheel(-2.5, -3.0);         // main R
+
+  // --- Navigation / strobe lights ---
+  const navL = new THREE.Mesh(new THREE.SphereGeometry(0.22,8,6), lightMat(0xff2222, 2));
+  navL.position.set(-7.5, 0, 16.9); g.add(navL);
+  const navR = new THREE.Mesh(new THREE.SphereGeometry(0.22,8,6), lightMat(0x22ff44, 2));
+  navR.position.set(-7.5, 0, -16.9); g.add(navR);
+  const strobeMat = lightMat(0xffffff, 0);
+  const strobeT = new THREE.Mesh(new THREE.SphereGeometry(0.2,8,6), strobeMat);
+  strobeT.position.set(-FL/2-1.5, 8.6, 0); g.add(strobeT);
+  const beaconMat = lightMat(0xff3322, 0);
+  const beaconB = new THREE.Mesh(new THREE.SphereGeometry(0.25,8,6), beaconMat);
+  beaconB.position.set(0, -fr-0.2, 0); g.add(beaconB);
+
+  animated.push({ update:(t)=>{
+    const ph = (t % 1.4);
+    strobeMat.emissiveIntensity = (ph<0.06 || (ph>0.14 && ph<0.20)) ? 6 : 0; // double-flash
+    beaconMat.emissiveIntensity = 0.6 + Math.sin(t*3.2)*0.6;
+  }});
+
+  enableShadows(g, true, true);
+  winMesh.castShadow = false;
+  g.userData.length = FL;
+  return g;
+}
+
+function buildAircraftFleet(){
+  const liveries = [
+    { tail:0x1d4e89, accent:0xd23b32 },               // navy + red
+    { tail:0x118a7e, accent:0xf2b134, body:MAT.body }, // teal + gold
+    { tail:0x8e1f3a, accent:0xeeeeee },               // crimson
+    { tail:0xe8842a, accent:0x2b2f36, body:MAT.bodyGrey } // orange on silver
+  ];
+  const gateX = [-105, -35, 35, 105];
+  gateX.forEach((gx,i)=>{
+    const p = makeAirliner(liveries[i]);
+    // parked nose-in toward terminal (nose -Z) => rotate so +X nose points to -Z
+    p.rotation.y = -Math.PI/2;
+    p.position.set(gx, 3.0, -64);
+    scene.add(p);
+  });
+
+  // One aircraft taxiing out along the taxiway (animated)
+  const taxiPlane = makeAirliner({ tail:0x2f6fb0, accent:0xffffff });
+  taxiPlane.position.set(-150, 3.0, 78);
+  taxiPlane.rotation.y = -Math.PI/2; // nose toward +X (will travel +X)
+  scene.add(taxiPlane);
+  animated.push({ update:(t,dt)=>{
+    taxiPlane.position.x += dt*6;
+    if (taxiPlane.position.x > 150) taxiPlane.position.x = -150;
+  }});
+
+  // One aircraft on short final, descending toward the runway threshold
+  const arrival = makeAirliner({ tail:0xb33636, accent:0xffffff });
+  arrival.rotation.y = Math.PI/2; // nose toward -X (landing on 27 direction)
+  scene.add(arrival);
+  animated.push({ update:(t)=>{
+    const cyc = (t*0.04) % 1;          // slow approach loop
+    const x = 320 - cyc*340;           // from +X end toward touchdown
+    const y = 3.0 + Math.max(0, (x-100)) * 0.28; // glideslope, flares near 100
+    arrival.position.set(x, Math.max(3.0, y), 150);
+  }});
+}
+
+/* =========================================================================
+   JET BRIDGES
+========================================================================= */
+function buildJetBridges(){
+  const gateX = [-105, -35, 35, 105];
+  gateX.forEach((gx,i)=>{
+    const g = new THREE.Group();
+    const zFront = -101;     // terminal front face
+    // rotunda at terminal
+    const rot = new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.4,4.2,16), MAT.steel);
+    rot.position.set(gx, 6.2, zFront); g.add(rot);
+    // tunnel reaching toward the parked aircraft door (door ~ gx, z=-71, y~4.5)
+    const dx = 0, dz = (-71) - zFront;     // run mostly in -Z
+    const len = Math.hypot(dx, dz);
+    const tunnel = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.0, len), MAT.terminal);
+    tunnel.position.set(gx, 5.4, (zFront + (-71))/2);
+    g.add(tunnel);
+    // tunnel glazing strip
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.62, 1.0, len-1), MAT.glassDark);
+    strip.position.copy(tunnel.position); strip.position.y += 0.4; g.add(strip);
+    // cabin head at the aircraft end
+    const head = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.4, 3.0), MAT.terminalDk);
+    head.position.set(gx, 5.0, -70); g.add(head);
+    // support leg with wheels
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,5,8), MAT.steelDk);
+    leg.position.set(gx, 2.5, -86); g.add(leg);
+    const legB = new THREE.Mesh(new THREE.BoxGeometry(3,0.5,2.4), MAT.steelDk);
+    legB.position.set(gx, 0.4, -86); g.add(legB);
+
+    enableShadows(g, true, true);
+    strip.castShadow=false;
+    scene.add(g);
+  });
+}
+
+/* =========================================================================
+   GROUND SERVICE VEHICLES
+========================================================================= */
+function makeBaggageTrain(){
+  const g = new THREE.Group();
+  // tug
+  const tug = new THREE.Group();
+  const tBody = new THREE.Mesh(new THREE.BoxGeometry(2.4,1.0,1.6), MAT.orange);
+  tBody.position.y = 0.9; tug.add(tBody);
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.2,1.0,1.5), MAT.glassDark);
+  cab.position.set(-0.4,1.7,0); tug.add(cab);
+  addWheels(tug, 2.4, 1.6, 0.35);
+  tug.position.x = 0; g.add(tug);
+  // luggage carts
+  for (let c=0;c<3;c++){
+    const cart = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.4,1.6), MAT.steelDk);
+    base.position.y=0.7; cart.add(base);
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.1,1.7), MAT.steel);
+    canopy.position.y=1.9; cart.add(canopy);
+    [0,1].forEach(p=>{ const post=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,1.2,6),MAT.steel);
+      post.position.set(p? 1:-1,1.3,0); cart.add(post); });
+    // luggage
+    const bagColors=[0x8a3b2e,0x2f4a6b,0x3a6b3a,0x6b6b2f,0x4a2f6b];
+    for (let b=0;b<5;b++){
+      const bag=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.35,0.6),
+        new THREE.MeshStandardMaterial({color:bagColors[b%bagColors.length],roughness:0.7}));
+      bag.position.set(-0.7+ (b%3)*0.7, 1.05 + Math.floor(b/3)*0.4, -0.4+(b%2)*0.5);
+      cart.add(bag);
+    }
+    addWheels(cart,2.2,1.6,0.3);
+    cart.position.x = -3 - c*2.8; g.add(cart);
+  }
+  enableShadows(g,true,true);
+  return g;
+}
+
+function makeFuelTruck(){
+  const g=new THREE.Group();
+  const cab=new THREE.Mesh(new THREE.BoxGeometry(2.4,2.2,2.4),MAT.white);
+  cab.position.set(3.2,1.6,0); g.add(cab);
+  const cwin=new THREE.Mesh(new THREE.BoxGeometry(2.42,1.0,2.0),MAT.glassDark);
+  cwin.position.set(3.4,2.1,0); g.add(cwin);
+  const tank=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,6,18),MAT.steel);
+  tank.rotation.z=Math.PI/2; tank.position.set(-1.5,1.9,0); g.add(tank);
+  const chas=new THREE.Mesh(new THREE.BoxGeometry(9,0.6,2.4),MAT.steelDk);
+  chas.position.y=0.7; g.add(chas);
+  // hazard stripe
+  const stripe=new THREE.Mesh(new THREE.BoxGeometry(6.05,0.6,2.42),MAT.paintR);
+  stripe.position.set(-1.5,1.0,0); g.add(stripe);
+  addWheels(g,8,2.4,0.5,3);
+  enableShadows(g,true,true);
+  return g;
+}
+
+function makeStairs(){
+  const g=new THREE.Group();
+  for (let i=0;i<9;i++){
+    const step=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.18,0.5),MAT.steel);
+    step.position.set(0,0.4+i*0.45, -i*0.5); g.add(step);
+  }
+  const platform=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.2,2.0),MAT.steel);
+  platform.position.set(0,4.5,-4.6); g.add(platform);
+  // rails
+  [-0.8,0.8].forEach(x=>{const r=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.1,5.2),MAT.steelDk);
+    r.position.set(x,1.6,-2.0); r.rotation.x=-Math.atan2(4.0,4.5); g.add(r);});
+  addWheels(g,2.2,2.0,0.35);
+  enableShadows(g,true,true);
+  return g;
+}
+
+function makePushbackTug(){
+  const g=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.BoxGeometry(4.2,1.0,2.4),MAT.hiviz);
+  b.position.y=0.8; g.add(b);
+  const cab=new THREE.Mesh(new THREE.BoxGeometry(1.6,1.1,2.0),MAT.glassDark);
+  cab.position.set(-0.6,1.7,0); g.add(cab);
+  addWheels(g,4.2,2.4,0.55);
+  enableShadows(g,true,true);
+  return g;
+}
+
+function makeGPU(){ // ground power unit
+  const g=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.BoxGeometry(2.0,1.4,1.2),MAT.steelDk);
+  b.position.y=0.9; g.add(b);
+  const vent=new THREE.Mesh(new THREE.BoxGeometry(2.02,0.8,1.0),MAT.darkMetal);
+  vent.position.set(0,1.0,0); g.add(vent);
+  addWheels(g,2.0,1.2,0.3);
+  enableShadows(g,true,true);
+  return g;
+}
+
+function addWheels(group, len, width, r, count=2){
+  const positions=[];
+  if(count===2){ positions.push(-len/2+0.5, len/2-0.5); }
+  else { for(let i=0;i<count;i++) positions.push(-len/2+0.6 + i*(len-1.2)/(count-1)); }
+  positions.forEach(px=>{
+    [-1,1].forEach(s=>{
+      const w=new THREE.Mesh(new THREE.CylinderGeometry(r,r,0.3,12),MAT.rubber);
+      w.rotation.x=Math.PI/2; w.position.set(px,r,s*(width/2-0.1)); group.add(w);
+    });
+  });
+}
+
+function buildGroundVehicles(){
+  // Around each gate, scatter service equipment near the parked aircraft tails/wings
+  const gateX=[-105,-35,35,105];
+  gateX.forEach((gx,i)=>{
+    const train=makeBaggageTrain(); train.position.set(gx-12, 0, -52); train.rotation.y=0.2; scene.add(train);
+    const stairs=makeStairs(); stairs.position.set(gx+9, 0, -58); stairs.rotation.y=-Math.PI/2; scene.add(stairs);
+    const gpu=makeGPU(); gpu.position.set(gx-9, 0, -75); scene.add(gpu);
+    if (i%2===0){ const fuel=makeFuelTruck(); fuel.position.set(gx+12,0,-48); fuel.rotation.y=Math.PI; scene.add(fuel); }
+    else { const tug=makePushbackTug(); tug.position.set(gx, 0, -76); scene.add(tug); }
+    // a few ground crew
+    for (let p=0;p<2;p++) scene.add(makePerson(gx-6+p*4, -50 - p*3));
+  });
+
+  // A baggage train driving a loop on the apron (animated)
+  const rover=makeBaggageTrain(); scene.add(rover);
+  const path=[new THREE.Vector3(-140,0,-20),new THREE.Vector3(140,0,-20),
+              new THREE.Vector3(150,0,30),new THREE.Vector3(-150,0,30)];
+  let seg=0, prog=0;
+  animated.push({ update:(t,dt)=>{
+    const a=path[seg], b=path[(seg+1)%path.length];
+    const segLen=a.distanceTo(b);
+    prog += dt*9;
+    let f=prog/segLen;
+    if (f>=1){ prog=0; seg=(seg+1)%path.length; f=0; }
+    rover.position.lerpVectors(a,b,f);
+    rover.rotation.y = Math.atan2(b.x-a.x, b.z-a.z) - Math.PI/2;
+  }});
+}
+
+function makePerson(x,z){
+  const g=new THREE.Group();
+  const legs=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.2,1.0,8),MAT.darkMetal);
+  legs.position.y=0.5; g.add(legs);
+  const torso=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.22,0.8,8),MAT.hiviz);
+  torso.position.y=1.3; g.add(torso);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.18,10,8),
+    new THREE.MeshStandardMaterial({color:0xc9986b,roughness:0.7}));
+  head.position.y=1.85; g.add(head);
+  g.position.set(x,0,z); g.rotation.y=Math.random()*Math.PI*2;
+  enableShadows(g,true,true);
+  return g;
+}
+
+/* =========================================================================
+   AIRFIELD LIGHTING (runway/taxiway/approach) + apron flood masts
+========================================================================= */
+function buildAirfieldLights(){
+  const dot = new THREE.SphereGeometry(0.35, 8, 6);
+
+  // runway edge lights (white) — two rows
+  const edgePts=[];
+  for (let x=-318; x<=318; x+=12){ edgePts.push([x,150-26],[x,150+26]); }
+  instLights(dot, lightMat(0xfff2d0, 2.2), edgePts, 0.6);
+
+  // runway threshold lights (green one end / red other) approximated green
+  const thr=[];
+  for (let z=150-24; z<=150+24; z+=4){ thr.push([-318,z],[318,z]); }
+  instLights(dot, lightMat(0x44ff66, 2.4), thr, 0.6);
+
+  // taxiway edge lights (blue)
+  const taxiPts=[];
+  for (let x=-300; x<=300; x+=12){ taxiPts.push([x,78-13],[x,78+13]); }
+  instLights(dot, lightMat(0x3a7bff, 2.0), taxiPts, 0.5);
+
+  // approach lights leading to threshold 09 (a centerline of bars before -318)
+  const appr=[];
+  for (let x=-318-12; x>=-318-120; x-=12){ appr.push([x,150]); }
+  instLights(dot, lightMat(0xffffff, 2.5), appr, 0.7);
+
+  // Apron flood-light masts
+  const mastX=[-160,-60,60,160];
+  mastX.forEach(mx=>{
+    const g=new THREE.Group();
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.45,26,10),MAT.steelDk);
+    pole.position.y=13; g.add(pole);
+    const head=new THREE.Mesh(new THREE.BoxGeometry(5,0.8,1.6),MAT.steelDk);
+    head.position.set(0,26,0.6); g.add(head);
+    for (let i=0;i<4;i++){
+      const lamp=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.5,0.6),lightMat(0xfff4d6,1.6));
+      lamp.position.set(-1.7+i*1.15,25.7,1.3); g.add(lamp);
+    }
+    g.position.set(mx,0,5);
+    enableShadows(g,true,false);
+    scene.add(g);
+  });
+}
+
+function instLights(geo, mat, pts, y){
+  const mesh=new THREE.InstancedMesh(geo, mat, pts.length);
+  const m=new THREE.Matrix4();
+  pts.forEach((p,i)=>{ m.makeTranslation(p[0], y, p[1]); mesh.setMatrixAt(i,m); });
+  mesh.instanceMatrix.needsUpdate=true; mesh.castShadow=false; mesh.frustumCulled=false;
+  scene.add(mesh);
+}
+
+/* =========================================================================
+   PROPS & DISTANT SCENERY (windsock, fences, signs, skyline, hills)
+========================================================================= */
+function buildPropsAndScenery(){
+  // Windsock
+  const ws=new THREE.Group();
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.2,9,8),MAT.steel);
+  pole.position.y=4.5; ws.add(pole);
+  const sockGroup=new THREE.Group();
+  const segs=[0xf25c2a,0xf2f2f2,0xf25c2a,0xf2f2f2,0xf25c2a];
+  segs.forEach((c,i)=>{
+    const r1=0.7-i*0.1, r2=0.7-(i+1)*0.1;
+    const s=new THREE.Mesh(new THREE.CylinderGeometry(r2,r1,0.9,12,1,true),
+      new THREE.MeshStandardMaterial({color:c,roughness:0.7,side:THREE.DoubleSide}));
+    s.rotation.z=Math.PI/2; s.position.x=0.5+i*0.9; sockGroup.add(s);
+  });
+  sockGroup.position.set(0,8.6,0); ws.add(sockGroup);
+  ws.position.set(150,0,90);
+  enableShadows(ws,true,false);
+  scene.add(ws);
+  animated.push({update:(t)=>{ sockGroup.rotation.y=Math.sin(t*0.6)*0.3; sockGroup.children.forEach((s,i)=>{ s.rotation.x=Math.sin(t*2+i)*0.06; }); }});
+
+  // Perimeter fence (instanced posts + rails) behind terminal (landside)
+  const post=new THREE.BoxGeometry(0.18,2.4,0.18);
+  const postPts=[];
+  for (let x=-220;x<=220;x+=6) postPts.push([x,-175]);
+  instMeshSimple(post, MAT.steelDk, postPts, 1.2);
+  const rail=new THREE.Mesh(new THREE.BoxGeometry(440,0.1,0.1),MAT.steel);
+  rail.position.set(0,2.2,-175); scene.add(rail);
+  const rail2=rail.clone(); rail2.position.y=1.0; scene.add(rail2);
+
+  // Landside road + a couple of parked cars (hint of life)
+  const road=new THREE.Mesh(new THREE.PlaneGeometry(440,18),MAT.tarmac);
+  road.rotation.x=-Math.PI/2; road.position.set(0,0.01,-165); road.receiveShadow=true; scene.add(road);
+  const carCols=[0xb23a3a,0x3a5fb2,0x2b2f36,0xe0e0e0,0x3a8a4a];
+  for (let i=0;i<8;i++){
+    scene.add(makeCar(-180+i*46, -160, carCols[i%carCols.length]));
+  }
+
+  // Distant city skyline (hazy boxes), and low hills, for depth
+  const skyMat=new THREE.MeshStandardMaterial({color:0x5d6b86,roughness:1,fog:true});
+  const city=new THREE.Group();
+  for (let i=0;i<40;i++){
+    const w=14+Math.random()*26, h=30+Math.random()*150, d=14+Math.random()*26;
+    const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),skyMat);
+    const ang=-0.9 + Math.random()*0.5; const rad=900+Math.random()*500;
+    b.position.set(Math.sin(ang)*rad - 400, h/2, -Math.cos(ang)*rad - 300);
+    city.add(b);
+  }
+  scene.add(city);
+
+  const hillMat=new THREE.MeshStandardMaterial({color:0x55694a,roughness:1});
+  for (let i=0;i<10;i++){
+    const r=200+Math.random()*260;
+    const hill=new THREE.Mesh(new THREE.SphereGeometry(r,16,10,0,Math.PI*2,0,Math.PI/2),hillMat);
+    const ang=Math.random()*Math.PI*2, rad=1400+Math.random()*900;
+    hill.position.set(Math.cos(ang)*rad, -r*0.55, Math.sin(ang)*rad + 600);
+    scene.add(hill);
+  }
+}
+
+function makeCar(x,z,color){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(4.2,1.1,1.9),
+    new THREE.MeshStandardMaterial({color,roughness:0.35,metalness:0.5}));
+  body.position.y=0.8; g.add(body);
+  const cabin=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.9,1.7),MAT.glassDark);
+  cabin.position.set(-0.2,1.5,0); g.add(cabin);
+  addWheels(g,4.2,1.9,0.4);
+  g.position.set(x,0,z); g.rotation.y=Math.PI/2;
+  enableShadows(g,true,false);
+  return g;
+}
+
+function instMeshSimple(geo, mat, pts, y){
+  const mesh=new THREE.InstancedMesh(geo,mat,pts.length);
+  const m=new THREE.Matrix4();
+  pts.forEach((p,i)=>{ m.makeTranslation(p[0],y,p[1]); mesh.setMatrixAt(i,m); });
+  mesh.instanceMatrix.needsUpdate=true; mesh.castShadow=true; scene.add(mesh);
+}
+
+/* =========================================================================
+   SHADOW HELPER
+========================================================================= */
+function enableShadows(obj, cast, receive){
+  obj.traverse(o=>{ if(o.isMesh){ o.castShadow=cast; o.receiveShadow=receive; } });
+}
+
+/* =========================================================================
+   CONTROLS — free-fly camera (pointer lock + keyboard) + viewpoint presets
+========================================================================= */
+const keys = {};
+let yaw = 0, pitch = -0.12;
+const camPos = new THREE.Vector3(120, 34, 150);
+let locked = false;
+
+// viewpoint presets {pos, target}
+const VIEWS = [
+  { pos:new THREE.Vector3(40, 300, 360),  target:new THREE.Vector3(0, 0, -40) },   // aerial
+  { pos:new THREE.Vector3(-35, 14, -10),  target:new THREE.Vector3(-35, 6, -64) }, // gates
+  { pos:new THREE.Vector3(-300, 10, 150), target:new THREE.Vector3(120, 6, 150) }, // runway 09
+  { pos:new THREE.Vector3(-150, 52, -130),target:new THREE.Vector3(40, 4, -20) },  // control tower
+  { pos:new THREE.Vector3(120, 34, 150),  target:new THREE.Vector3(0, 8, -40) },   // free roam reset
+];
+let tween = null; // { from, to, fromYaw, fromPitch, toYaw, toPitch, t }
+
+function yawPitchTo(pos, target){
+  const dir = new THREE.Vector3().subVectors(target, pos).normalize();
+  const p = Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1));
+  const y = Math.atan2(-dir.x, -dir.z);
+  return { yaw:y, pitch:p };
+}
+
+function gotoView(i){
+  const v = VIEWS[i]; if(!v) return;
+  const yp = yawPitchTo(v.pos, v.target);
+  tween = { from:camPos.clone(), to:v.pos.clone(),
+            fromYaw:yaw, fromPitch:pitch, toYaw:yp.yaw, toPitch:yp.pitch, t:0 };
+}
+
+function setupControls(){
+  const dom = renderer.domElement;
+  camera.position.copy(camPos);
+
+  dom.addEventListener('click', ()=> dom.requestPointerLock());
+  document.addEventListener('pointerlockchange', ()=>{
+    locked = (document.pointerLockElement === dom);
+    $('#crosshair').style.opacity = locked ? '1' : '0';
+    $('#prompt').style.opacity = locked ? '0' : '1';
+  });
+  document.addEventListener('mousemove', (e)=>{
+    if(!locked) return;
+    yaw   -= e.movementX * 0.0022;
+    pitch -= e.movementY * 0.0022;
+    pitch = THREE.MathUtils.clamp(pitch, -Math.PI/2+0.05, Math.PI/2-0.05);
+    tween = null; // manual look cancels any tween
+  });
+
+  window.addEventListener('keydown', (e)=>{
+    keys[e.code] = true;
+    if (e.code==='Digit1') gotoView(0);
+    if (e.code==='Digit2') gotoView(1);
+    if (e.code==='Digit3') gotoView(2);
+    if (e.code==='Digit4') gotoView(3);
+    if (e.code==='Digit5') gotoView(4);
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  });
+  window.addEventListener('keyup', (e)=>{ keys[e.code]=false; });
+
+  document.querySelectorAll('#views button').forEach(b=>{
+    b.addEventListener('click', (ev)=>{ ev.stopPropagation(); gotoView(parseInt(b.dataset.view)); });
+  });
+}
+
+function updateControls(dt){
+  // viewpoint tween
+  if (tween){
+    tween.t = Math.min(1, tween.t + dt/1.6);
+    const e = easeInOut(tween.t);
+    camPos.lerpVectors(tween.from, tween.to, e);
+    yaw   = lerpAngle(tween.fromYaw, tween.toYaw, e);
+    pitch = THREE.MathUtils.lerp(tween.fromPitch, tween.toPitch, e);
+    if (tween.t>=1) tween=null;
+  }
+
+  // movement
+  const boost = keys['ShiftLeft']||keys['ShiftRight'] ? 3.2 : 1;
+  const speed = 28 * boost * dt;
+  const forward = new THREE.Vector3(
+    -Math.sin(yaw)*Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw)*Math.cos(pitch));
+  const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+
+  const move = new THREE.Vector3();
+  if (keys['KeyW']||keys['ArrowUp'])    move.add(forward);
+  if (keys['KeyS']||keys['ArrowDown'])  move.sub(forward);
+  if (keys['KeyD']||keys['ArrowRight']) move.add(right);
+  if (keys['KeyA']||keys['ArrowLeft'])  move.sub(right);
+  if (move.lengthSq()>0){ move.normalize().multiplyScalar(speed); camPos.add(move); tween=null; }
+
+  if (keys['Space'])   { camPos.y += speed; tween=null; }
+  if (keys['ControlLeft']||keys['ControlRight']||keys['KeyC']) { camPos.y -= speed; tween=null; }
+
+  // keep above ground
+  camPos.y = Math.max(1.5, camPos.y);
+
+  camera.position.copy(camPos);
+  const look = new THREE.Vector3(
+    -Math.sin(yaw)*Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw)*Math.cos(pitch));
+  camera.lookAt(camPos.clone().add(look));
+}
+
+function easeInOut(t){ return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; }
+function lerpAngle(a,b,t){
+  let d=(b-a)%(Math.PI*2); if(d>Math.PI)d-=Math.PI*2; if(d<-Math.PI)d+=Math.PI*2;
+  return a+d*t;
+}
+
+/* =========================================================================
+   LOOP
+========================================================================= */
+function loop(){
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  updateControls(dt);
+  for (const a of animated) a.update(t, dt);
+  renderer.render(scene, camera);
+}
+
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+/* =========================================================================
+   BOOT — run after all top-level const/let are initialized (avoids TDZ)
+========================================================================= */
+try { init(); } catch (e) { showError(e); }
+</script>
+</body>
+</html>

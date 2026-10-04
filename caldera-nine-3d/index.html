@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Caldera Nine — City Overview</title>
+  <style>
+    :root { --ink:#e6f6fa; --muted:#8eb0bd; --line:rgba(138,221,239,.18); --cyan:#62e6ff; --amber:#ffaf5a; --panel:rgba(5,13,21,.82); }
+    *{box-sizing:border-box} body{margin:0;background:#02060b;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+    canvas{position:fixed;inset:0;width:100%;height:100%;cursor:grab} canvas.dragging{cursor:grabbing}
+    .grain{pointer-events:none;position:fixed;inset:0;opacity:.11;background-image:radial-gradient(rgba(255,255,255,.45) .65px,transparent .8px);background-size:4px 4px;mix-blend-mode:overlay}
+    header{position:fixed;top:0;left:0;right:0;padding:24px 30px 14px;display:flex;justify-content:space-between;align-items:start;pointer-events:none;background:linear-gradient(#02060bbd,transparent)}
+    .kicker{font-size:10px;letter-spacing:.24em;color:var(--cyan);font-weight:800}.title{font-family:Georgia,serif;font-size:31px;letter-spacing:.07em;margin:3px 0 0}.sub{font-size:11px;letter-spacing:.15em;color:var(--muted);margin-top:3px}
+    .status{font-size:10px;letter-spacing:.15em;color:#b7f5d5;border:1px solid rgba(119,243,190,.35);background:rgba(18,85,67,.22);padding:7px 10px;border-radius:20px}
+    aside{position:fixed;left:28px;bottom:28px;width:min(355px,calc(100vw - 56px));padding:17px 18px 15px;background:var(--panel);border:1px solid var(--line);border-left:2px solid var(--cyan);backdrop-filter:blur(14px);box-shadow:0 18px 55px #0008}
+    h2{font-family:Georgia,serif;font-weight:400;letter-spacing:.04em;font-size:21px;margin:0 0 6px} p{color:#bad0d8;font-size:12px;line-height:1.55;margin:0}.tag{display:inline-block;color:var(--amber);font-size:9px;font-weight:800;letter-spacing:.15em;margin-bottom:5px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;border-top:1px solid var(--line);margin-top:13px;padding-top:12px}.stats span{display:block;color:var(--muted);font-size:9px;letter-spacing:.09em}.stats b{display:block;font-size:13px;color:var(--ink);font-weight:600;margin-top:2px}
+    nav{position:fixed;right:28px;bottom:28px;display:grid;gap:6px;width:176px}.control{border:1px solid var(--line);color:#cce8ee;background:var(--panel);padding:10px 11px;text-align:left;font-size:10px;letter-spacing:.12em;cursor:pointer;transition:.18s}.control:hover,.control.active{border-color:var(--cyan);color:var(--cyan);background:#0b2733d9}.control b{display:inline-block;width:19px;color:var(--amber)}
+    .hint{position:fixed;left:50%;bottom:25px;transform:translateX(-50%);font-size:10px;color:#aec8d0;letter-spacing:.1em;text-align:center;pointer-events:none;text-shadow:0 2px 7px #000}.top-actions{position:fixed;right:28px;top:64px;display:flex;gap:7px}.round{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--cyan);font-size:16px;cursor:pointer}.round:hover{border-color:var(--cyan)}
+    @media(max-width:650px){header{padding:18px}.title{font-size:24px}aside{left:14px;bottom:14px;width:calc(100vw - 28px)}nav{right:14px;bottom:220px;width:130px}.hint{display:none}.top-actions{right:16px;top:58px}.sub{font-size:9px}.status{display:none}}
+  </style>
+</head>
+<body>
+  <canvas id="world"></canvas><div class="grain"></div>
+  <header><div><div class="kicker">SUBTERRANEAN METROPOLIS // 09</div><div class="title">CALDERA NINE</div><div class="sub">DEAD VOLCANO · 2.8 MILLION RESIDENTS · NEUTRAL TERRITORY</div></div><div class="status">● GEOTHERMAL GRID STABLE</div></header>
+  <div class="top-actions"><button class="round" id="mode" title="Toggle night shift">☼</button><button class="round" id="reset" title="Reset view">↺</button></div>
+  <aside id="card"><div class="tag">CITY OVERVIEW</div><h2>Inside the mountain</h2><p>Caldera Nine rises from a sealed lava lake to the crater rim. Drag to orbit the city; select a sector to trace the systems that keep it alive.</p><div class="stats"><div><span>DEPTH</span><b>1.8 km</b></div><div><span>HEAT OUTPUT</span><b>14.2 TW</b></div><div><span>SKYLIGHT</span><b>73%</b></div></div></aside>
+  <nav>
+    <button class="control active" data-zone="all"><b>01</b> ENTIRE CALDERA</button>
+    <button class="control" data-zone="rim"><b>02</b> RIM COMPACT</button>
+    <button class="control" data-zone="spire"><b>03</b> LUMEN SPIRE</button>
+    <button class="control" data-zone="wall"><b>04</b> WALL DISTRICTS</button>
+    <button class="control" data-zone="cinder"><b>05</b> CINDERBORN</button>
+  </nav>
+  <div class="hint">DRAG TO ORBIT &nbsp;·&nbsp; SCROLL TO ZOOM &nbsp;·&nbsp; SELECT A SECTOR</div>
+<script>
+(() => {
+  const canvas=document.getElementById('world'), ctx=canvas.getContext('2d'); let W,H,DPR, time=0, yaw=-.62, pitch=.55, zoom=1, night=false, target='all';
+  const zones={
+    all:['CITY OVERVIEW','Inside the mountain','Caldera Nine rises from a sealed lava lake to the crater rim. Drag to orbit the city; select a sector to trace the systems that keep it alive.','1.8 km','14.2 TW','73%'],
+    rim:['RIM COMPACT // LEVEL 00','The daylight frontier','Ports, solar mirrors, and guarded trade tunnels occupy the crater lip. Old freight houses and security firms make policy here.','430k','12 ports','94% light'],
+    spire:['LUMEN SPIRE // AXIS','The suspended capital','A carbon-lattice tower anchored to the rim. Its upper gardens, ministries, and research decks declare human control over the crater.','1.6 km','18 lift lines','Assembly'],
+    wall:['WALL DISTRICTS // MID-RING','The working terraces','Carved directly into basalt, the wall districts hold farms, clinics, repair bays, markets, and the city’s dense civic life.','1.3m','31 terraces','86 schools'],
+    cinder:['CINDERBORN // DEEP RING','Where the heat is made','The lower industrial rings harvest geothermal energy beside the old lava lake. Equal Dawn organizers call this the city’s true foundation.','680k','1,100°C','7 unions']
+  };
+  function size(){DPR=Math.min(devicePixelRatio,2);W=innerWidth;H=innerHeight;canvas.width=W*DPR;canvas.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)} addEventListener('resize',size);size();
+  const V=(x,y,z)=>({x,y,z}); const rotate=p=>{let c=Math.cos(yaw),s=Math.sin(yaw),x=p.x*c-p.z*s,z=p.x*s+p.z*c;let cp=Math.cos(pitch),sp=Math.sin(pitch),yy=p.y*cp-z*sp,zz=p.y*sp+z*cp;return{x,y:yy,z:zz}};
+  const project=p=>{p=rotate(p);let f=720*zoom/(p.z+820);return{x:W*.54+p.x*f,y:H*.53-p.y*f,s:f,z:p.z}};
+  function poly(points,fill,stroke){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
+  function line(a,b,col,w=1){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=col;ctx.lineWidth=w;ctx.stroke()}
+  function ring(y,r,h,fill,edge,segments=36){let top=[],bot=[];for(let i=0;i<=segments;i++){let a=i/segments*Math.PI*2;top.push(project(V(Math.cos(a)*r,y+h,Math.sin(a)*r)));bot.push(project(V(Math.cos(a)*r,y,Math.sin(a)*r)))}for(let i=0;i<segments;i++){poly([bot[i],bot[i+1],top[i+1],top[i]],fill,edge)}line(top[0],top[1],edge)}
+  function tower(){let r=48, bottom=-330,top=300, n=6;let a=[],b=[];for(let i=0;i<n;i++){let q=i/n*Math.PI*2;a.push(project(V(Math.cos(q)*r,bottom,Math.sin(q)*r)));b.push(project(V(Math.cos(q)*r*1.35,top,Math.sin(q)*r*1.35)))}for(let i=0;i<n;i++)poly([a[i],a[(i+1)%n],b[(i+1)%n],b[i]],target==='spire'?'#6ce4f077':'#183a4b', '#6ce4f055');for(let y=bottom+40;y<top;y+=45){let p1=project(V(-r,y,0)),p2=project(V(r,y,0));line(p1,p2,'#80eaff38')} let apex=project(V(0,345,0));for(let p of b)line(p,apex,'#8bf0ff80',1.1);ctx.shadowBlur=18;ctx.shadowColor='#6ce4ff';ctx.fillStyle='#b8ffff';ctx.beginPath();ctx.arc(apex.x,apex.y,3,0,7);ctx.fill();ctx.shadowBlur=0}
+  function arcBuildings(y,r,count,color){for(let i=0;i<count;i++){let a=(i/count)*Math.PI*2+.13*Math.sin(i*2.1), hh=18+(i%5)*9, rr=r-5;let x=Math.cos(a)*rr,z=Math.sin(a)*rr;let p1=project(V(x,y,z)),p2=project(V(x,y+hh,z));line(p1,p2,color,(i%4===0?2:1));if(i%3===0){ctx.fillStyle=color;ctx.globalAlpha=.7;ctx.fillRect(p2.x-1,p2.y-1,3,3);ctx.globalAlpha=1}}}
+  function label(text,point,col='#9eefff'){let p=project(point);if(p.z<-490||p.z>410)return;ctx.font='10px system-ui';ctx.letterSpacing='1px';ctx.fillStyle=col;ctx.fillText(text,p.x+8,p.y-8);line(p, {x:p.x+5,y:p.y-5},col)}
+  function scene(){
+    ctx.fillStyle=night?'#010409':'#071621';ctx.fillRect(0,0,W,H);
+    let g=ctx.createRadialGradient(W*.54,H*.40,30,W*.54,H*.5,Math.max(W,H)*.72);g.addColorStop(0,night?'#16485a':'#39798b');g.addColorStop(.48,night?'#071b28':'#14303e');g.addColorStop(1,'#02060b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    for(let i=0;i<90;i++){let x=(i*97%W),y=(i*53%H);ctx.fillStyle=night?'#6ed9ee55':'#e5ffff28';ctx.fillRect(x,y,1,1)}
+    // outer crater: basalt rim and interior retaining bands
+    ring(245,420,42,'#0b1722','#4f8a9136'); ring(188,368,30,'#14232a','#75bec445');
+    ring(112,312,25,target==='rim'?'#325863':'#15272e','#8dbdc248'); arcBuildings(141,305,72,target==='rim'?'#a8f7ff':'#60969b');
+    ring(23,260,34,target==='wall'?'#345f62':'#112b33','#81d7df58'); arcBuildings(58,252,104,target==='wall'?'#afffff':'#5fb3b8');
+    ring(-80,203,30,target==='wall'?'#31575c':'#0d242c','#67cbd653');arcBuildings(-48,198,92,target==='wall'?'#a7f9ff':'#4d9aa2');
+    ring(-164,150,28,target==='cinder'?'#654835':'#1e2025','#d46d404d');arcBuildings(-137,146,75,target==='cinder'?'#ffc278':'#c86545');
+    ring(-236,100,32,target==='cinder'?'#72432f':'#271815','#ef80565b');
+    // lava basin
+    let lava=[];for(let i=0;i<42;i++){let a=i/42*Math.PI*2;lava.push(project(V(Math.cos(a)*94,-243,Math.sin(a)*94)))}poly(lava,night?'#7c1d13':'#b83b1b','#ff936e80');ctx.globalAlpha=.15;for(let i=0;i<6;i++){ctx.beginPath();ctx.arc(W*.54+(i-2)*35,H*.55+i*3,80-i*10,0,7);ctx.strokeStyle='#ffb46c';ctx.stroke()}ctx.globalAlpha=1;
+    // suspension cables
+    for(let i=0;i<8;i++){let a=i*Math.PI/4+.15;line(project(V(Math.cos(a)*390,258,Math.sin(a)*390)),project(V(Math.cos(a)*57,276,Math.sin(a)*57)),'#a8eff85e',1)}
+    tower();
+    // ashline and moving transit
+    let path=[];for(let i=0;i<=80;i++){let a=i/80*Math.PI*2;path.push(project(V(Math.cos(a)*220,-13,Math.sin(a)*220)))}ctx.beginPath();path.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle='#76e5ee55';ctx.lineWidth=1.5;ctx.stroke();
+    for(let i=0;i<6;i++){let a=(time*.00045+i/6)*Math.PI*2,p=project(V(Math.cos(a)*220,-13,Math.sin(a)*220));ctx.shadowBlur=12;ctx.shadowColor='#ffcb78';ctx.fillStyle='#fff4bd';ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,7);ctx.fill()}ctx.shadowBlur=0;
+    if(target==='all'||target==='rim')label('RIM COMPACT',V(-315,152,-80));if(target==='all'||target==='spire')label('LUMEN SPIRE',V(57,265,0),'#d5ffff');if(target==='all'||target==='wall')label('WALL DISTRICTS',V(222,35,-85));if(target==='all'||target==='cinder')label('CINDERBORN RING',V(-130,-142,-85),'#ffbd82');
+    // reticle
+    ctx.strokeStyle='#aeeffb44';ctx.lineWidth=1;ctx.beginPath();ctx.arc(W*.54,H*.53,9,0,7);ctx.stroke();
+  }
+  function frame(t){time=t;scene();requestAnimationFrame(frame)}requestAnimationFrame(frame);
+  let drag=false,last;canvas.addEventListener('pointerdown',e=>{drag=true;last=e;canvas.setPointerCapture(e.pointerId);canvas.classList.add('dragging')});canvas.addEventListener('pointermove',e=>{if(!drag)return;yaw+=(e.clientX-last.clientX)*.006;pitch=Math.max(-.18,Math.min(1.12,pitch+(e.clientY-last.clientY)*.005));last=e});canvas.addEventListener('pointerup',()=>{drag=false;canvas.classList.remove('dragging')});canvas.addEventListener('wheel',e=>{zoom=Math.max(.65,Math.min(1.48,zoom-e.deltaY*.0007))},{passive:true});
+  document.querySelectorAll('[data-zone]').forEach(btn=>btn.onclick=()=>{target=btn.dataset.zone;document.querySelectorAll('.control').forEach(b=>b.classList.toggle('active',b===btn));let d=zones[target],c=document.getElementById('card');c.innerHTML=`<div class="tag">${d[0]}</div><h2>${d[1]}</h2><p>${d[2]}</p><div class="stats"><div><span>RESIDENTS</span><b>${d[3]}</b></div><div><span>NETWORK</span><b>${d[4]}</b></div><div><span>STATUS</span><b>${d[5]}</b></div></div>`});
+  document.getElementById('mode').onclick=()=>{night=!night;document.getElementById('mode').textContent=night?'☾':'☼'};document.getElementById('reset').onclick=()=>{yaw=-.62;pitch=.55;zoom=1;target='all';document.querySelector('[data-zone="all"]').click()};
+})();
+</script>
+</body></html>
