@@ -1,6 +1,6 @@
 # Web Experiments
 
-Colección de 28 juegos, simulaciones y demos 3D hechos con HTML, CSS y JavaScript (la mayoría con three.js). Cada proyecto vive en su propia carpeta con un `index.html` autocontenido.
+Colección de 30 juegos, simulaciones y demos 3D hechos con HTML, CSS y JavaScript (la mayoría con three.js). Cada proyecto vive en su propia carpeta con un `index.html` autocontenido.
 
 ## Cómo verlos
 
@@ -26,10 +26,12 @@ y entra a http://localhost:8000.
 | [Cozy Panda · 3D](cozy-panda-3d/) | `cozy-panda-3d/` |
 | [Derby Demolición](derby-demolition/) | `derby-demolition/` |
 | [Eukaryotic Cell — 3D Simulation](eukaryotic-cell-3d/) | `eukaryotic-cell-3d/` |
+| [Fjällby — a village in the Swedish fells](fjallby-visitor-site/) | `fjallby-visitor-site/` |
 | [LEGO Arcade — Brick Breaker](lego-arcade/) | `lego-arcade/` |
 | [Brick City — 3D LEGO-style City](lego-city-3d/) | `lego-city-3d/` |
 | [Brick London — 3D LEGO-style City](lego-london-3d/) | `lego-london-3d/` |
 | [Brick Valley Railway — a LEGO-style 3D diorama](lego-valley-train-diorama/) | `lego-valley-train-diorama/` |
+| [Lone Star Boots | Handcrafted Cowboy Boots](lone-star-boots/) | `lone-star-boots/` |
 | [LuminaOS — a desktop in your browser](lumina-os/) | `lumina-os/` |
 | [Riftbound — MOBA](moba/) | `moba/` |
 | [Simulador de motosierra](motosierra/) | `motosierra/` |
